@@ -1,0 +1,134 @@
+/*
+ * libmm-camcorder
+ *
+ * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ *
+ * Contact: Jeongmo Yang <jm80.yang@samsung.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+#ifndef __MM_CAMCORDER_STILLSHOT_H__
+#define __MM_CAMCORDER_STILLSHOT_H__
+
+/*=======================================================================================
+| INCLUDE FILES										|
+========================================================================================*/
+#include <gst/gst.h>
+#include <mm_types.h>
+#include <mm_sound.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*=======================================================================================
+| GLOBAL DEFINITIONS AND DECLARATIONS FOR CAMCORDER					|
+========================================================================================*/
+
+/*=======================================================================================
+| MACRO DEFINITIONS									|
+========================================================================================*/
+#define _MMCAMCORDER_CAPTURE_STOP_CHECK_INTERVAL	5000
+#define _MMCAMCORDER_CAPTURE_STOP_CHECK_COUNT		600
+#define _MNOTE_VALUE_NONE				0
+
+/*=======================================================================================
+| ENUM DEFINITIONS									|
+========================================================================================*/
+
+/*=======================================================================================
+| STRUCTURE DEFINITIONS									|
+========================================================================================*/
+/**
+ * MMCamcorder information for image(preview/capture) mode
+ */
+typedef struct {
+	int type;					/**< Still-shot/Multi-shot */
+	int count;					/**< Multi-shot capture count */
+	int capture_cur_count;				/**< Multi-shot capture current count */
+	int capture_send_count;				/**< Multi-shot capture send count */
+	unsigned long long next_shot_time;		/**< next still capture time */
+	gboolean multi_shot_stop;			/**< Multi-shot stop flag */
+	gboolean capturing;				/**< whether MSL is on capturing */
+	gboolean resolution_change;			/**< whether on resolution changing for capturing. After changing to capture resolution, it sets to FALSE again. */
+	int width;					/**< Width of capture image */
+	int height;					/**< Height of capture image */
+	int interval;					/**< Capture interval */
+} _MMCamcorderImageInfo;
+
+/*=======================================================================================
+| CONSTANT DEFINITIONS									|
+========================================================================================*/
+
+/*=======================================================================================
+| STATIC VARIABLES									|
+========================================================================================*/
+
+/*=======================================================================================
+| EXTERN GLOBAL VARIABLE								|
+========================================================================================*/
+
+/*=======================================================================================
+| GLOBAL FUNCTION PROTOTYPES								|
+========================================================================================*/
+/**
+ * This function add still shot bin to main pipeline.
+ * When application creates initial pipeline, there are only bins for preview.
+ * If application wants to add stil shot function, bins for stillshot should be added.
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @return	This function returns MM_ERROR_NONE on success, or the other values on error.
+ * @remarks
+ * @see		__mmcamcorder_create_preview_pipeline()
+ */
+int _mmcamcorder_add_stillshot_pipeline(MMHandleType handle);
+
+/**
+ * This function remove still shot bin from main pipeline.
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @return	This function returns MM_ERROR_NONE on success, or the other values on error.
+ * @remarks
+ * @see		__mmcamcorder_create_preview_pipeline(), __mmcamcorder_add_stillshot_pipeline()
+ */
+int _mmcamcorder_remove_stillshot_pipeline(MMHandleType handle);
+
+/**
+ * This function destroy image pipeline.
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @return	void
+ * @remarks
+ * @see		_mmcamcorder_destroy_pipeline()
+ *
+ */
+void _mmcamcorder_destroy_image_pipeline(MMHandleType handle);
+int _mmcamcorder_image_command(MMHandleType handle, int command);
+int _mmcamcorder_set_resize_property(MMHandleType handle, int capture_width, int capture_height);
+
+/* Function for capture */
+int __mmcamcorder_set_exif_basic_info(MMHandleType handle);
+void __mmcamcorder_init_stillshot_info(MMHandleType handle);
+void __mmcamcorder_get_capture_data_from_buffer(MMCamcorderCaptureDataType *capture_data, int pixtype, GstBuffer *buffer);
+void __mmcamcorder_release_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest);
+gboolean __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCaptureDataType *original, MMCamcorderCaptureDataType *thumbnail);
+gboolean __mmcamcorder_capture_send_msg(MMHandleType handle, int type, int count);
+gboolean __mmcamcorder_set_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest, MMCamcorderCaptureDataType *thumbnail);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __MM_CAMCORDER_STILLSHOT_H__ */

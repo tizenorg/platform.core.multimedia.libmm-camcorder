@@ -1,0 +1,1072 @@
+/*
+ * libmm-camcorder
+ *
+ * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ *
+ * Contact: Jeongmo Yang <jm80.yang@samsung.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+#ifndef __MM_CAMCORDER_INTERNAL_H__
+#define __MM_CAMCORDER_INTERNAL_H__
+
+
+/*=======================================================================================
+| INCLUDE FILES										|
+========================================================================================*/
+#include <malloc.h>
+#include <string.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <semaphore.h>
+
+#include <mm_types.h>
+#include <mm_attrs.h>
+#include <mm_attrs_private.h>
+#include <mm_message.h>
+#include <mm_ta.h>
+#include <sndfile.h>
+
+#include "mm_camcorder.h"
+#include "mm_debug.h"
+
+/* camcorder sub module */
+#include "mm_camcorder_attribute.h"
+#include "mm_camcorder_platform.h"
+#include "mm_camcorder_stillshot.h"
+#include "mm_camcorder_videorec.h"
+#include "mm_camcorder_audiorec.h"
+#include "mm_camcorder_gstcommon.h"
+#include "mm_camcorder_exifinfo.h"
+#include "mm_camcorder_util.h"
+#include "mm_camcorder_configure.h"
+#include "mm_camcorder_sound.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*=======================================================================================
+| MACRO DEFINITIONS									|
+========================================================================================*/
+#define _mmcam_dbg_verb(fmt, args...)	mmf_debug(MMF_DEBUG_VERBOSE,"[%05d][%s]: " fmt "\n", __LINE__, __func__, ##args);
+#define _mmcam_dbg_log(fmt, args...)	mmf_debug(MMF_DEBUG_LOG,"[%05d][%s]: " fmt "\n", __LINE__, __func__, ##args);
+#define _mmcam_dbg_warn(fmt, args...)	mmf_debug(MMF_DEBUG_WARNING,"[%05d][%s]: " fmt "\n", __LINE__, __func__, ##args);
+#define _mmcam_dbg_err(fmt, args...)	mmf_debug(MMF_DEBUG_ERROR,"[%05d][%s]: " fmt "\n", __LINE__, __func__, ##args);
+#define _mmcam_dbg_crit(fmt, args...)	mmf_debug(MMF_DEBUG_CRITICAL,"[%05d][%s]: " fmt "\n", __LINE__, __func__, ##args);
+
+/**
+ *	Macro for checking validity and debugging
+ */
+#define mmf_return_if_fail( expr )	\
+	if( expr ){}					\
+	else						\
+	{							\
+		_mmcam_dbg_err( "failed [%s]", #expr);	\
+		return;						\
+	};
+
+/**
+ *	Macro for checking validity and debugging
+ */
+#define mmf_return_val_if_fail( expr, val )	\
+	if( expr ){}					\
+	else						\
+	{							\
+		_mmcam_dbg_err("failed [%s]", #expr);	\
+		return( val );						\
+	};
+
+#ifndef ARRAY_SIZE
+/**
+ *	Macro for getting array size
+ */
+#define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
+#endif
+
+/* gstreamer element creation macro */
+#define _MMCAMCORDER_PIPELINE_MAKE(sub_context, eid, name /*char* */, err) \
+	if (sub_context->element[eid].gst != NULL) { \
+		_mmcam_dbg_err("The element(Pipeline) is existed. element_id=[%d], name=[%s]", eid, name); \
+		gst_object_unref(sub_context->element[eid].gst); \
+	} \
+	sub_context->element[eid].id = eid; \
+	sub_context->element[eid].gst = gst_pipeline_new(name); \
+	if (sub_context->element[eid].gst == NULL) { \
+		_mmcam_dbg_err("Pipeline creation fail. element_id=[%d], name=[%s]", eid, name); \
+		err = MM_ERROR_CAMCORDER_RESOURCE_CREATION; \
+		goto pipeline_creation_error; \
+	} else { \
+		g_object_weak_ref(G_OBJECT(sub_context->element[eid].gst), (GWeakNotify)_mmcamcorder_element_release_noti, sub_context); \
+	}
+
+#define _MMCAMCORDER_BIN_MAKE(sub_context, eid, name /*char* */, err) \
+	if (sub_context->element[eid].gst != NULL) { \
+		_mmcam_dbg_err("The element(Bin) is existed. element_id=[%d], name=[%s]", eid, name); \
+		gst_object_unref(sub_context->element[eid].gst); \
+	} \
+	sub_context->element[eid].id = eid; \
+	sub_context->element[eid].gst = gst_bin_new(name); \
+	if (sub_context->element[eid].gst == NULL) { \
+		_mmcam_dbg_err("Bin creation fail. element_id=[%d], name=[%s]\n", eid, name); \
+		err = MM_ERROR_CAMCORDER_RESOURCE_CREATION; \
+		goto pipeline_creation_error; \
+	} else { \
+		g_object_weak_ref(G_OBJECT(sub_context->element[eid].gst), (GWeakNotify)_mmcamcorder_element_release_noti, sub_context); \
+	}
+
+#define _MMCAMCORDER_ELEMENT_MAKE(sub_context, eid, name /*char* */, nickname /*char* */, elist, err) \
+	if (sub_context->element[eid].gst != NULL) { \
+		_mmcam_dbg_err("The element is existed. element_id=[%d], name=[%s]", eid, name); \
+		gst_object_unref(sub_context->element[eid].gst); \
+	} \
+	sub_context->element[eid].id = eid; \
+	sub_context->element[eid].gst = gst_element_factory_make(name, nickname); \
+	if (sub_context->element[eid].gst == NULL) { \
+		_mmcam_dbg_err("Element creation fail. element_id=[%d], name=[%s]", eid, name); \
+		err = MM_ERROR_CAMCORDER_RESOURCE_CREATION; \
+		goto pipeline_creation_error; \
+	} else { \
+		g_object_weak_ref(G_OBJECT(sub_context->element[eid].gst), (GWeakNotify)_mmcamcorder_element_release_noti, sub_context); \
+	} \
+	elist = g_list_append(elist, &(sub_context->element[eid]));
+
+#define _MMCAMCORDER_ENCODEBIN_ELMGET(sub_context, eid, name /*char* */, err) \
+	if (sub_context->element[eid].gst != NULL) { \
+		_mmcam_dbg_err("The element is existed. element_id=[%d], name=[%s]", eid, name); \
+		gst_object_unref(sub_context->element[eid].gst); \
+	} \
+	sub_context->element[eid].id = eid; \
+	g_object_get(G_OBJECT(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst), name, &(sc->element[eid].gst), NULL); \
+	if (sub_context->element[eid].gst == NULL) { \
+		_mmcam_dbg_err("Element get fail. element_id=[%d], name=[%s]", eid, name); \
+		err = MM_ERROR_CAMCORDER_RESOURCE_CREATION; \
+		goto pipeline_creation_error; \
+	} else{ \
+		gst_object_unref(sub_context->element[eid].gst); \
+		g_object_weak_ref(G_OBJECT(sub_context->element[eid].gst), (GWeakNotify)_mmcamcorder_element_release_noti, sub_context); \
+	}
+
+/* GStreamer element remove macro */
+#define _MMCAMCORDER_ELEMENT_REMOVE(sub_context, eid) \
+	if (sub_context->element[eid].gst != NULL) { \
+		gst_object_unref(sub_context->element[eid].gst); \
+	}
+
+#define _MM_GST_ELEMENT_LINK_MANY       gst_element_link_many
+#define _MM_GST_ELEMENT_LINK            gst_element_link
+#define _MM_GST_PAD_LINK                gst_pad_link
+
+#define _MM_GST_PAD_LINK_UNREF( srcpad, sinkpad, err, if_fail_goto ) \
+{ \
+	GstPadLinkReturn ret = _MM_GST_PAD_LINK( srcpad, sinkpad ); \
+	gst_object_unref( srcpad ); srcpad = NULL; \
+	gst_object_unref( sinkpad ); sinkpad = NULL; \
+	if (ret != GST_PAD_LINK_OK) { \
+		err = MM_ERROR_CAMCORDER_GST_LINK; \
+		goto if_fail_goto; \
+	} \
+}
+
+#define _MM_GST_PAD_UNLINK_UNREF( srcpad, sinkpad) \
+	gst_pad_unlink( srcpad, sinkpad ); \
+	gst_object_unref( srcpad ); srcpad = NULL; \
+	gst_object_unref( sinkpad ); sinkpad = NULL;
+
+#define	_MMCAMCORDER_STATE_SET_COUNT		3		/* checking interval */
+#define	_MMCAMCORDER_STATE_CHECK_TOTALTIME	5000000L	/* total wating time for state change */
+#define	_MMCAMCORDER_STATE_CHECK_INTERVAL	5000		/* checking interval */
+
+/**
+ * Total level count of manual focus */
+#define _MMFCAMCORDER_FOCUS_TOTAL_LEVEL		8
+
+/**
+ *	File name length limit
+ */
+#define _MMCamcorder_FILENAME_LEN	(512)
+
+/**
+ *	Minimum integer value
+ */
+#define _MMCAMCORDER_MIN_INT	(-2147483648)
+
+/**
+ *	Maximum integer value
+ */
+#define _MMCAMCORDER_MAX_INT	(2147483647)
+
+/**
+ *	Audio timestamp margin (msec)
+ */
+#define _MMCAMCORDER_AUDIO_TIME_MARGIN (300)
+
+/**
+ *	Functions related with LOCK and WAIT
+ */
+#define _MMCAMCORDER_CAST_MTSAFE(handle)				(((mmf_camcorder_t*)handle)->mtsafe)
+
+#define _MMCAMCORDER_GET_LOCK(handle)					(_MMCAMCORDER_CAST_MTSAFE(handle).lock)
+#define _MMCAMCORDER_LOCK(handle)						g_mutex_lock(_MMCAMCORDER_GET_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK(handle)					g_mutex_trylock(_MMCAMCORDER_GET_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK(handle)						g_mutex_unlock(_MMCAMCORDER_GET_LOCK(handle))
+
+#define _MMCAMCORDER_GET_COND(handle)					(_MMCAMCORDER_CAST_MTSAFE(handle).cond)
+#define _MMCAMCORDER_WAIT(handle)						g_cond_wait (_MMCAMCORDER_GET_COND(handle), _MMCAMCORDER_GET_LOCK(handle))
+#define _MMCAMCORDER_TIMED_WAIT(handle, timeval)		g_cond_timed_wait (_MMCAMCORDER_GET_COND(handle), _MMCAMCORDER_GET_LOCK(handle),timeval)
+
+#define _MMCAMCORDER_SIGNAL(handle)						g_cond_signal (_MMCAMCORDER_GET_COND(handle));
+#define _MMCAMCORDER_BROADCAST(handle)					g_cond_broadcast (_MMCAMCORDER_GET_COND(handle));
+
+/* for command */
+#define _MMCAMCORDER_GET_CMD_LOCK(handle)					(_MMCAMCORDER_CAST_MTSAFE(handle).cmd_lock)
+#define _MMCAMCORDER_LOCK_CMD(handle)						g_mutex_lock(_MMCAMCORDER_GET_CMD_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_CMD(handle)					g_mutex_trylock(_MMCAMCORDER_GET_CMD_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_CMD(handle)						g_mutex_unlock(_MMCAMCORDER_GET_CMD_LOCK(handle))
+
+/* for state change */
+#define _MMCAMCORDER_GET_STATE_LOCK(handle)					(_MMCAMCORDER_CAST_MTSAFE(handle).state_lock)
+#define _MMCAMCORDER_LOCK_STATE(handle)						g_mutex_lock(_MMCAMCORDER_GET_STATE_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_STATE(handle)					g_mutex_trylock(_MMCAMCORDER_GET_STATE_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_STATE(handle)						g_mutex_unlock(_MMCAMCORDER_GET_STATE_LOCK(handle))
+
+/* for gstreamer state change */
+#define _MMCAMCORDER_GET_GST_STATE_LOCK(handle)					(_MMCAMCORDER_CAST_MTSAFE(handle).gst_state_lock)
+#define _MMCAMCORDER_LOCK_GST_STATE(handle)						g_mutex_lock(_MMCAMCORDER_GET_GST_STATE_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_GST_STATE(handle)					g_mutex_trylock(_MMCAMCORDER_GET_GST_STATE_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_GST_STATE(handle)						g_mutex_unlock(_MMCAMCORDER_GET_GST_STATE_LOCK(handle))
+
+/* for setting/calling callback */
+#define _MMCAMCORDER_GET_MESSAGE_CALLBACK_LOCK(handle)      (_MMCAMCORDER_CAST_MTSAFE(handle).message_cb_lock)
+#define _MMCAMCORDER_LOCK_MESSAGE_CALLBACK(handle)          g_mutex_lock(_MMCAMCORDER_GET_MESSAGE_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_MESSAGE_CALLBACK(handle)       g_mutex_trylock(_MMCAMCORDER_GET_MESSAGE_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_MESSAGE_CALLBACK(handle)        g_mutex_unlock(_MMCAMCORDER_GET_MESSAGE_CALLBACK_LOCK(handle))
+
+#define _MMCAMCORDER_GET_VCAPTURE_CALLBACK_LOCK(handle)     (_MMCAMCORDER_CAST_MTSAFE(handle).vcapture_cb_lock)
+#define _MMCAMCORDER_LOCK_VCAPTURE_CALLBACK(handle)         g_mutex_lock(_MMCAMCORDER_GET_VCAPTURE_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_VCAPTURE_CALLBACK(handle)      g_mutex_trylock(_MMCAMCORDER_GET_VCAPTURE_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_VCAPTURE_CALLBACK(handle)       g_mutex_unlock(_MMCAMCORDER_GET_VCAPTURE_CALLBACK_LOCK(handle))
+
+#define _MMCAMCORDER_GET_VSTREAM_CALLBACK_LOCK(handle)      (_MMCAMCORDER_CAST_MTSAFE(handle).vstream_cb_lock)
+#define _MMCAMCORDER_LOCK_VSTREAM_CALLBACK(handle)          g_mutex_lock(_MMCAMCORDER_GET_VSTREAM_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_VSTREAM_CALLBACK(handle)       g_mutex_trylock(_MMCAMCORDER_GET_VSTREAM_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_VSTREAM_CALLBACK(handle)        g_mutex_unlock(_MMCAMCORDER_GET_VSTREAM_CALLBACK_LOCK(handle))
+
+#define _MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle)      (_MMCAMCORDER_CAST_MTSAFE(handle).astream_cb_lock)
+#define _MMCAMCORDER_LOCK_ASTREAM_CALLBACK(handle)          g_mutex_lock(_MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_ASTREAM_CALLBACK(handle)       g_mutex_trylock(_MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_ASTREAM_CALLBACK(handle)        g_mutex_unlock(_MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle))
+
+/**
+ * Caster of main handle (camcorder)
+ */
+#define MMF_CAMCORDER(h) (mmf_camcorder_t *)(h)
+
+/**
+ * Caster of subcontext
+ */
+#define MMF_CAMCORDER_SUBCONTEXT(h) (((mmf_camcorder_t *)(h))->sub_context)
+
+/* LOCAL CONSTANT DEFINITIONS */
+/**
+ * Total Numbers of Attribute values.
+ * If you increase any enum of attribute values, you also have to increase this.
+ */
+#define MM_CAMCORDER_MODE_NUM			3	/**< Number of mode type */
+#define MM_CAMCORDER_COLOR_TONE_NUM		27	/**< Number of color-tone modes */
+#define MM_CAMCORDER_WHITE_BALANCE_NUM		10	/**< Number of WhiteBalance modes*/
+#define MM_CAMCORDER_SCENE_MODE_NUM		15	/**< Number of program-modes */
+#define MM_CAMCORDER_FOCUS_MODE_NUM		6	/**< Number of focus mode*/
+#define MM_CAMCORDER_AUTO_FOCUS_NUM		5	/**< Total count of auto focus type*/
+#define MM_CAMCORDER_FOCUS_STATE_NUM		4	/**< Number of focus state */
+#define MM_CAMCORDER_ISO_NUM			10	/**< Number of ISO */
+#define MM_CAMCORDER_AUTO_EXPOSURE_NUM		9	/**< Number of Auto exposure type */
+#define MM_CAMCORDER_WDR_NUM			3	/**< Number of wide dynamic range */
+#define MM_CAMCORDER_AHS_NUM			4	/**< Number of anti-handshake */
+#define MM_CAMCORDER_GEOMETRY_METHOD_NUM	4	/**< Number of geometry method */
+#define MM_CAMCORDER_TAG_ORT_NUM		8	/**< Number of tag orientation */
+#define MM_CAMCORDER_STROBE_MODE_NUM		8	/**< Number of strobe mode type */
+#define MM_CAMCORDER_STROBE_CONTROL_NUM		3	/**< Number of strobe control type */
+#define MM_CAMCORDER_DETECT_MODE_NUM		2	/**< Number of detect mode type */
+
+
+/*=======================================================================================
+| ENUM DEFINITIONS									|
+========================================================================================*/
+/**
+ * Command for Camcorder.
+ */
+enum {
+	/* Command for Video/Audio recording */
+	_MMCamcorder_CMD_RECORD,
+	_MMCamcorder_CMD_PAUSE,
+	_MMCamcorder_CMD_CANCEL,
+	_MMCamcorder_CMD_COMMIT,
+
+	/* Command for Image capture */
+	_MMCamcorder_CMD_CAPTURE,
+	_MMCamcorder_CMD_CAPTURE_CANCEL,
+
+	/* Command for Preview(Video/Image only effective) */
+	_MMCamcorder_CMD_PREVIEW_START,
+	_MMCamcorder_CMD_PREVIEW_STOP,
+};
+
+/**
+ * Still-shot type
+ */
+enum {
+	_MMCamcorder_SINGLE_SHOT,
+	_MMCamcorder_MULTI_SHOT,
+};
+
+/** 
+ * Enumerations for manual focus direction. 
+ * If focusing mode is not "MM_CAMCORDER_AF_MODE_MANUAL", this value will be ignored. 
+ */
+enum MMCamcorderMfLensDir {
+	MM_CAMCORDER_MF_LENS_DIR_FORWARD = 1,	/**< Focus direction to forward */
+	MM_CAMCORDER_MF_LENS_DIR_BACKWARD,	/**< Focus direction to backward */
+	MM_CAMCORDER_MF_LENS_DIR_NUM,		/**< Total number of the directions */
+};
+
+/**
+ * Camcorder Pipeline's Element name.
+ * @note index of element.
+ */
+typedef enum {
+	_MMCAMCORDER_NONE = (-1),
+
+	/* Main Pipeline Element */
+	_MMCAMCORDER_MAIN_PIPE = 0x00,
+
+	/* Pipeline element of Video input */
+	_MMCAMCORDER_VIDEOSRC_BIN,
+	_MMCAMCORDER_VIDEOSRC_SRC,
+	_MMCAMCORDER_VIDEOSRC_FILT,
+	_MMCAMCORDER_VIDEOSRC_CLS,
+	_MMCAMCORDER_VIDEOSRC_SCALE,
+	_MMCAMCORDER_VIDEOSRC_VSFLT,
+	_MMCAMCORDER_VIDEOSRC_TEE,
+
+	/* Pipeline element of Audio input */
+	_MMCAMCORDER_AUDIOSRC_BIN,
+	_MMCAMCORDER_AUDIOSRC_SRC,
+	_MMCAMCORDER_AUDIOSRC_FILT,
+	_MMCAMCORDER_AUDIOSRC_NS,
+	_MMCAMCORDER_AUDIOSRC_QUE,
+	_MMCAMCORDER_AUDIOSRC_CONV,
+	_MMCAMCORDER_AUDIOSRC_VOL,
+	_MMCAMCORDER_AUDIOSRC_ENC,
+
+	/* Pipeline element of Video output */
+	_MMCAMCORDER_VIDEOSINK_BIN,
+	_MMCAMCORDER_VIDEOSINK_QUE,
+	_MMCAMCORDER_VIDEOSINK_SCALE,
+	_MMCAMCORDER_VIDEOSINK_FILT,
+	_MMCAMCORDER_VIDEOSINK_OVERLAY,
+	_MMCAMCORDER_VIDEOSINK_CLS,
+	_MMCAMCORDER_VIDEOSINK_ROTATE,
+	_MMCAMCORDER_VIDEOSINK_SINK,
+
+	/* Pipeline element of Encodebin */
+	_MMCAMCORDER_ENCSINK_BIN,
+	_MMCAMCORDER_ENCSINK_ENCBIN,
+	_MMCAMCORDER_ENCSINK_AQUE,
+	_MMCAMCORDER_ENCSINK_CONV,
+	_MMCAMCORDER_ENCSINK_AENC,
+	_MMCAMCORDER_ENCSINK_AENC_QUE,
+	_MMCAMCORDER_ENCSINK_VQUE,
+	_MMCAMCORDER_ENCSINK_VENC,
+	_MMCAMCORDER_ENCSINK_VENC_QUE,
+	_MMCAMCORDER_ENCSINK_ITOG,
+	_MMCAMCORDER_ENCSINK_ICROP,
+	_MMCAMCORDER_ENCSINK_ISCALE,
+	_MMCAMCORDER_ENCSINK_IFILT,
+	_MMCAMCORDER_ENCSINK_IQUE,
+	_MMCAMCORDER_ENCSINK_IENC,
+	_MMCAMCORDER_ENCSINK_MUX,
+	_MMCAMCORDER_ENCSINK_SINK,
+
+	/* Pipeline element of Stillshot output */
+	_MMCAMCORDER_STILLSHOTSINK_BIN,
+	_MMCAMCORDER_STILLSHOTSINK_QUE,
+	_MMCAMCORDER_STILLSHOTSINK_TOGGLE,
+	_MMCAMCORDER_STILLSHOTSINK_CLS,
+	_MMCAMCORDER_STILLSHOTSINK_CROP,
+	_MMCAMCORDER_STILLSHOTSINK_FILT,
+	_MMCAMCORDER_STILLSHOTSINK_SCALE,
+	_MMCAMCORDER_STILLSHOTSINK_FILT2,
+	_MMCAMCORDER_STILLSHOTSINK_ENC,
+	_MMCAMCORDER_STILLSHOTSINK_SINK,
+
+	_MMCamcorder_PIPELINE_ELEMENT_NUM,
+} _MMCAMCORDER_PIPELINE_ELELMENT;
+
+/**
+ * Command type for Camcorder.
+ */
+typedef enum {
+	_MMCAMCORDER_CMD_CREATE,
+	_MMCAMCORDER_CMD_DESTROY,
+	_MMCAMCORDER_CMD_REALIZE,
+	_MMCAMCORDER_CMD_UNREALIZE,
+	_MMCAMCORDER_CMD_START,
+	_MMCAMCORDER_CMD_STOP,
+	_MMCAMCORDER_CMD_CAPTURESTART,
+	_MMCAMCORDER_CMD_CAPTURESTOP,
+	_MMCAMCORDER_CMD_RECORD,
+	_MMCAMCORDER_CMD_PAUSE,
+	_MMCAMCORDER_CMD_COMMIT,
+	_MMCAMCORDER_CMD_CANCEL,
+	_MMCAMCORDER_CMD_QUIT,
+} _MMCamcorderCommandType;
+
+/**
+ * System state change cause
+ */
+typedef enum {
+	_MMCAMCORDER_STATE_CHANGE_NORMAL = 0,
+	_MMCAMCORDER_STATE_CHANGE_BY_ASM,
+} _MMCamcorderStateChange;
+
+
+
+/*=======================================================================================
+| STRUCTURE DEFINITIONS									|
+========================================================================================*/
+/**
+ * MMCamcorder Gstreamer Element
+ */
+typedef struct {
+	unsigned int id;		/**< Gstreamer piplinem element name */
+	GstElement *gst;		/**< Gstreamer element */
+} _MMCamcorderGstElement;
+
+/**
+ * MMCamcorder information for KPI measurement
+ */
+typedef struct {
+	int current_fps;		/**< current fps of this second */
+	int average_fps;		/**< average fps  */
+	unsigned int video_framecount;	/**< total number of video frame */
+	unsigned int last_framecount;	/**< total number of video frame in last measurement */
+	struct timeval init_video_time;	/**< time when start to measure */
+	struct timeval last_video_time;	/**< last measurement time */
+} _MMCamcorderKPIMeasure;
+
+/**
+ * MMCamcorder information for Multi-Thread Safe
+ */
+typedef struct {
+	GMutex *lock;			/**< Mutex (for general use) */
+	GCond *cond;			/**< Condition (for general use) */
+	GMutex *cmd_lock;		/**< Mutex (for command) */
+	GMutex *state_lock;		/**< Mutex (for state change) */
+	GMutex *gst_state_lock;		/**< Mutex (for state change) */
+	GMutex *message_cb_lock;	/**< Mutex (for message callback) */
+	GMutex *vcapture_cb_lock;	/**< Mutex (for video capture callback) */
+	GMutex *vstream_cb_lock;	/**< Mutex (for video stream callback) */
+	GMutex *astream_cb_lock;	/**< Mutex (for audio stream callback) */
+} _MMCamcorderMTSafe;
+
+/**
+ * MMCamcorder information for command loop
+ */
+typedef struct {
+	pthread_t pCommandThread;											/**< Command loop handle */
+	GQueue *cmd_queue;													/**< Queue for Command loop */
+	sem_t sema;														/**< Semaphore for Command loop */
+} _MMCamcorderCommand;
+
+/**
+ * MMCamcorder command information
+ */
+typedef struct {
+	MMHandleType handle;												/**< camcorder handle */
+	_MMCamcorderCommandType type;										/**< Type of command */
+} __MMCamcorderCmdInfo;
+
+/**
+ * MMCamcorder Sub Context
+ */
+typedef struct {
+	bool isMaxsizePausing;			/**< Because of size limit, pipeline is paused. */
+	bool isMaxtimePausing;			/**< Because of time limit, pipeline is paused. */
+	int element_num;			/**< count of element */
+	int cam_stability_count;		/**< camsensor stability count. the count of frame will drop */
+	GstClockTime pipeline_time;		/**< current time of Gstreamer Pipeline */
+	GstClockTime pause_time;		/** amount of time while pipeline is in PAUSE state.*/
+	GstClockTime stillshot_time;		/** pipeline time of capturing moment*/
+	gboolean is_slow;
+	gboolean error_occurs;
+	gboolean ferror_send;			/** file write/seek error **/
+	guint ferror_count;			/** file write/seek error count **/
+	GstClockTime previous_slot_time;
+	int display_interval;			/** This value is set as 'GST_SECOND / display FPS' */
+	gboolean bget_eos;			/** Whether getting EOS */
+	gboolean bencbin_capture;		/** Use Encodebin for capturing */
+	gboolean now_continuous_af;		/** whether continuous af starts */
+
+	/* For dropping video frame when start recording */
+	int drop_vframe;			/**< When this value is bigger than zero and pass_first_vframe is zero, MSL will drop video frame though cam_stability count is bigger then zero. */
+	int pass_first_vframe;			/**< When this value is bigger than zero, MSL won't drop video frame though "drop_vframe" is bigger then zero. */
+
+	/* INI information */
+	unsigned int fourcc;			/**< Get fourcc value of camera INI file */
+	void *info;				/**< extra information for camcorder */
+
+	_MMCamcorderGstElement *element;	/**< array of Gstreamer element */
+	_MMCamcorderKPIMeasure kpi;		/**< information related with performance measurement */
+
+	type_element *VideosinkElement;		/**< configure data of videosink element */
+	gboolean SensorEncodedCapture;		/**< whether camera sensor support encoded image capture */
+	gboolean internal_encode;		/**< whether use internal encoding function */
+} _MMCamcorderSubContext;
+
+/**
+  * _MMCamcorderContext
+  */
+typedef struct mmf_camcorder {
+	/* information */
+	int type;		/**< mmcamcorder_mode_type */
+	int state;		/**< state of camcorder */
+	int target_state;	/**< Target state that want to set. This is a flag that
+				   * stands for async state changing. If this value differ from state,
+				   * it means state is changing now asychronously. */
+
+	/* handles */
+	MMHandleType attributes;	       /**< Attribute handle */
+	_MMCamcorderSubContext *sub_context;   /**< sub context */
+	mm_exif_info_t *exif_info;	       /**< EXIF */
+	GList *buffer_probes;		       /**< a list of buffer probe handle */
+	GList *event_probes;		       /**< a list of event probe handle */
+	GList *data_probes;		       /**< a list of data probe handle */
+	GList *signals;			       /**< a list of signal handle */
+	GList *msg_data;		       /**< a list of msg data */
+	camera_conf *conf_main;		       /**< Camera configure Main structure */
+	camera_conf *conf_ctrl;		       /**< Camera configure Control structure */
+	int asm_handle;			       /**< Audio session manager handle */
+	guint pipeline_cb_event_id;	       /**< Event source ID of pipeline message callback */
+	guint setting_event_id;		       /**< Event source ID of attributes setting to sensor */
+	SOUND_INFO snd_info;		       /**< Sound handle for multishot capture */
+
+	/* callback handlers */
+	MMMessageCallback msg_cb;				/**< message callback */
+	void *msg_cb_param;					/**< message callback parameter */
+	mm_camcorder_video_stream_callback vstream_cb;		/**< Video stream callback */
+	void *vstream_cb_param;					/**< Video stream callback parameter */
+	mm_camcorder_audio_stream_callback astream_cb;		/**< Audio stream callback */
+	void *astream_cb_param;					/**< Audio stream callback parameter */
+	mm_camcorder_video_capture_callback vcapture_cb;	/**< Video capture callback */
+	void *vcapture_cb_param;				/**< Video capture callback parameter */
+	int (*command)(MMHandleType, int);			/**< camcorder's command */
+
+	/* etc */
+	_MMCamcorderMTSafe mtsafe;		/**< Thread safe */
+	_MMCamcorderCommand cmd;		/**< information for command loop */
+	int sync_state_change;			/**< Change framework state synchronously */
+	int quick_device_close;
+	int state_change_by_system;		/**< MSL changes its state by itself because of system(ASM,MDM..) **/
+	int asm_event_code;			/**< event code of audio session manager */
+	pthread_mutex_t sound_lock;		/**< Capture sound mutex */
+	pthread_cond_t sound_cond;		/**< Capture sound cond */
+	int use_zero_copy_format;		/**< Whether use zero copy format for camera input */
+
+	int reserved[4];			/**< reserved */
+} mmf_camcorder_t;
+
+/*=======================================================================================
+| EXTERN GLOBAL VARIABLE								|
+========================================================================================*/
+
+/*=======================================================================================
+| GLOBAL FUNCTION PROTOTYPES								|
+========================================================================================*/
+/**
+ *	This function creates camcorder for capturing still image and recording.
+ *
+ *	@param[out]	handle		Specifies the camcorder  handle
+ *	@param[in]	info		Preset information of camcorder
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	When this function calls successfully, camcorder  handle will be filled with a @n
+ *			valid value and the state of  the camcorder  will become MM_CAMCORDER_STATE_NULL.@n
+ *			Note that  it's not ready to working camcorder. @n
+ *			You should call mmcamcorder_realize before starting camcorder.
+ *	@see		_mmcamcorder_create
+ */
+int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info);
+
+/**
+ *	This function destroys instance of camcorder. 
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@see		_mmcamcorder_create
+ */
+int _mmcamcorder_destroy(MMHandleType hcamcorder);
+
+/**
+ *	This function allocates memory for camcorder.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	This function can  be called successfully when current state is MM_CAMCORDER_STATE_NULL @n
+ *			and  the state of the camcorder  will become MM_CAMCORDER_STATE_READY. @n
+ *			Otherwise, this function will return MM_ERROR_CAMCORDER_INVALID_CONDITION.
+ *	@see		_mmcamcorder_unrealize
+ *	@pre		MM_CAMCORDER_STATE_NULL
+ *	@post		MM_CAMCORDER_STATE_READY
+ */
+int _mmcamcorder_realize(MMHandleType hcamcorder);
+
+/**
+ *	This function free allocated memory for camcorder.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	This function release all resources which are allocated for the camcorder engine.@n
+ *			This function can  be called successfully when current state is MM_CAMCORDER_STATE_READY and  @n
+ *			the state of the camcorder  will become MM_CAMCORDER_STATE_NULL. @n
+ *			Otherwise, this function will return MM_ERROR_CAMCORDER_INVALID_CONDITION.
+ *	@see		_mmcamcorder_realize
+ *	@pre		MM_CAMCORDER_STATE_READY
+ *	@post		MM_CAMCORDER_STATE_NULL
+ */
+int _mmcamcorder_unrealize(MMHandleType hcamcorder);
+
+/**
+ *	This function is to start previewing.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	This function can  be called successfully when current state is MM_CAMCORDER_STATE_READY and  @n
+ *			the state of the camcorder  will become MM_CAMCORDER_STATE_PREPARE. @n
+ *			Otherwise, this function will return MM_ERROR_CAMCORDER_INVALID_CONDITION.
+ *	@see		_mmcamcorder_stop
+ */
+int _mmcamcorder_start(MMHandleType hcamcorder);
+
+/**
+ *	This function is to stop previewing.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	This function can  be called successfully when current state is MM_CAMCORDER_STATE_PREPARE and  @n
+ *			the state of the camcorder  will become MM_CAMCORDER_STATE_READY.@n
+ *			Otherwise, this function will return MM_ERROR_CAMCORDER_INVALID_CONDITION.
+ *	@see		_mmcamcorder_start
+ */
+int _mmcamcorder_stop(MMHandleType hcamcorder);
+
+/**
+ *	This function to start capturing of still images.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle.
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	This function can  be called successfully when current state is MM_CAMCORDER_STATE_PREPARE and @n
+ *			the state of the camcorder  will become MM_CAMCORDER_STATE_CAPTURING. @n
+ *			Otherwise, this function will return MM_ERROR_CAMCORDER_INVALID_CONDITION.
+ *	@see		_mmcamcorder_capture_stop
+ */
+int _mmcamcorder_capture_start(MMHandleType hcamcorder);
+
+/**
+ *	This function is to stop capturing still images.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	This function can  be called successfully when current state is MM_CAMCORDER_STATE_CAPTURING and @n
+ *			the state of the camcorder  will become MM_CAMCORDER_STATE_PREPARE. @n
+ *			Otherwise, this function will return MM_ERROR_CAMCORDER_INVALID_CONDITION.
+ *	@see		_mmcamcorder_capture_start
+ */
+int _mmcamcorder_capture_stop(MMHandleType hcamcorder);
+
+/**
+ *	This function is to start  video and audio recording.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	This function can  be called successfully when current state is @n
+ *			MM_CAMCORDER_STATE_PREPARE or MM_CAMCORDER_STATE_PAUSED and  @n
+ *			the state of the camcorder  will become MM_CAMCORDER_STATE_RECORDING.@n
+ *			Otherwise, this function will return MM_ERROR_CAMCORDER_INVALID_CONDITION.
+ *	@see		_mmcamcorder_pause
+ */
+int _mmcamcorder_record(MMHandleType hcamcorder);
+
+/**
+ *	This function is to pause video and audio recording
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	This function can  be called successfully when current state is MM_CAMCORDER_STATE_RECORDING and  @n
+ *			the  state of the camcorder  will become MM_CAMCORDER_STATE_PAUSED.@n
+ *			Otherwise, this function will return MM_ERROR_CAMCORDER_INVALID_CONDITION.@n
+ *	@see		_mmcamcorder_record
+ */
+int _mmcamcorder_pause(MMHandleType hcamcorder);
+
+/**
+ *	This function is to stop video and audio  recording and  save results.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	This function can  be called successfully when current state is @n
+ *			MM_CAMCORDER_STATE_PAUSED or MM_CAMCORDER_STATE_RECORDING and  @n
+ *			the state of the camcorder  will become MM_CAMCORDER_STATE_PREPARE. @n
+ *			Otherwise, this function will return MM_ERROR_CAMCORDER_INVALID_CONDITION
+ *	@see		_mmcamcorder_cancel
+ */
+int _mmcamcorder_commit(MMHandleType hcamcorder);
+
+/**
+ *	This function is to stop video and audio recording and do not save results.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	This function can  be called successfully when current state is @n
+ *			MM_CAMCORDER_STATE_PAUSED or MM_CAMCORDER_STATE_RECORDING and  @n
+ *			the state of the camcorder  will become MM_CAMCORDER_STATE_PREPARE. @n
+ *			Otherwise, this function will return MM_ERROR_CAMCORDER_INVALID_CONDITION.
+ *	@see		_mmcamcorder_commit
+ */
+int _mmcamcorder_cancel(MMHandleType hcamcorder);
+
+/**
+ *	This function calls after commiting action finished asynchronously. 
+ *	In this function, remaining process , such as state change, happens.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	This function can  be called successfully when current state is @n
+ *			MM_CAMCORDER_STATE_PAUSED or MM_CAMCORDER_STATE_RECORDING and  @n
+ *			the state of the camcorder  will become MM_CAMCORDER_STATE_PREPARE. @n
+ *			Otherwise, this function will return MM_ERROR_CAMCORDER_INVALID_CONDITION.
+ *	@see		_mmcamcorder_commit
+ */
+int _mmcamcorder_commit_async_end(MMHandleType hcamcorder);
+
+/**
+ *	This function is to set callback for receiving messages from camcorder.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@param[in]	callback	Specifies the function pointer of callback function
+ *	@param[in]	user_data	Specifies the user poiner for passing to callback function
+ *
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@remarks	typedef bool (*mm_message_callback) (int msg, mm_messageType *param, void *user_param);@n
+ *		@n
+ *		typedef union 				@n
+ *		{							@n
+ *			int code;				@n
+ *			struct 					@n
+ *			{						@n
+ *				int total;			@n
+ *				int elapsed;		@n
+ *			} time;					@n
+ *			struct 					@n
+ *			{						@n
+ *				int previous;		@n
+ *				int current;			@n
+ *			} state;					@n
+ *		} mm_message_type;	@n
+ *									@n
+ *		If a  message value for mm_message_callback is MM_MESSAGE_STATE_CHANGED, @n
+ *		state value in mm_message_type  will be a mmcamcorder_state_type enum value;@n
+ *		@n
+ *		If  a message value for mm_message_callback is MM_MESSAGE_ERROR,  @n
+ *		the code value in mm_message_type will be a mmplayer_error_type enum value;
+ *
+ *	@see		mm_message_type,  mmcamcorder_state_type,  mmcamcorder_error_type
+ */
+int _mmcamcorder_set_message_callback(MMHandleType hcamcorder,
+				      MMMessageCallback callback,
+				      void *user_data);
+
+/**
+ *	This function is to set callback for video stream.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@param[in]	callback	Specifies the function pointer of callback function
+ *	@param[in]	user_data	Specifies the user poiner for passing to callback function
+ *
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@see		mmcamcorder_error_type
+ */
+int _mmcamcorder_set_video_stream_callback(MMHandleType hcamcorder,
+					   mm_camcorder_video_stream_callback callback,
+					   void *user_data);
+
+/**
+ *	This function is to set callback for audio stream.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder handle
+ *	@param[in]	callback	Specifies the function pointer of callback function
+ *	@param[in]	user_data	Specifies the user poiner for passing to callback function
+ *
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@see		mmcamcorder_error_type
+ */
+int _mmcamcorder_set_audio_stream_callback(MMHandleType handle,
+					   mm_camcorder_audio_stream_callback callback,
+					   void *user_data);
+
+/**
+ *	This function is to set callback for video capture.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle
+ *	@param[in]	callback	Specifies the function pointer of callback function
+ *	@param[in]	user_data	Specifies the user poiner for passing to callback function
+ *
+ *	@return		This function returns zero on success, or negative value with error code.
+ *	@see		mmcamcorder_error_type
+ */
+int _mmcamcorder_set_video_capture_callback(MMHandleType hcamcorder,
+					    mm_camcorder_video_capture_callback callback,
+					    void *user_data);
+
+/**
+ *	This function returns current state of camcorder, or negative value with error code.
+ *
+ *	@param[in]	hcamcorder	Specifies the camcorder  handle.
+ *	@return		This function returns current state of camcorder, or negative value with error code.
+ *	@see		mmcamcorder_state_type
+ */
+int _mmcamcorder_get_current_state(MMHandleType hcamcorder);
+
+int _mmcamcorder_init_focusing(MMHandleType handle);
+int _mmcamcorder_adjust_focus(MMHandleType handle, int direction);
+int _mmcamcorder_adjust_manual_focus(MMHandleType handle, int direction);
+int _mmcamcorder_adjust_auto_focus(MMHandleType handle);
+int _mmcamcorder_stop_focusing(MMHandleType handle);
+
+/**
+ * This function gets current state of camcorder.
+ *
+ * @param	void
+ * @return	This function returns state of current camcorder context
+ * @remarks
+ * @see		_mmcamcorder_set_state()
+ *
+ */
+int _mmcamcorder_streamer_init(void);
+
+/**
+ * This function gets current state of camcorder.
+ *
+ * @param	void
+ * @return	This function returns state of current camcorder context
+ * @remarks
+ * @see		_mmcamcorder_set_state()
+ *
+ */
+int _mmcamcorder_display_init(void);
+
+/**
+ * This function gets current state of camcorder.
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @return	This function returns state of current camcorder context
+ * @remarks
+ * @see		_mmcamcorder_set_state()
+ *
+ */
+int _mmcamcorder_get_state(MMHandleType handle);
+
+/**
+ * This function sets new state of camcorder.
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @param[in]	state		setting state value of camcorder.
+ * @return	void
+ * @remarks
+ * @see		_mmcamcorder_get_state()
+ *
+ */
+void _mmcamcorder_set_state(MMHandleType handle, int state);
+
+/**
+ * This function gets asynchronous status of MSL Camcroder. 
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @param[in]	target_state	setting target_state value of camcorder.
+ * @return	This function returns asynchrnous state.
+ * @remarks
+ * @see		_mmcamcorder_set_async_state()
+ *
+ */
+int _mmcamcorder_get_async_state(MMHandleType handle);
+
+/**
+ * This function sets new target state of camcorder.
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @param[in]	target_state	setting target_state value of camcorder.
+ * @return	This function returns zero on success, or negative value with error code.
+ * @remarks
+ * @see		_mmcamcorder_get_async_state(), _mmcamcorder_set_async_cancel()
+ *
+ */
+int _mmcamcorder_set_async_state(MMHandleType handle, int target_state);
+
+/**
+ * This function sets new target state of camcorder.
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @return	gboolean
+ * @remarks
+ * @see		_mmcamcorder_set_async_cancel()
+ *
+ */
+gboolean _mmcamcorder_set_async_cancel(MMHandleType handle);
+
+/**
+ * Check whether camcorder changes its state now.
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @return	gboolean
+ * @remarks
+ * @see		_mmcamcorder_set_async_state(), _mmcamcorder_set_async_cancel()
+ *
+ */
+gboolean _mmcamcorder_is_state_changing(MMHandleType handle);
+
+/**
+ * This function allocates structure of subsidiary attributes.
+ *
+ * @param[in]	type		Allocation type of camcorder context.
+ * @return	This function returns structure pointer on success, NULL value on failure.
+ * @remarks
+ * @see		_mmcamcorder_dealloc_subcontext()
+ *
+ */
+_MMCamcorderSubContext *_mmcamcorder_alloc_subcontext(int type);
+
+/**
+ * This function releases structure of subsidiary attributes.
+ *
+ * @param[in]	sc		Handle of camcorder subcontext.
+ * @return	void
+ * @remarks
+ * @see		_mmcamcorder_alloc_subcontext()
+ *
+ */
+void _mmcamcorder_dealloc_subcontext(_MMCamcorderSubContext *sc);
+
+/**
+ * This function sets command function according to the type.
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @param[in]	type		Allocation type of camcorder context.
+ * @return	This function returns MM_ERROR_NONE on success, or other values with error code.
+ * @remarks
+ * @see		__mmcamcorder_video_command(), __mmcamcorder_audio_command(), __mmcamcorder_image_command()
+ *
+ */
+int _mmcamcorder_set_functions(MMHandleType handle, int type);
+
+/**
+ * This function is callback function of main pipeline.
+ * Once this function is registered with certain pipeline using gst_bus_add_watch(),
+ * this callback will be called every time when there is upcomming message from pipeline.
+ * Basically, this function is used as error handling function, now.
+ *
+ * @param[in]	bus		pointer of buf that called this function.
+ * @param[in]	message		callback message from pipeline.
+ * @param[in]	data		user data.
+ * @return	This function returns true on success, or false value with error
+ * @remarks
+ * @see		__mmcamcorder_create_preview_pipeline()
+ *
+ */
+gboolean _mmcamcorder_pipeline_cb_message(GstBus *bus, GstMessage *message, gpointer data);
+
+/**
+ * This function create main pipeline according to type.
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @param[in]	type		Allocation type of camcorder context.
+ * @return	This function returns zero on success, or negative value with error code.
+ * @remarks
+ * @see		_mmcamcorder_destroy_pipeline()
+ *
+ */
+int _mmcamcorder_create_pipeline(MMHandleType handle, int type);
+
+/**
+ * This function release all element of main pipeline according to type.
+ *
+ * @param[in]	handle		Handle of camcorder context.
+ * @param[in]	type		Allocation type of camcorder context.
+ * @return	void
+ * @remarks
+ * @see		_mmcamcorder_create_pipeline()
+ *
+ */
+void _mmcamcorder_destroy_pipeline(MMHandleType handle, int type);
+
+/**
+ * This function sets gstreamer element status. 
+ * If the gstreamer fails to set status or returns asynchronous mode,
+ * this function waits for state changed until timeout expired.
+ *
+ * @param[in]	pipeline	Pointer of pipeline
+ * @param[in]	target_state	newly setting status
+ * @return	This function returns zero on success, or negative value with error code.
+ * @remarks
+ * @see
+ *
+ */
+int _mmcamcorder_gst_set_state(MMHandleType handle, GstElement *pipeline, GstState target_state);
+
+/**
+ * This function sets gstreamer element status, asynchronously. 
+ * Regardless of processing, it returns immediately.
+ *
+ * @param[in]	pipeline	Pointer of pipeline
+ * @param[in]	target_state	newly setting status
+ * @return	This function returns zero on success, or negative value with error code.
+ * @remarks
+ * @see	
+ *
+ */
+int _mmcamcorder_gst_set_state_async(MMHandleType handle, GstElement *pipeline, GstState target_state);
+
+/* For xvimagesink */
+GstBusSyncReply __mmcamcorder_sync_callback(GstBus *bus, GstMessage *message, gulong data);
+
+/* For querying capabilities */
+int _mmcamcorder_read_vidsrc_info(int videodevidx, camera_conf **configure_info);
+
+/* for performance check */
+void _mmcamcorder_video_current_framerate_init(MMHandleType handle);
+int _mmcamcorder_video_current_framerate(MMHandleType handle);
+int _mmcamcorder_video_average_framerate(MMHandleType handle);
+
+/* command */
+void _mmcamcorder_delete_command_info(__MMCamcorderCmdInfo *cmdinfo);
+int _mmcamcorder_create_command_loop(MMHandleType handle);
+int _mmcamcorder_destroy_command_loop(MMHandleType handle);
+int _mmcamcorder_append_command(MMHandleType handle, __MMCamcorderCmdInfo *info);
+int _mmcamcorder_append_simple_command(MMHandleType handle, _MMCamcorderCommandType type);
+void *_mmcamcorder_command_loop_thread(void *arg);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __MM_CAMCORDER_INTERNAL_H__ */

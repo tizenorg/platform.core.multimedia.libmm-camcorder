@@ -1,0 +1,27 @@
+Source: libmm-camcorder
+Section: libs
+Priority: extra
+Maintainer: Jeongmo Yang <jm80.yang@samsung.com>, JongHyuk Choi <jhchoi.choi@samsung.com>, Sangchul Lee <sc11.lee@samsung.com>
+Uploaders: Seungbae Shin <seungbae.shin@samsung.com>
+Build-Depends: debhelper (>= 5), autotools-dev, libmm-common-dev, libmm-common-internal-dev, libmm-log-dev, libexif-dev, libgstreamer-plugins-base0.10-dev, libmm-ta-dev, libmm-sound-dev, libmm-session-dev, libaudiosessionmgr-dev (>=0.1.1), libcamsrcjpegenc-dev, libsndfile1-dev
+Standards-Version: 3.7.2
+Homepage: N/A
+
+Package: libmm-camcorder-dev
+Section: libdevel
+Architecture: any
+Depends: libmm-camcorder (= ${Source-Version}), libmm-common-dev, libmm-log-sdk-dev, libexif-dev, libgstreamer-plugins-base0.10-sdk-dev, libmm-ta-sdk-dev, libmm-sound-sdk-dev, libmm-session-sdk-dev, libaudiosessionmgr-sdk-dev (>=0.1.1)
+XB-Generate-Docs: yes
+Description: camcorder development library
+
+Package: libmm-camcorder
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},libmm-common, libmm-log, libexif12, libgstreamer-plugins-base0.10-0, libmm-ta, libmm-sound-0, libmm-session-0, libaudiosessionmgr-0 (>=0.1.1), libcamsrcjpegenc, libsndfile1
+Description: camcorder library
+
+Package: libmm-camcorder-dbg
+Section: debug
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libmm-camcorder (= ${Source-Version})
+Description: Camcorder Debug Library (unstripped)
