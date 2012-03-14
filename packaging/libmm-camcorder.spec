@@ -1,14 +1,14 @@
 Name:       libmm-camcorder
 Summary:    camcorder library
-Version:    0.5.5
+Version:    0.5.38
 Release:    1
-Group:      libs
-License:    Samsung
-URL:        N/A
+Group:      Libraries
+License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(mm-common)
+BuildRequires:  pkgconfig(sndfile)
 BuildRequires:  pkgconfig(mm-sound)
 BuildRequires:  pkgconfig(libexif)
 BuildRequires:  pkgconfig(mmutil-imgp)
@@ -49,7 +49,6 @@ camcorder development library.
 make %{?jobs:-j%jobs}
 
 %install
-rm -rf %{buildroot}
 %make_install
 
 
@@ -58,14 +57,11 @@ rm -rf %{buildroot}
 %postun -p /sbin/ldconfig
 
 %files
-%defattr(-,root,root,-)
 %{_bindir}/*
 %{_libdir}/*.so.*
-%{_datadir}/edje/*
 /usr/share/sounds/mm-camcorder/*
 
 %files devel
-%defattr(-,root,root,-)
 %{_includedir}/mmf/mm_camcorder.h
 %{_libdir}/pkgconfig/mm-camcorder.pc
 %{_libdir}/*.so
