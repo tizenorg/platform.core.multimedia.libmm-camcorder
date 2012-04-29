@@ -1,7 +1,7 @@
 Name:       libmm-camcorder
 Summary:    camcorder library
 Version:    0.5.38
-Release:    1
+Release:    2
 Group:      Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
