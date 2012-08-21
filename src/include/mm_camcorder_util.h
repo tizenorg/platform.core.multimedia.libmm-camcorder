@@ -144,6 +144,16 @@ do { \
         ((gchar)(((fourcc)>>16)&0xff)), \
         ((gchar)(((fourcc)>>24)&0xff))
 
+#define MMCAM_SEND_MESSAGE(handle, msg_id, msg_code) \
+{\
+	_MMCamcorderMsgItem msg;\
+	msg.id = msg_id;\
+	msg.param.code = msg_code;\
+	_mmcam_dbg_log("msg id : %x, code : %x", msg_id, msg_code);\
+	_mmcamcroder_send_message((MMHandleType)handle, &msg);\
+}
+
+
 /*=======================================================================================
 | ENUM DEFINITIONS									|
 ========================================================================================*/
@@ -187,6 +197,59 @@ typedef struct {
 	int id;				/**< message id */
 	MMMessageParamType param;	/**< message parameter */
 } _MMCamcorderMsgItem;
+
+/**
+ * Structure of zero copy image buffer
+ */
+#define SCMN_IMGB_MAX_PLANE         (4)
+
+/* image buffer definition ***************************************************
+
+    +------------------------------------------+ ---
+    |                                          |  ^
+    |     a[], p[]                             |  |
+    |     +---------------------------+ ---    |  |
+    |     |                           |  ^     |  |
+    |     |<---------- w[] ---------->|  |     |  |
+    |     |                           |  |     |  |
+    |     |                           |        |
+    |     |                           |  h[]   |  e[]
+    |     |                           |        |
+    |     |                           |  |     |  |
+    |     |                           |  |     |  |
+    |     |                           |  v     |  |
+    |     +---------------------------+ ---    |  |
+    |                                          |  v
+    +------------------------------------------+ ---
+
+    |<----------------- s[] ------------------>|
+*/
+
+typedef struct
+{
+	/* width of each image plane */
+	int w[SCMN_IMGB_MAX_PLANE];
+	/* height of each image plane */
+	int h[SCMN_IMGB_MAX_PLANE];
+	/* stride of each image plane */
+	int s[SCMN_IMGB_MAX_PLANE];
+	/* elevation of each image plane */
+	int e[SCMN_IMGB_MAX_PLANE];
+	/* user space address of each image plane */
+	void *a[SCMN_IMGB_MAX_PLANE];
+	/* physical address of each image plane, if needs */
+	void *p[SCMN_IMGB_MAX_PLANE];
+	/* color space type of image */
+	int cs;
+	/* left postion, if needs */
+	int x;
+	/* top position, if needs */
+	int y;
+	/* to align memory */
+	int __dummy2;
+	/* arbitrary data */
+	int data[16];
+} SCMN_IMGB;
 
 /*=======================================================================================
 | CONSTANT DEFINITIONS									|

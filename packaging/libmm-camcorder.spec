@@ -1,42 +1,40 @@
 Name:       libmm-camcorder
-Summary:    camcorder library
-Version:    0.5.38
-Release:    2
-Group:      Libraries
+Summary:    Camera and recorder library
+Version:    0.6.8
+Release:    0
+Group:      libs
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
+Requires(post): /usr/bin/vconftool
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(mm-common)
-BuildRequires:  pkgconfig(sndfile)
 BuildRequires:  pkgconfig(mm-sound)
 BuildRequires:  pkgconfig(libexif)
 BuildRequires:  pkgconfig(mmutil-imgp)
-BuildRequires:  pkgconfig(elementary)
-BuildRequires:  pkgconfig(appcore-efl)
-BuildRequires:  pkgconfig(vconf)
 BuildRequires:  pkgconfig(mm-log)
 BuildRequires:  pkgconfig(gstreamer-plugins-base-0.10)
 BuildRequires:  pkgconfig(mm-ta)
+BuildRequires:  pkgconfig(sndfile)
 BuildRequires:  pkgconfig(mm-session)
 BuildRequires:  pkgconfig(audio-session-mgr)
-BuildRequires:  pkgconfig(gstreamer-floatcast-0.10)
-BuildRequires:  pkgconfig(gstreamer-check-0.10)
 BuildRequires:  pkgconfig(camsrcjpegenc)
+BuildRequires:  pkgconfig(libpulse)
+BuildRequires:  pkgconfig(vconf)
 BuildRequires:  gst-plugins-base-devel
 
 %description
-camcorder library.
+Camera and recorder library.
 
 
 %package devel
-Summary:    camcorder development library
+Summary:    Camera and recorder development library
 Group:      libdevel
 Version:    %{version}
 Requires:   %{name} = %{version}-%{release}
 
 %description devel 
-camcorder development library.
+Camera and recorder development library.
 
 
 %prep
@@ -44,24 +42,31 @@ camcorder development library.
 
 
 %build
+export CFLAGS+=" -DGST_EXT_TIME_ANALYSIS"
 ./autogen.sh
 %configure --disable-static
 make %{?jobs:-j%jobs}
 
 %install
+rm -rf %{buildroot}
 %make_install
 
 
-%post -p /sbin/ldconfig
+%post
+/sbin/ldconfig
+
+vconftool set -t int memory/camera/state 0 -i -u 5000
 
 %postun -p /sbin/ldconfig
 
 %files
+%defattr(-,root,root,-)
 %{_bindir}/*
 %{_libdir}/*.so.*
 /usr/share/sounds/mm-camcorder/*
 
 %files devel
+%defattr(-,root,root,-)
 %{_includedir}/mmf/mm_camcorder.h
 %{_libdir}/pkgconfig/mm-camcorder.pc
 %{_libdir}/*.so

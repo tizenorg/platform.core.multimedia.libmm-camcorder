@@ -19,11 +19,9 @@
  *
  */
 
-/*===========================================================================================
-|																							|
-|  INCLUDE FILES																			|
-|  																							|
-========================================================================================== */
+/*=======================================================================================
+|  INCLUDE FILES									|
+=======================================================================================*/
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -32,19 +30,19 @@
 #include "mm_camcorder_internal.h"
 #include "mm_camcorder_configure.h"
 
-/*---------------------------------------------------------------------------
-|    MACRO DEFINITIONS:														|
----------------------------------------------------------------------------*/
-#define CONFIGURE_PATH          "/opt/etc"
-#define CONFIGURE_PATH_RETRY    "/usr/etc"
+/*-----------------------------------------------------------------------
+|    MACRO DEFINITIONS:							|
+-----------------------------------------------------------------------*/
+#define CONFIGURE_PATH          "/usr/etc"
+#define CONFIGURE_PATH_RETRY    "/opt/etc"
 
-/*---------------------------------------------------------------------------
-|    GLOBAL VARIABLE DEFINITIONS											|
----------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------
+|    GLOBAL VARIABLE DEFINITIONS					|
+-----------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------
-|    LOCAL VARIABLE DEFINITIONS												|
----------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------
+|    LOCAL VARIABLE DEFINITIONS						|
+-----------------------------------------------------------------------*/
 static int conf_main_category_size[CONFIGURE_CATEGORY_MAIN_NUM] = { 0, };
 static int conf_ctrl_category_size[CONFIGURE_CATEGORY_CTRL_NUM] = { 0, };
 
@@ -699,6 +697,7 @@ static conf_info_table conf_main_audio_input_table[] = {
  */
 static conf_info_table conf_main_video_output_table[] = {
 	{ "DisplayDevice",         CONFIGURE_VALUE_INT_ARRAY, {NULL} },
+	{ "DisplayMode",           CONFIGURE_VALUE_INT_ARRAY, {NULL} },
 	{ "Videosink",             CONFIGURE_VALUE_INT_ARRAY, {NULL} },
 	{ "VideosinkElementX",     CONFIGURE_VALUE_ELEMENT,   {(type_element*)&_videosink_element_x_default} },
 	{ "VideosinkElementEvas",  CONFIGURE_VALUE_ELEMENT,   {(type_element*)&_videosink_element_evas_default} },
@@ -715,6 +714,7 @@ static conf_info_table conf_main_capture_table[] = {
 	{ "UseEncodebin",           CONFIGURE_VALUE_INT,     {0} },
 	{ "UseCaptureMode",         CONFIGURE_VALUE_INT,     {0} },
 	{ "VideoscaleElement",      CONFIGURE_VALUE_ELEMENT, {(type_element*)&_videoscale_element_default} },
+	{ "PlayCaptureSound",       CONFIGURE_VALUE_INT,     {1} },
 };
 
 /*
@@ -825,6 +825,7 @@ static conf_info_table conf_ctrl_camera_table[] = {
 	{ "RecommendDisplayRotation", CONFIGURE_VALUE_INT,     {3}    },
 	{ "RecommendPreviewFormatCapture", CONFIGURE_VALUE_INT, {MM_PIXEL_FORMAT_YUYV} },
 	{ "RecommendPreviewFormatRecord",  CONFIGURE_VALUE_INT, {MM_PIXEL_FORMAT_NV12} },
+	{ "RecommendPreviewResolution", CONFIGURE_VALUE_INT_PAIR_ARRAY, {NULL} },
 };
 
 /*
@@ -868,6 +869,8 @@ static conf_info_table conf_ctrl_photograph_table[] = {
 	{ "ISO",                  CONFIGURE_VALUE_INT_ARRAY, {NULL} },
 	{ "ProgramMode",          CONFIGURE_VALUE_INT_ARRAY, {NULL} },
 	{ "AntiHandshake",        CONFIGURE_VALUE_INT_ARRAY, {NULL} },
+	{ "FaceZoomMode",         CONFIGURE_VALUE_INT_ARRAY, {NULL} },
+	{ "FaceZoomLevel",        CONFIGURE_VALUE_INT_RANGE, {NULL} },
 };
 
 /*
@@ -878,6 +881,7 @@ static conf_info_table conf_ctrl_capture_table[] = {
 	{ "JpegQuality",          CONFIGURE_VALUE_INT_RANGE, {NULL} },
 	{ "MultishotNumber",      CONFIGURE_VALUE_INT_RANGE, {NULL} },
 	{ "SensorEncodedCapture", CONFIGURE_VALUE_INT,       {1} },
+	{ "SupportHDR",           CONFIGURE_VALUE_INT_ARRAY, {NULL} },
 };
 
 /*
@@ -898,16 +902,14 @@ get_new_string( char* src_string )
 	return strdup(src_string);
 }
 
-void
-_mmcamcorder_conf_init( int type, camera_conf** configure_info )
+void _mmcamcorder_conf_init(int type, camera_conf** configure_info)
 {
 	int i = 0;
-	int info_table_size = sizeof( conf_info_table );
-	
-	_mmcam_dbg_log( "Entered..." );
+	int info_table_size = sizeof(conf_info_table);
 
-	if( type == CONFIGURE_TYPE_MAIN )
-	{
+	_mmcam_dbg_log("Entered...");
+
+	if (type == CONFIGURE_TYPE_MAIN) {
 		conf_main_info_table[CONFIGURE_CATEGORY_MAIN_GENERAL]       = conf_main_general_table;
 		conf_main_info_table[CONFIGURE_CATEGORY_MAIN_VIDEO_INPUT]   = conf_main_video_input_table;
 		conf_main_info_table[CONFIGURE_CATEGORY_MAIN_AUDIO_INPUT]   = conf_main_audio_input_table;
@@ -932,13 +934,10 @@ _mmcamcorder_conf_init( int type, camera_conf** configure_info )
 
 		(*configure_info)->info = (conf_info**)g_malloc0( sizeof( conf_info* ) * CONFIGURE_CATEGORY_MAIN_NUM );
 
-		for( i = 0 ; i < CONFIGURE_CATEGORY_MAIN_NUM ; i++ )
-		{
+		for (i = 0 ; i < CONFIGURE_CATEGORY_MAIN_NUM ; i++) {
 			(*configure_info)->info[i]	= NULL;
 		}
-	}
-	else
-	{
+	} else {
 		conf_ctrl_info_table[CONFIGURE_CATEGORY_CTRL_CAMERA]     = conf_ctrl_camera_table;
 		conf_ctrl_info_table[CONFIGURE_CATEGORY_CTRL_STROBE]     = conf_ctrl_strobe_table;
 		conf_ctrl_info_table[CONFIGURE_CATEGORY_CTRL_EFFECT]     = conf_ctrl_effect_table;
@@ -955,14 +954,14 @@ _mmcamcorder_conf_init( int type, camera_conf** configure_info )
 
 		(*configure_info)->info = (conf_info**)g_malloc0( sizeof( conf_info* ) * CONFIGURE_CATEGORY_CTRL_NUM );
 
-		for( i = 0 ; i < CONFIGURE_CATEGORY_CTRL_NUM ; i++ )
-		{
-			(*configure_info)->info[i]	= NULL;
+		for (i = 0 ; i < CONFIGURE_CATEGORY_CTRL_NUM ; i++) {
+			(*configure_info)->info[i] = NULL;
 		}
 	}
-	
-	_mmcam_dbg_log( "Done." );
 
+	_mmcam_dbg_log("Done.");
+
+	return;
 }
 
 
@@ -1146,6 +1145,7 @@ _mmcamcorder_conf_parse_info( int type, FILE* fd, camera_conf** configure_info )
 			if( count_details == 0 )
 			{
 				_mmcam_dbg_warn( "category %s has no detail value... skip this category...", category_name );
+				SAFE_FREE(category_name);
 				continue;
 			}
 
@@ -1244,10 +1244,7 @@ _mmcamcorder_conf_parse_info( int type, FILE* fd, camera_conf** configure_info )
 			}
 		}
 
-		if( category_name )
-		{
-			SAFE_FREE( category_name );
-		}
+		SAFE_FREE(category_name);
 	}
 
 	//(*configure_info) = new_conf;
@@ -3235,42 +3232,37 @@ _mmcamcorder_get_available_format(MMHandleType handle, int conf_category, int **
 
 	configure_info = hcamcorder->conf_main;
 
-	if( configure_info->info[conf_category] )
-	{
-		int count = configure_info->info[conf_category]->count;
-		conf_info* info	= configure_info->info[conf_category];
+	if (configure_info->info[conf_category]) {
 		int i = 0;
 		int fmt = 0;
-		char* name = NULL;
+		char *name = NULL;
+		int count = configure_info->info[conf_category]->count;
+		conf_info *info = configure_info->info[conf_category];
 
 		_mmcam_dbg_log("count[%d], info[%p]", count, info);
 
-		if ((count <= 0) || (!info))
-		{
+		if (count <= 0 || !info) {
 			return total_count;
 		}
 
 		arr = (int*) g_malloc0(count * sizeof(int));
 
-		for( i = 0 ; i < count ; i++ )
-		{
-			if( info->detail_info[i] == NULL )
-			{
+		for (i = 0 ; i < count ; i++) {
+			if (info->detail_info[i] == NULL) {
 				continue;
 			}
-			
+
 			name = ((type_element*)(info->detail_info[i]))->name;
-			
-			if ((fmt = _mmcamcorder_get_format(handle, conf_category, name)) >= 0)
-			{
+			fmt = _mmcamcorder_get_format(handle, conf_category, name);
+			if (fmt >= 0) {
 				arr[total_count++] = fmt;
 			}
+
 			_mmcam_dbg_log("name:%s, fmt:%d", name, fmt);
 		}
 	}
-		
+
 	*format = arr;
 
 	return total_count;
 }
-

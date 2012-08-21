@@ -142,6 +142,9 @@ extern "C" {
  */
 #define _MMCAMCORDER_SENSOR_ENUM_NONE 	-255
 
+/* camera information related */
+#define CAMINFO_CONVERT_NUM		40
+
 
 /*=======================================================================================
 | ENUM DEFINITIONS									|
@@ -161,6 +164,20 @@ typedef enum {
 */
 	MM_CAMCONVERT_TYPE_USER,	/* user define */
 } MMCamConvertingType;
+
+typedef enum {
+	ENUM_CONVERT_WHITE_BALANCE = 0,
+	ENUM_CONVERT_COLOR_TONE,
+	ENUM_CONVERT_ISO,
+	ENUM_CONVERT_PROGRAM_MODE,
+	ENUM_CONVERT_FOCUS_MODE,
+	ENUM_CONVERT_AF_RANGE,
+	ENUM_CONVERT_EXPOSURE_MODE,
+	ENUM_CONVERT_STROBE_MODE,
+	ENUM_CONVERT_WDR,
+	ENUM_CONVERT_ANTI_HAND_SHAKE,
+	ENUM_CONVERT_NUM
+} MMCamConvertingEnum;
 
 /*=======================================================================================
 | STRUCTURE DEFINITIONS									|
@@ -204,8 +221,8 @@ typedef struct {
 /*=======================================================================================
 | GLOBAL FUNCTION PROTOTYPES								|
 ========================================================================================*/
-int _mmcamcorder_convert_msl_to_sensor(int attr_idx, int mslval);
-int _mmcamcorder_convert_sensor_to_msl(int attr_idx, int sensval);
+int _mmcamcorder_convert_msl_to_sensor(MMHandleType handle, int attr_idx, int mslval);
+int _mmcamcorder_convert_sensor_to_msl(MMHandleType handle, int attr_idx, int sensval);
 
 int _mmcamcorder_set_converted_value(MMHandleType handle, _MMCamcorderEnumConvert *convert);
 int _mmcamcorder_init_convert_table(MMHandleType handle);

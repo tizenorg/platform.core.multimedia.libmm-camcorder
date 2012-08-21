@@ -162,15 +162,6 @@ _MMCamcorderEnumConvert _mmcamcorder_enum_conv_ahs =
 	"AntiHandshake"
 };
 
-static int __enum_conv_picture_format[MM_PIXEL_FORMAT_NUM];
-
-_MMCamcorderEnumConvert _mmcamcorder_enum_conv_picture_format =
-{
-	MM_PIXEL_FORMAT_NUM,
-	__enum_conv_picture_format,
-	CONFIGURE_CATEGORY_CTRL_CAMERA,
-	"PictureFormat"
-};
 
 static int __enum_conv_vid_dev[MM_VIDEO_DEVICE_NUM] =
 {
@@ -185,6 +176,26 @@ _MMCamcorderEnumConvert _mmcamcorder_enum_conv_vid_dev =
 	__enum_conv_vid_dev,
 	0,
 	NULL
+};
+
+static int __enum_conv_hdr_capture[MM_CAMCORDER_HDR_CAPTURE_NUM];
+
+_MMCamcorderEnumConvert _mmcamcorder_enum_conv_hdr_capture =
+{
+	MM_CAMCORDER_HDR_CAPTURE_NUM,
+	__enum_conv_hdr_capture,
+	CONFIGURE_CATEGORY_CTRL_CAPTURE,
+	"SupportHDR"
+};
+
+static int __enum_conv_detect_mode[MM_CAMCORDER_DETECT_MODE_NUM];
+
+_MMCamcorderEnumConvert _mmcamcorder_enum_conv_detect_mode =
+{
+	MM_CAMCORDER_DETECT_MODE_NUM,
+	__enum_conv_detect_mode,
+	CONFIGURE_CATEGORY_CTRL_DETECT,
+	"DetectMode"
 };
 
 
@@ -207,6 +218,15 @@ static _MMCamcorderInfoConverting	g_display_info[] = {
 	{
 		CONFIGURE_TYPE_MAIN,
 		CONFIGURE_CATEGORY_MAIN_VIDEO_OUTPUT,
+		MM_CAM_DISPLAY_MODE,
+		MM_CAMCORDER_ATTR_NONE,
+		"DisplayMode",
+		MM_CAMCONVERT_TYPE_INT_ARRAY,
+		NULL,
+	},
+	{
+		CONFIGURE_TYPE_MAIN,
+		CONFIGURE_CATEGORY_MAIN_VIDEO_OUTPUT,
 		MM_CAM_DISPLAY_SURFACE,
 		MM_CAMCORDER_ATTR_NONE,
 		"Videosink",
@@ -215,7 +235,7 @@ static _MMCamcorderInfoConverting	g_display_info[] = {
 	},
 };
 
-static _MMCamcorderInfoConverting	g_caminfo_convert[] = {
+static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 	{
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_CAMERA,
@@ -252,7 +272,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[] = {
 		MM_CAMCONVERT_TYPE_INT_PAIR_ARRAY,
 		NULL,
 	},
-	{
+	{ /* 5 */
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_CAMERA,
 		MM_CAM_CAMERA_FPS,
@@ -297,7 +317,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[] = {
 		MM_CAMCONVERT_TYPE_INT_ARRAY,
 		&_mmcamcorder_enum_conv_strobe_mode,
 	},
-	{
+	{ /* 10 */
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_EFFECT,
 		MM_CAM_FILTER_BRIGHTNESS,
@@ -342,7 +362,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[] = {
 		MM_CAMCONVERT_TYPE_INT_RANGE,
 		NULL,
 	},
-	{
+	{ /* 15 */
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_EFFECT,
 		MM_CAM_FILTER_WB,
@@ -387,7 +407,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[] = {
 		MM_CAMCONVERT_TYPE_INT_RANGE,
 		NULL,
 	},
-	{
+	{ /* 20 */
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_PHOTOGRAPH,
 		MM_CAM_CAMERA_FOCUS_MODE,
@@ -432,7 +452,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[] = {
 		MM_CAMCONVERT_TYPE_INT_ARRAY,
 		NULL,
 	},
-	{
+	{ /* 25 */
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_PHOTOGRAPH,
 		MM_CAM_CAMERA_SHUTTER_SPEED,
@@ -477,7 +497,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[] = {
 		MM_CAMCONVERT_TYPE_INT_ARRAY,
 		NULL,
 	},
-	{
+	{ /* 30 */
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_CAPTURE,
 		MM_CAM_IMAGE_ENCODER_QUALITY,
@@ -497,12 +517,21 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[] = {
 	},
 	{
 		CONFIGURE_TYPE_CTRL,
+		CONFIGURE_CATEGORY_CTRL_CAPTURE,
+		MM_CAM_CAMERA_HDR_CAPTURE,
+		MM_CAMCORDER_ATTR_NONE,
+		"SupportHDR",
+		MM_CAMCONVERT_TYPE_INT_ARRAY,
+		&_mmcamcorder_enum_conv_hdr_capture,
+	},
+	{
+		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_DETECT,
 		MM_CAM_DETECT_MODE,
 		MM_CAMCORDER_ATTR_NONE,
 		"DetectMode",
 		MM_CAMCONVERT_TYPE_INT_ARRAY,
-		NULL,
+		&_mmcamcorder_enum_conv_detect_mode,
 	},
 	{
 		CONFIGURE_TYPE_CTRL,
@@ -513,7 +542,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[] = {
 		MM_CAMCONVERT_TYPE_INT_RANGE,
 		NULL,
 	},
-	{
+	{ /* 35 */
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_DETECT,
 		MM_CAM_DETECT_FOCUS_SELECT,
@@ -540,6 +569,33 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[] = {
 		MM_CAMCONVERT_TYPE_INT_ARRAY,
 		NULL,
 	},
+	{
+		CONFIGURE_TYPE_CTRL,
+		CONFIGURE_CATEGORY_CTRL_PHOTOGRAPH,
+		MM_CAM_CAMERA_FACE_ZOOM_MODE,
+		MM_CAMCORDER_ATTR_NONE,
+		"FaceZoomMode",
+		MM_CAMCONVERT_TYPE_INT_ARRAY,
+		NULL,
+	},
+	{
+		CONFIGURE_TYPE_CTRL,
+		CONFIGURE_CATEGORY_CTRL_PHOTOGRAPH,
+		MM_CAM_CAMERA_FACE_ZOOM_LEVEL,
+		MM_CAMCORDER_ATTR_NONE,
+		"FaceZoomLevel",
+		MM_CAMCONVERT_TYPE_INT_RANGE,
+		NULL,
+	},
+	{ /* 40 */
+		CONFIGURE_TYPE_CTRL,
+		CONFIGURE_CATEGORY_CTRL_CAMERA,
+		MM_CAM_RECOMMEND_CAMERA_WIDTH,
+		MM_CAM_RECOMMEND_CAMERA_HEIGHT,
+		"RecommendPreviewResolution",
+		MM_CAMCONVERT_TYPE_INT_PAIR_ARRAY,
+		NULL,
+	},
 };
 
 /*---------------------------------------------------------------------------
@@ -558,16 +614,19 @@ static int  __mmcamcorder_get_valid_array(int * original_array, int original_cou
 |    GLOBAL FUNCTION DEFINITIONS:											|
 ---------------------------------------------------------------------------*/
 //convert MSL value to sensor value
-int _mmcamcorder_convert_msl_to_sensor( int attr_idx, int mslval )
+int _mmcamcorder_convert_msl_to_sensor(MMHandleType handle, int attr_idx, int mslval)
 {
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderInfoConverting *info = NULL;
 	int i =0;
 	int size = sizeof(g_caminfo_convert) / sizeof(_MMCamcorderInfoConverting);
 
+	mmf_return_val_if_fail(hcamcorder, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
+
 	//_mmcam_dbg_log("attr_idx(%d), mslval(%d)", attr_idx, mslval);
 
-	info = g_caminfo_convert;
-	
+	info = hcamcorder->caminfo_convert;
+
 	for (i = 0; i < size; i++)
 	{
 		if (info[i].attr_idx == attr_idx)
@@ -601,18 +660,21 @@ int _mmcamcorder_convert_msl_to_sensor( int attr_idx, int mslval )
 	}
 
 	_mmcam_dbg_warn("There is no category to match. Just return the original value.");
+
 	return mslval;
 }
 
 //convert sensor value to MSL value
-int _mmcamcorder_convert_sensor_to_msl(int attr_idx, int sensval)
+int _mmcamcorder_convert_sensor_to_msl(MMHandleType handle, int attr_idx, int sensval)
 {
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+	_MMCamcorderInfoConverting *info = NULL;
 	int i = 0, j = 0;
 	int size = sizeof(g_caminfo_convert) / sizeof(_MMCamcorderInfoConverting);
-	
-	_MMCamcorderInfoConverting *info = NULL;
 
-	info = g_caminfo_convert;
+	mmf_return_val_if_fail(hcamcorder, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
+
+	info = hcamcorder->caminfo_convert;
 	
 	for( i = 0 ; i < size ; i++ )
 	{
@@ -697,15 +759,18 @@ __mmcamcorder_get_valid_array(int * original_array, int original_count, int ** v
 
 int _mmcamcorder_init_attr_from_configure(MMHandleType handle)
 {
-	_MMCamcorderInfoConverting *info       = NULL;
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+	_MMCamcorderInfoConverting *info = NULL;
 
 	int table_size = 0;
 	int ret = MM_ERROR_NONE;
 
+	mmf_return_val_if_fail(hcamcorder, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
+
 	_mmcam_dbg_log("");
 
 	/* Initialize attribute related to camera control */
-	info = g_caminfo_convert;
+	info = hcamcorder->caminfo_convert;
 	table_size = sizeof(g_caminfo_convert) / sizeof(_MMCamcorderInfoConverting);
 	ret = __mmcamcorder_set_info_to_attr( handle, info, table_size );
 	if( ret != MM_ERROR_NONE )
@@ -814,8 +879,8 @@ __mmcamcorder_set_info_to_attr( MMHandleType handle, _MMCamcorderInfoConverting 
 								info[i].main_key, info[i].sub_key1, iarray, iarray_size, idefault);
 						*/
 						
-						mmf_attrs_set_valid_type (attrs, info[i].attr_idx, MM_ATTRS_VALID_TYPE_INT_ARRAY);
-						mmf_attrs_set_valid_array (attrs,  info[i].attr_idx, iarray, iarray_size);
+						mmf_attrs_set_valid_type(attrs, info[i].attr_idx, MM_ATTRS_VALID_TYPE_INT_ARRAY);
+						mmf_attrs_set_valid_array(attrs,  info[i].attr_idx, iarray, iarray_size, idefault);
 					}
 
 					ret = mm_attrs_set_int(MMF_CAMCORDER_ATTRS(hcamcorder), info[i].attr_idx, idefault);
@@ -841,7 +906,7 @@ __mmcamcorder_set_info_to_attr( MMHandleType handle, _MMCamcorderInfoConverting 
 					//_mmcam_dbg_log("INT Range. m:%d, s:%d, min=%d, max=%d", info[i].main_key, info[i].sub_key1, irange->min, irange->max);
 				
 					mmf_attrs_set_valid_type (attrs, info[i].attr_idx, MM_ATTRS_VALID_TYPE_INT_RANGE);
-					mmf_attrs_set_valid_range(attrs, info[i].attr_idx, irange->min, irange->max);
+					mmf_attrs_set_valid_range(attrs, info[i].attr_idx, irange->min, irange->max, irange->default_value);
 
 					ret = mm_attrs_set_int(MMF_CAMCORDER_ATTRS(hcamcorder), info[i].attr_idx, irange->default_value);
 				}
@@ -883,10 +948,16 @@ __mmcamcorder_set_info_to_attr( MMHandleType handle, _MMCamcorderInfoConverting 
 
 				if( pair_array && pair_array->count > 0 )
 				{
-					mmf_attrs_set_valid_type (attrs, info[i].attr_idx, MM_ATTRS_VALID_TYPE_INT_ARRAY);
-					mmf_attrs_set_valid_array (attrs, info[i].attr_idx, pair_array->value[0], pair_array->count);
-					mmf_attrs_set_valid_type (attrs, info[i].attr_idx_pair, MM_ATTRS_VALID_TYPE_INT_ARRAY);
-					mmf_attrs_set_valid_array (attrs, info[i].attr_idx_pair, pair_array->value[1], pair_array->count);
+					mmf_attrs_set_valid_type(attrs, info[i].attr_idx, MM_ATTRS_VALID_TYPE_INT_ARRAY);
+					mmf_attrs_set_valid_array(attrs, info[i].attr_idx,
+					                          pair_array->value[0],
+					                          pair_array->count,
+					                          pair_array->default_value[0]);
+					mmf_attrs_set_valid_type(attrs, info[i].attr_idx_pair, MM_ATTRS_VALID_TYPE_INT_ARRAY);
+					mmf_attrs_set_valid_array(attrs, info[i].attr_idx_pair,
+					                          pair_array->value[1],
+					                          pair_array->count,
+					                          pair_array->default_value[1]);
 
 					mm_attrs_set_int(MMF_CAMCORDER_ATTRS(hcamcorder), info[i].attr_idx, pair_array->default_value[0]);
 					mm_attrs_set_int(MMF_CAMCORDER_ATTRS(hcamcorder), info[i].attr_idx_pair, pair_array->default_value[1]);
@@ -933,22 +1004,77 @@ int _mmcamcorder_set_converted_value(MMHandleType handle, _MMCamcorderEnumConver
 
 int _mmcamcorder_init_convert_table(MMHandleType handle)
 {
-	mmf_return_val_if_fail(handle, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
-	
-	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_whitebalance);
-	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_colortone);
-	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_iso);
-	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_prgrm);
-	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_focus_mode);
-	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_focus_type);	
-	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_ae_type);
-//	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_pcolor_mode);
-//	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_flip);
-//	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_pcolor);
-	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_strobe_mode);
-	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_wdr_ctrl);
-	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_ahs);
-//	_mmcamcorder_set_converted_value(handle, &_mmcamcorder_enum_conv_picture_format);
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+	int enum_conv_size = sizeof(_MMCamcorderEnumConvert);
+	int caminfo_conv_size = sizeof(g_caminfo_convert);
+	int caminfo_conv_length = sizeof(g_caminfo_convert) / sizeof(_MMCamcorderInfoConverting);
+	int i = 0;
+
+	mmf_return_val_if_fail(hcamcorder, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
+
+	/* copy default conv data into memory of handle */
+	memcpy(&(hcamcorder->caminfo_convert), &g_caminfo_convert, caminfo_conv_size);
+	memcpy(&(hcamcorder->enum_conv[ENUM_CONVERT_WHITE_BALANCE]), &_mmcamcorder_enum_conv_whitebalance, enum_conv_size);
+	memcpy(&(hcamcorder->enum_conv[ENUM_CONVERT_COLOR_TONE]), &_mmcamcorder_enum_conv_colortone, enum_conv_size);
+	memcpy(&(hcamcorder->enum_conv[ENUM_CONVERT_ISO]), &_mmcamcorder_enum_conv_iso, enum_conv_size);
+	memcpy(&(hcamcorder->enum_conv[ENUM_CONVERT_PROGRAM_MODE]), &_mmcamcorder_enum_conv_prgrm, enum_conv_size);
+	memcpy(&(hcamcorder->enum_conv[ENUM_CONVERT_FOCUS_MODE]), &_mmcamcorder_enum_conv_focus_mode, enum_conv_size);
+	memcpy(&(hcamcorder->enum_conv[ENUM_CONVERT_AF_RANGE]), &_mmcamcorder_enum_conv_focus_type, enum_conv_size);
+	memcpy(&(hcamcorder->enum_conv[ENUM_CONVERT_EXPOSURE_MODE]), &_mmcamcorder_enum_conv_ae_type, enum_conv_size);
+	memcpy(&(hcamcorder->enum_conv[ENUM_CONVERT_STROBE_MODE]), &_mmcamcorder_enum_conv_strobe_mode, enum_conv_size);
+	memcpy(&(hcamcorder->enum_conv[ENUM_CONVERT_WDR]), &_mmcamcorder_enum_conv_wdr_ctrl, enum_conv_size);
+	memcpy(&(hcamcorder->enum_conv[ENUM_CONVERT_ANTI_HAND_SHAKE]), &_mmcamcorder_enum_conv_ahs, enum_conv_size);
+
+	/* set ini info to conv data */
+	_mmcamcorder_set_converted_value(handle, &(hcamcorder->enum_conv[ENUM_CONVERT_WHITE_BALANCE]));
+	_mmcamcorder_set_converted_value(handle, &(hcamcorder->enum_conv[ENUM_CONVERT_COLOR_TONE]));
+	_mmcamcorder_set_converted_value(handle, &(hcamcorder->enum_conv[ENUM_CONVERT_ISO]));
+	_mmcamcorder_set_converted_value(handle, &(hcamcorder->enum_conv[ENUM_CONVERT_PROGRAM_MODE]));
+	_mmcamcorder_set_converted_value(handle, &(hcamcorder->enum_conv[ENUM_CONVERT_FOCUS_MODE]));
+	_mmcamcorder_set_converted_value(handle, &(hcamcorder->enum_conv[ENUM_CONVERT_AF_RANGE]));
+	_mmcamcorder_set_converted_value(handle, &(hcamcorder->enum_conv[ENUM_CONVERT_EXPOSURE_MODE]));
+	_mmcamcorder_set_converted_value(handle, &(hcamcorder->enum_conv[ENUM_CONVERT_STROBE_MODE]));
+	_mmcamcorder_set_converted_value(handle, &(hcamcorder->enum_conv[ENUM_CONVERT_WDR]));
+	_mmcamcorder_set_converted_value(handle, &(hcamcorder->enum_conv[ENUM_CONVERT_ANTI_HAND_SHAKE]));
+
+	/* set modified conv data to handle */
+	for (i = 0 ; i < caminfo_conv_length ; i++) {
+		if (hcamcorder->caminfo_convert[i].type == CONFIGURE_TYPE_CTRL) {
+			switch (hcamcorder->caminfo_convert[i].category) {
+			case CONFIGURE_CATEGORY_CTRL_STROBE:
+				if (!strcmp(hcamcorder->caminfo_convert[i].keyword, "StrobeMode")) {
+					hcamcorder->caminfo_convert[i].enum_convert = &(hcamcorder->enum_conv[ENUM_CONVERT_STROBE_MODE]);
+				}
+				break;
+			case CONFIGURE_CATEGORY_CTRL_EFFECT:
+				if (!strcmp(hcamcorder->caminfo_convert[i].keyword, "WhiteBalance")) {
+					hcamcorder->caminfo_convert[i].enum_convert = &(hcamcorder->enum_conv[ENUM_CONVERT_WHITE_BALANCE]);
+				} else if (!strcmp(hcamcorder->caminfo_convert[i].keyword, "ColorTone")) {
+					hcamcorder->caminfo_convert[i].enum_convert = &(hcamcorder->enum_conv[ENUM_CONVERT_COLOR_TONE]);
+				} else if (!strcmp(hcamcorder->caminfo_convert[i].keyword, "WDR")) {
+					hcamcorder->caminfo_convert[i].enum_convert = &(hcamcorder->enum_conv[ENUM_CONVERT_WDR]);
+				}
+				break;
+			case CONFIGURE_CATEGORY_CTRL_PHOTOGRAPH:
+				if (!strcmp(hcamcorder->caminfo_convert[i].keyword, "FocusMode")) {
+					hcamcorder->caminfo_convert[i].enum_convert = &(hcamcorder->enum_conv[ENUM_CONVERT_FOCUS_MODE]);
+				} else if (!strcmp(hcamcorder->caminfo_convert[i].keyword, "AFType")) {
+					hcamcorder->caminfo_convert[i].enum_convert = &(hcamcorder->enum_conv[ENUM_CONVERT_AF_RANGE]);
+				} else if (!strcmp(hcamcorder->caminfo_convert[i].keyword, "AEType")) {
+					hcamcorder->caminfo_convert[i].enum_convert = &(hcamcorder->enum_conv[ENUM_CONVERT_EXPOSURE_MODE]);
+				} else if (!strcmp(hcamcorder->caminfo_convert[i].keyword, "ISO")) {
+					hcamcorder->caminfo_convert[i].enum_convert = &(hcamcorder->enum_conv[ENUM_CONVERT_ISO]);
+				} else if (!strcmp(hcamcorder->caminfo_convert[i].keyword, "ProgramMode")) {
+					hcamcorder->caminfo_convert[i].enum_convert = &(hcamcorder->enum_conv[ENUM_CONVERT_PROGRAM_MODE]);
+				} else if (!strcmp(hcamcorder->caminfo_convert[i].keyword, "AntiHandshake")) {
+					hcamcorder->caminfo_convert[i].enum_convert = &(hcamcorder->enum_conv[ENUM_CONVERT_ANTI_HAND_SHAKE]);
+				}
+				break;
+			default:
+				break;
+			}
+		}
+	}
 
 	return MM_ERROR_NONE;
 }

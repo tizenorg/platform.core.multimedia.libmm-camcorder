@@ -165,8 +165,6 @@ int _mmcamcorder_create_preview_pipeline(MMHandleType handle);
 
 /* plug-in related */
 void _mmcamcorder_negosig_handler(GstElement *videosrc, MMHandleType handle);
-bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate);
-bool _mmcamcorder_set_videosrc_rotation(MMHandleType handle, int videosrc_rotate);
 
 /* etc */
 int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element *VideosinkElement);
@@ -176,6 +174,11 @@ int _mmcamcorder_get_eos_message(MMHandleType handle);
 void _mmcamcorder_remove_element_handle(MMHandleType handle, int first_elem, int last_elem);
 int _mmcamcorder_check_audiocodec_fileformat_compatibility(MMHandleType handle);
 int _mmcamcorder_check_videocodec_fileformat_compatibility(MMHandleType handle);
+bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate);
+bool _mmcamcorder_set_videosrc_rotation(MMHandleType handle, int videosrc_rotate);
+bool _mmcamcorder_set_videosrc_hflip(MMHandleType handle, int hflip);
+bool _mmcamcorder_set_videosrc_vflip(MMHandleType handle, int vflip);
+bool _mmcamcorder_set_videosrc_anti_shake(MMHandleType handle, int anti_shake);
 
 #ifdef __cplusplus
 }

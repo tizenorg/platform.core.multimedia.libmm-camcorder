@@ -101,7 +101,6 @@ int _mmcamcorder_add_stillshot_pipeline(MMHandleType handle)
 	                                CONFIGURE_CATEGORY_MAIN_CAPTURE,
 	                                "UseEncodebin",
 	                                &sc->bencbin_capture);
-
 	if (sc->bencbin_capture) {
 		_mmcam_dbg_log("Using Encodebin for capturing");
 		__ta__("        _mmcamcorder_create_encodesink_bin",
@@ -225,7 +224,7 @@ void _mmcamcorder_destroy_image_pipeline(MMHandleType handle)
 
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
 	mmf_return_if_fail(sc && sc->element);
-	
+
 	_mmcam_dbg_log("");
 
 	if (sc->element[_MMCAMCORDER_MAIN_PIPE].gst) {
@@ -267,6 +266,7 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 	int cap_format = MM_PIXEL_FORMAT_NV12;
 	int cap_jpeg_quality = 0;
 	int image_encoder = MM_IMAGE_CODEC_JPEG;
+	int strobe_mode = MM_CAMCORDER_STROBE_MODE_OFF;
 	unsigned int cap_fourcc = 0;
 
 	char *err_name = NULL;
@@ -314,24 +314,28 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 	/* set capture flag */
 	info->capturing = TRUE;
 
-	ret = mm_camcorder_get_attributes(handle, &err_name,
-	                                  MMCAM_IMAGE_ENCODER_QUALITY, &cap_jpeg_quality,
-	                                  MMCAM_IMAGE_ENCODER, &image_encoder,
-	                                  MMCAM_CAMERA_WIDTH, &width,
-	                                  MMCAM_CAMERA_HEIGHT, &height,
-	                                  MMCAM_CAMERA_FPS, &fps,
-	                                  MMCAM_CAPTURE_FORMAT, &cap_format,
-	                                  MMCAM_CAPTURE_WIDTH, &info->width,
-	                                  MMCAM_CAPTURE_HEIGHT, &info->height,
-	                                  MMCAM_CAPTURE_COUNT, &info->count,
-	                                  MMCAM_CAPTURE_INTERVAL, &info->interval,
-	                                  NULL);
-	if (ret != MM_ERROR_NONE) {
-		_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, ret);
-		SAFE_FREE (err_name);
-		goto cmd_error;
+	mm_camcorder_get_attributes(handle, &err_name,
+	                            MMCAM_IMAGE_ENCODER_QUALITY, &cap_jpeg_quality,
+	                            MMCAM_IMAGE_ENCODER, &image_encoder,
+	                            MMCAM_CAMERA_WIDTH, &width,
+	                            MMCAM_CAMERA_HEIGHT, &height,
+	                            MMCAM_CAMERA_FORMAT, &info->preview_format,
+	                            MMCAM_CAMERA_FPS, &fps,
+	                            MMCAM_CAMERA_HDR_CAPTURE, &info->hdr_capture_mode,
+	                            MMCAM_CAPTURE_FORMAT, &cap_format,
+	                            MMCAM_CAPTURE_WIDTH, &info->width,
+	                            MMCAM_CAPTURE_HEIGHT, &info->height,
+	                            MMCAM_CAPTURE_COUNT, &info->count,
+	                            MMCAM_CAPTURE_INTERVAL, &info->interval,
+	                            MMCAM_STROBE_MODE, &strobe_mode,
+	                            NULL);
+	if (err_name) {
+		_mmcam_dbg_warn("get_attributes err %s", err_name);
+		free(err_name);
+		err_name = NULL;
 	}
 
+	/* check capture count */
 	if (info->count < 1) {
 		_mmcam_dbg_err("capture count[%d] is invalid", info->count);
 		ret = MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
@@ -347,8 +351,8 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 	info->capture_cur_count = 0;
 	info->capture_send_count = 0;
 
-	_mmcam_dbg_log("videosource(%dx%d), capture(%dx%d), count(%d)",
-	               width, height, info->width, info->height, info->count);
+	_mmcam_dbg_log("videosource(%dx%d), capture(%dx%d), count(%d), hdr_capture_mode(%d)",
+	               width, height, info->width, info->height, info->count, info->hdr_capture_mode);
 
 	sc->internal_encode = FALSE;
 
@@ -371,7 +375,11 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 				}
 
 				cap_fourcc = _mmcamcorder_get_fourcc(raw_capture_format, image_encoder, hcamcorder->use_zero_copy_format);
-				sc->internal_encode = TRUE;
+
+				/* no need to encode internally if ITLV format */
+				if (raw_capture_format != MM_PIXEL_FORMAT_ITLV_JPEG_UYVY) {
+					sc->internal_encode = TRUE;
+				}
 
 				_mmcam_dbg_log("MSL JPEG Capture");
 			}
@@ -390,6 +398,7 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-interval", info->interval);
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-count", info->count);
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-jpg-quality", cap_jpeg_quality);
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "hdr-capture", info->hdr_capture_mode);
 
 		if (!GST_IS_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst)) {
 			_mmcam_dbg_err("Can't cast Video source into camera control.");
@@ -457,8 +466,18 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 	}
 
 	/* Play capture sound here if single capture */
-	if (info->type == _MMCamcorder_SINGLE_SHOT) {
-		_mmcamcorder_sound_solo_play(handle, _MMCAMCORDER_FILEPATH_CAPTURE_SND, FALSE);
+	if ((info->type == _MMCamcorder_SINGLE_SHOT &&
+	     (info->preview_format != MM_PIXEL_FORMAT_ITLV_JPEG_UYVY || strobe_mode == MM_CAMCORDER_STROBE_MODE_OFF)) ||
+	    info->hdr_capture_mode) {
+		__ta__("        g_idle_add:_mmcamcorder_sound_capture_play_cb",
+		g_idle_add(_mmcamcorder_sound_capture_play_cb, (gpointer)hcamcorder);
+		);
+
+		/* set flag */
+		info->played_capture_sound = TRUE;
+	} else {
+		/* set flag */
+		info->played_capture_sound = FALSE;
 	}
 
 cmd_error:
@@ -528,17 +547,7 @@ int _mmcamcorder_image_cmd_preview_start(MMHandleType handle)
 	if (!strcmp(videosrc_name, "avsysvideosrc") || !strcmp(videosrc_name, "camerasrc")) {
 		_mmcam_dbg_log("Capture Preview start : avsysvideosrc - No need to set new caps.");
 
-		ret = mm_camcorder_get_attributes(handle, &err_name,
-		                                  MMCAM_CAMERA_FPS_AUTO, &fps_auto,
-		                                  NULL);
-		if (ret != MM_ERROR_NONE) {
-			_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, ret);
-			SAFE_FREE (err_name);
-			goto cmd_error;
-		}
-
-		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "fps-auto", fps_auto);
-
+		/* just set capture stop command if current state is CAPTURING */
 		if (_mmcamcorder_get_state(handle) == MM_CAMCORDER_STATE_CAPTURING) {
 			if (!GST_IS_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst)) {
 				_mmcam_dbg_err("Can't cast Video source into camera control.");
@@ -553,6 +562,25 @@ int _mmcamcorder_image_cmd_preview_start(MMHandleType handle)
 			if (info->type == _MMCamcorder_SINGLE_SHOT) {
 				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
 			}
+		} else {
+			int focus_mode = 0;
+
+			/* This case is starting of preview */
+			ret = mm_camcorder_get_attributes(handle, &err_name,
+			                                  MMCAM_CAMERA_FPS_AUTO, &fps_auto,
+			                                  MMCAM_CAMERA_FOCUS_MODE, &focus_mode,
+			                                  NULL);
+			if (ret != MM_ERROR_NONE) {
+				_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, ret);
+				SAFE_FREE (err_name);
+			}
+
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "fps-auto", fps_auto);
+
+			/* set focus mode */
+			mm_camcorder_set_attributes(handle, NULL,
+			                            MMCAM_CAMERA_FOCUS_MODE, focus_mode,
+			                            NULL);
 		}
 	} else {
 		/* check if resolution need to rollback */
@@ -622,12 +650,26 @@ int _mmcamcorder_image_cmd_preview_start(MMHandleType handle)
 		if (!strcmp(videosrc_name, "avsysvideosrc") || !strcmp(videosrc_name, "camerasrc")) {
 			int try_count = 0;
 
-			__ta__( "    Wait preview frame after capture",
-			while (current_framecount >= sc->kpi.video_framecount &&
-			       try_count++ < _MMCAMCORDER_CAPTURE_STOP_CHECK_COUNT) {
-				usleep(_MMCAMCORDER_CAPTURE_STOP_CHECK_INTERVAL);
+			if (info->preview_format != MM_PIXEL_FORMAT_ITLV_JPEG_UYVY) {
+				mmf_attrs_t *attr = (mmf_attrs_t *)MMF_CAMCORDER_ATTRS(handle);
+
+				/* Set strobe mode - strobe mode can not be set to driver while captuing */
+				if (attr) {
+					__ta__("    Set strobe mode after capture",
+					mmf_attribute_set_modified(&(attr->items[MM_CAM_STROBE_MODE]));
+					if (mmf_attrs_commit((MMHandleType) attr) == -1) {
+						_mmcam_dbg_warn("Failed to set strobe mode");
+					}
+					);
+				}
+
+				__ta__("    Wait preview frame after capture",
+				while (current_framecount >= sc->kpi.video_framecount &&
+				       try_count++ < _MMCAMCORDER_CAPTURE_STOP_CHECK_COUNT) {
+					usleep(_MMCAMCORDER_CAPTURE_STOP_CHECK_INTERVAL);
+				}
+				);
 			}
-			);
 
 			if (info->type == _MMCamcorder_MULTI_SHOT) {
 				MMCAMCORDER_G_OBJECT_SET( sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
@@ -664,14 +706,12 @@ int _mmcamcorder_image_cmd_preview_start(MMHandleType handle)
 		mm_camcorder_get_attributes(handle, NULL, MMCAM_CAPTURE_COUNT, &cap_count, NULL);
 		if (cap_count > 1) {
 			__ta__("_mmcamcorder_sound_init",
+#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
 			sound_ret = _mmcamcorder_sound_init(handle, _MMCAMCORDER_FILEPATH_CAPTURE2_SND);
+#else /* _MMCAMCORDER_UPLOAD_SAMPLE */
+			sound_ret = _mmcamcorder_sound_init(handle);
+#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 			);
-			if (sound_ret) {
-				__ta__("_mmcamcorder_sound_prepare",
-				sound_ret = _mmcamcorder_sound_prepare(handle);
-				);
-				_mmcam_dbg_log("sound prepare [%d]", sound_ret);
-			}
 		}
 	}
 
@@ -828,6 +868,9 @@ int _mmcamcorder_image_cmd_capture_with_encbin(MMHandleType handle)
 			}
 		}
 
+		/* set jpeg quality */
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_IENC].gst, "quality", cap_jpeg_quality);
+
 		if (need_change) {
 			_mmcam_dbg_log("Need to change resolution");
 
@@ -875,6 +918,12 @@ int _mmcamcorder_image_cmd_capture_with_encbin(MMHandleType handle)
 	/* Play capture sound here if single capture */
 	if (info->type == _MMCamcorder_SINGLE_SHOT) {
 		_mmcamcorder_sound_solo_play(handle, _MMCAMCORDER_FILEPATH_CAPTURE_SND, FALSE);
+
+		/* set flag */
+		info->played_capture_sound = TRUE;
+	} else {
+		/* set flag */
+		info->played_capture_sound = FALSE;
 	}
 
 cmd_error:
@@ -1173,8 +1222,6 @@ int _mmcamcorder_image_command(MMHandleType handle, int command)
 
 void __mmcamcorder_init_stillshot_info (MMHandleType handle)
 {
-	int type = _MMCamcorder_SINGLE_SHOT;
-
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderSubContext *sc = NULL;
 	_MMCamcorderImageInfo *info = NULL;
@@ -1185,20 +1232,17 @@ void __mmcamcorder_init_stillshot_info (MMHandleType handle)
 	mmf_return_if_fail(sc && sc->info);
 
 	info = sc->info;
-	type = info->type;
 
-	_mmcam_dbg_log("capture type[%d], capture send count[%d]", type, info->capture_send_count);
+	_mmcam_dbg_log("capture type[%d], capture send count[%d]", info->type, info->capture_send_count);
 
-	if (type ==_MMCamcorder_SINGLE_SHOT || info->capture_send_count == info->count) {
+	if (info->type ==_MMCamcorder_SINGLE_SHOT || info->capture_send_count == info->count) {
 		info->capture_cur_count = 0;
 		info->capture_send_count = 0;
 		info->multi_shot_stop = TRUE;
 		info->next_shot_time = 0;
-		info->type = _MMCamcorder_SINGLE_SHOT;
 
 		/* capturing flag set to FALSE here */
 		info->capturing = FALSE;
-		MMTA_ACUM_ITEM_END("Real First Capture Start", FALSE);
 	}
 
 	return;
@@ -1227,7 +1271,9 @@ gboolean __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCap
 	}
 
 	/* exif 090227 */
+	__ta__("                    mm_exif_create_exif_info",
 	ret = mm_exif_create_exif_info(&(hcamcorder->exif_info));
+	);
 	if (hcamcorder->exif_info == NULL || ret != MM_ERROR_NONE) {
 		_MMCamcorderMsgItem msg;
 
@@ -1241,8 +1287,8 @@ gboolean __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCap
 
 	/* add basic exif info */
 	_mmcam_dbg_log("add basic exif info");
-	__ta__("                __mmcamcorder_set_exif_basic_info",
-	ret = __mmcamcorder_set_exif_basic_info(handle);
+	__ta__("                    __mmcamcorder_set_exif_basic_info",
+	ret = __mmcamcorder_set_exif_basic_info(handle, original);
 	);
 	if (ret != MM_ERROR_NONE) {
 		_MMCamcorderMsgItem msg;
@@ -1265,7 +1311,7 @@ gboolean __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCap
 			               thumbnail->data, thumbnail->width, thumbnail->height);
 
 			/* add thumbnail exif info */
-			__ta__("            mm_exif_add_thumbnail_info",
+			__ta__("                    mm_exif_add_thumbnail_info",
 			ret = mm_exif_add_thumbnail_info(hcamcorder->exif_info, thumbnail->data,thumbnail->width, thumbnail->height, thumbnail->length);
 			);
 			if (ret != MM_ERROR_NONE) {
@@ -1284,8 +1330,9 @@ gboolean __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCap
 	}
 
 	/* write jpeg with exif */
+	__ta__("                    mm_exif_write_exif_jpeg_to_memory",
 	ret = mm_exif_write_exif_jpeg_to_memory(&original->data, &original->length ,hcamcorder->exif_info,  data, datalen);
-
+	);
 	if (ret != MM_ERROR_NONE) {
 		_MMCamcorderMsgItem msg;
 	
@@ -1297,7 +1344,9 @@ gboolean __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCap
 	}
 
 	/* destroy exif info */
+	__ta__("                    mm_exif_destory_exif_info",
 	mm_exif_destory_exif_info(hcamcorder->exif_info);
+	);
 	hcamcorder->exif_info = NULL;
 
 	_mmcam_dbg_log("END");
@@ -1307,32 +1356,6 @@ gboolean __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCap
 	} else {
 		return TRUE;
 	}
-}
-
-
-gboolean __mmcamcorder_capture_send_msg(MMHandleType handle, int type, int count)
-{
-	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
-	_MMCamcorderImageInfo *info = NULL;
-	_MMCamcorderSubContext *sc = NULL;
-	_MMCamcorderMsgItem msg;
-
-	mmf_return_val_if_fail(hcamcorder, FALSE);
-
-	sc = MMF_CAMCORDER_SUBCONTEXT(hcamcorder);
-	mmf_return_val_if_fail(sc && sc->info, FALSE);
-
-	info = sc->info;
-
-	_mmcam_dbg_log("type [%d], capture count [%d]", type, count);
-
-	msg.id = MM_MESSAGE_CAMCORDER_CAPTURED;
-	msg.param.code = count;
-
-	_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
-
-	_mmcam_dbg_log("END");
-	return TRUE;
 }
 
 
@@ -1361,9 +1384,9 @@ void __mmcamcorder_get_capture_data_from_buffer(MMCamcorderCaptureDataType *capt
 	gst_structure_get_int(structure, "height", &capture_data->height);
 	capture_data->length = GST_BUFFER_SIZE(buffer);
 
-	 _mmcam_dbg_err("buffer data[%p],size[%dx%d],length[%d],format[%d]",
-	                capture_data->data, capture_data->width, capture_data->height,
-	                capture_data->length, capture_data->format);
+	 _mmcam_dbg_warn("buffer data[%p],size[%dx%d],length[%d],format[%d]",
+	                 capture_data->data, capture_data->width, capture_data->height,
+	                 capture_data->length, capture_data->format);
 	gst_caps_unref(caps);
 	caps = NULL;
 
@@ -1433,13 +1456,19 @@ void __mmcamcorder_release_jpeg_data(MMHandleType handle, MMCamcorderCaptureData
 
 	_mmcam_dbg_log("");
 
+	__ta__( "                  GetAttr:MMCAM_TAG_ENABLE",
 	mm_camcorder_get_attributes(handle, NULL, MMCAM_TAG_ENABLE, &tag_enable, NULL);
-	MMCAMCORDER_G_OBJECT_GET (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "provide-exif", &provide_exif);
+	);
+	__ta__( "                  GetProp:\"provide-exif\"",
+	MMCAMCORDER_G_OBJECT_GET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "provide-exif", &provide_exif);
+	);
 
 	/* if dest->data is allocated in MSL, release it */
 	if (tag_enable && !provide_exif) {
 		if (dest->data) {
+			__ta__( "                  Free data",
 			free(dest->data);
+			);
 			dest->length = 0;
 			dest->data = NULL;
 			_mmcam_dbg_log("Jpeg is released!");
@@ -1458,11 +1487,9 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstBuffer *buffe
 	int pixtype = MM_PIXEL_FORMAT_INVALID;
 	int pixtype_sub = MM_PIXEL_FORMAT_INVALID;
 	int codectype = MM_IMAGE_CODEC_JPEG;
-	int type = _MMCamcorder_SINGLE_SHOT;
 	int attr_index = 0;
 	int count = 0;
 	int stop_cont_shot = 0;
-	gboolean send_msg = FALSE;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
 	_MMCamcorderImageInfo *info = NULL;
@@ -1475,7 +1502,6 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstBuffer *buffe
 	mmf_attribute_t *item = NULL;
 
 	void *encoded_data = NULL;
-	char *err_attr_name = NULL;
 
 	mmf_return_if_fail(hcamcorder);
 
@@ -1488,30 +1514,69 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstBuffer *buffe
 
 	MMTA_ACUM_ITEM_BEGIN("            MSL capture callback", FALSE);
 
+	/* check command lock to block capture callback if capture start API is not returned */
+	_MMCAMCORDER_LOCK_CMD(hcamcorder);
+	_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
+	_mmcam_dbg_log("command LOCK OK");
+
 	/* check capture state */
 	if (info->type == _MMCamcorder_MULTI_SHOT && info->capture_send_count > 0) {
 		mm_camcorder_get_attributes((MMHandleType)hcamcorder, NULL, "capture-break-cont-shot", &stop_cont_shot, NULL);
 		if (stop_cont_shot == TRUE) {
 			_mmcam_dbg_warn("capture stop command already come. skip this...");
 			MMTA_ACUM_ITEM_END( "            MSL capture callback", FALSE );
-			goto error;
+
+			/*free GstBuffer*/
+			if (buffer1) {
+				gst_buffer_unref(buffer1);
+			}
+			if (buffer2) {
+				gst_buffer_unref(buffer2);
+			}
+			if (buffer3) {
+				gst_buffer_unref(buffer3);
+			}
+
+			return;
 		}
 	}
 
 	if (!info->capturing) {
 		_mmcam_dbg_err("It's Not capturing now.");
-		goto error;
+
+		/*free GstBuffer*/
+		if (buffer1) {
+			gst_buffer_unref(buffer1);
+		}
+		if (buffer2) {
+			gst_buffer_unref(buffer2);
+		}
+		if (buffer3) {
+			gst_buffer_unref(buffer3);
+		}
+
+		return;
 	}
 
-	/* play capture sound here if multi capture */
+	/* play capture sound here if multi capture
+	   or preview format is ITLV(because of AF and flash control in plugin) */
 	if (info->type == _MMCamcorder_MULTI_SHOT) {
+		__ta__("                _mmcamcorder_sound_play",
 		_mmcamcorder_sound_play((MMHandleType)hcamcorder);
+		);
+	} else if (!info->played_capture_sound) {
+		__ta__("                g_idle_add:_mmcamcorder_sound_capture_play_cb",
+		g_idle_add(_mmcamcorder_sound_capture_play_cb, (gpointer)hcamcorder);
+		);
 	}
 
 	/* Prepare main, thumbnail buffer */
 	pixtype = _mmcamcorder_get_pixel_format(buffer1);
 	if (pixtype == MM_PIXEL_FORMAT_INVALID) {
 		_mmcam_dbg_err("Unsupported pixel type");
+
+		MMCAM_SEND_MESSAGE(hcamcorder, MM_MESSAGE_CAMCORDER_ERROR, MM_ERROR_CAMCORDER_INTERNAL);
+
 		goto error;
 	}
 
@@ -1520,26 +1585,29 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstBuffer *buffe
 		__mmcamcorder_get_capture_data_from_buffer(&dest, pixtype, buffer1);
 	} else {
 		_mmcam_dbg_err("buffer1 has wrong pointer. (buffer1=%p)",buffer1);
+
+		MMCAM_SEND_MESSAGE(hcamcorder, MM_MESSAGE_CAMCORDER_ERROR, MM_ERROR_CAMCORDER_INTERNAL);
+
 		goto error;
 	}
 
 	/* Encode JPEG */
 	if (sc->internal_encode) {
 		int capture_quality = 0;
-		ret = mm_camcorder_get_attributes((MMHandleType)hcamcorder, &err_attr_name,
-		                                  MMCAM_IMAGE_ENCODER_QUALITY, &capture_quality,
-		                                  NULL);
-		if (ret != MM_ERROR_NONE) {
-			_mmcam_dbg_err("Get attribute failed[%s][%x]", err_attr_name, ret);
-			SAFE_FREE(err_attr_name);
-			goto error;
-		}
+		mm_camcorder_get_attributes((MMHandleType)hcamcorder, NULL,
+		                            MMCAM_IMAGE_ENCODER_QUALITY, &capture_quality,
+		                            NULL);
+		_mmcam_dbg_log("capture_quality %d", capture_quality);
 
 		__ta__("                _mmcamcorder_encode_jpeg",
 		ret = _mmcamcorder_encode_jpeg(GST_BUFFER_DATA(buffer1), dest.width, dest.height,
 		                               pixtype, dest.length, capture_quality, &(dest.data), &(dest.length));
 		);
-		if (ret == FALSE) {
+		if (!ret) {
+			_mmcam_dbg_err("_mmcamcorder_encode_jpeg failed");
+
+			MMCAM_SEND_MESSAGE(hcamcorder, MM_MESSAGE_CAMCORDER_ERROR, MM_ERROR_CAMCORDER_INTERNAL);
+
 			goto error;
 		}
 
@@ -1549,9 +1617,9 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstBuffer *buffe
 
 	/* Thumbnail image buffer */
 	if (buffer2 && GST_BUFFER_DATA(buffer2) && (GST_BUFFER_SIZE(buffer2) !=0)) {
-		pixtype_sub = _mmcamcorder_get_pixel_format(buffer2);
 		_mmcam_dbg_log("Thumnail (buffer2=%p)",buffer2);
 
+		pixtype_sub = _mmcamcorder_get_pixel_format(buffer2);
 		__mmcamcorder_get_capture_data_from_buffer(&thumb, pixtype_sub, buffer2);
 	} else {
 		_mmcam_dbg_log("buffer2 has wrong pointer. Not Error. (buffer2=%p)",buffer2);
@@ -1576,21 +1644,15 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstBuffer *buffe
 		_mmcam_dbg_log("buffer3 has wrong pointer. Not Error. (buffer3=%p)",buffer3);
 	}
 
-	mmf_attrs_commit_err((MMHandleType)attrs, &err_attr_name);
+	/* commit screennail data */
+	mmf_attrs_commit_err((MMHandleType)attrs, NULL);
 
 	/* Set extra data for jpeg */
 	if (dest.format == MM_PIXEL_FORMAT_ENCODED) {
-		int err = 0;
-		char *err_attr_name = NULL;
-
-		err = mm_camcorder_get_attributes((MMHandleType)hcamcorder, &err_attr_name,
-		                                  MMCAM_IMAGE_ENCODER, &codectype,
-		                                  NULL);
-		if (err != MM_ERROR_NONE) {
-			_mmcam_dbg_warn("Getting codectype failed. (%s:%x)", err_attr_name, err);
-			SAFE_FREE (err_attr_name);
-			goto error;
-		}
+		mm_camcorder_get_attributes((MMHandleType)hcamcorder, NULL,
+		                            MMCAM_IMAGE_ENCODER, &codectype,
+		                            NULL);
+		_mmcam_dbg_log("codectype %d", codectype);
 
 		switch (codectype) {
 		case MM_IMAGE_CODEC_JPEG:
@@ -1601,11 +1663,17 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstBuffer *buffe
 			);
 			if (!ret) {
 				_mmcam_dbg_err("Error on setting extra data to jpeg");
+
+				MMCAM_SEND_MESSAGE(hcamcorder, MM_MESSAGE_CAMCORDER_ERROR, MM_ERROR_CAMCORDER_INTERNAL);
+
 				goto error;
 			}
 			break;
 		default:
 			_mmcam_dbg_err("The codectype is not supported. (%d)", codectype);
+
+			MMCAM_SEND_MESSAGE(hcamcorder, MM_MESSAGE_CAMCORDER_ERROR, MM_ERROR_CAMCORDER_INTERNAL);
+
 			goto error;
 		}
 	}
@@ -1625,13 +1693,26 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstBuffer *buffe
 		_mmcam_dbg_log("APPLICATION CALLBACK END");
 	} else {
 		_mmcam_dbg_err("Capture callback is NULL.");
+
+		MMCAM_SEND_MESSAGE(hcamcorder, MM_MESSAGE_CAMCORDER_ERROR, MM_ERROR_CAMCORDER_INVALID_ARGUMENT);
+
 		goto err_release_exif;
 	}
 
-	/* Set send msg flag and capture count */
-	send_msg = TRUE;
-	type = info->type;
+	/* Set capture count */
 	count = ++(info->capture_send_count);
+
+	/* Send CAPTURED message and count - capture success */
+	if (info->hdr_capture_mode != MM_CAMCORDER_HDR_ON_AND_ORIGINAL) {
+		MMTA_ACUM_ITEM_BEGIN("                CAPTURED MESSAGE DELAY", FALSE);
+
+		MMCAM_SEND_MESSAGE(hcamcorder, MM_MESSAGE_CAMCORDER_CAPTURED, count);
+	} else if (info->hdr_capture_mode == MM_CAMCORDER_HDR_ON_AND_ORIGINAL && count == 2) {
+		MMTA_ACUM_ITEM_BEGIN("                CAPTURED MESSAGE DELAY", FALSE);
+
+		/* send captured message only once in HDR and Original Capture mode */
+		MMCAM_SEND_MESSAGE(hcamcorder, MM_MESSAGE_CAMCORDER_CAPTURED, 1);
+	}
 
 err_release_exif:
 	_MMCAMCORDER_UNLOCK_VCAPTURE_CALLBACK(hcamcorder);
@@ -1645,11 +1726,9 @@ err_release_exif:
 
 error:
 	/* Check end condition and set proper value */
-	__mmcamcorder_init_stillshot_info((MMHandleType)hcamcorder);
-
-	/* send captured message if no problem */
-	if (send_msg) {
-		__mmcamcorder_capture_send_msg((MMHandleType)hcamcorder, type, count);
+	if (info->hdr_capture_mode != MM_CAMCORDER_HDR_ON_AND_ORIGINAL ||
+	    (info->hdr_capture_mode == MM_CAMCORDER_HDR_ON_AND_ORIGINAL && count == 2)) {
+		__mmcamcorder_init_stillshot_info((MMHandleType)hcamcorder);
 	}
 
 	/* release internal allocated data */
@@ -1730,7 +1809,7 @@ int _mmcamcorder_set_resize_property(MMHandleType handle, int capture_width, int
 }
 
 
-int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
+int __mmcamcorder_set_exif_basic_info(MMHandleType handle, MMCamcorderCaptureDataType *capture_data)
 {
 	int ret = MM_ERROR_NONE;
 	int value;
@@ -1742,7 +1821,9 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
 	double f_longitude = INVALID_GPS_VALUE;
 	double f_altitude = INVALID_GPS_VALUE;
 	char *str_value = NULL;
+#ifdef WRITE_EXIF_MAKER_INFO /* FIXME */
 	char *maker = NULL;
+#endif
 	char *user_comment = NULL;
 	char *err_name = NULL;
 	ExifData *ed = NULL;
@@ -1752,7 +1833,7 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
 	static ExifLong elong[10];
 
 	GstCameraControl *control = NULL;
-	GstCameraControlExifInfo avsys_exif_info = {0,};
+	GstCameraControlExifInfo avsys_exif_info;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderSubContext *sc = NULL;
@@ -1764,14 +1845,17 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
 	mmf_return_val_if_fail(sc && sc->element, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
 
-	if (!GST_IS_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst)) {
-		_mmcam_dbg_err("Can't cast Video source into camera control. Just return true.");
-		return MM_ERROR_NONE;
-	}
+	CLEAR(avsys_exif_info);
 
-	control = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
-	/* get device information */
-	gst_camera_control_get_exif_info(control, &avsys_exif_info);
+	if (!GST_IS_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst)) {
+		_mmcam_dbg_err("Can't cast Video source into camera control. Skip camera control values...");
+	} else {
+		control = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		/* get device information */
+		__ta__("                        gst_camera_control_get_exif_info",
+		gst_camera_control_get_exif_info(control, &avsys_exif_info);
+		);
+	}
 
 	/* get ExifData from exif info */
 	ed = mm_exif_get_exif_from_info(hcamcorder->exif_info);
@@ -1793,7 +1877,7 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
 	}
 
 	/*1. EXIF_TAG_IMAGE_WIDTH */ /*EXIF_TAG_PIXEL_X_DIMENSION*/
-	mm_camcorder_get_attributes(handle, NULL, MMCAM_CAPTURE_WIDTH, &value, NULL);
+	value = capture_data->width;
 
 	exif_set_long((unsigned char *)&elong[cntl], exif_data_get_byte_order(ed), value);
 	ret = mm_exif_set_add_entry(ed, EXIF_IFD_0, EXIF_TAG_IMAGE_WIDTH,
@@ -1810,7 +1894,7 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
 	_mmcam_dbg_log("width[%d]", value);
 
 	/*2. EXIF_TAG_IMAGE_LENGTH*/ /*EXIF_TAG_PIXEL_Y_DIMENSION*/
- 	mm_camcorder_get_attributes(handle, NULL, MMCAM_CAPTURE_HEIGHT, &value, NULL);
+	value = capture_data->height;
 
 	exif_set_long((unsigned char *)&elong[cntl], exif_data_get_byte_order (ed), value);
 	ret = mm_exif_set_add_entry(ed, EXIF_IFD_0, EXIF_TAG_IMAGE_LENGTH,
@@ -1879,7 +1963,7 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
 
 		free(b);
 	}
-
+#ifdef WRITE_EXIF_MAKER_INFO /* FIXME */
 	/*5. EXIF_TAG_MAKE */
 	maker = strdup(MM_MAKER_NAME);
 	if (maker) {
@@ -1912,7 +1996,7 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
 	} else {
 		_mmcam_dbg_warn("failed to get model name");
 	}
-
+#endif
 	/*6. EXIF_TAG_IMAGE_DESCRIPTION */
 	mm_camcorder_get_attributes(handle, NULL, MMCAM_TAG_IMAGE_DESCRIPTION, &str_value, &str_val_len, NULL);
 	_mmcam_dbg_log("desctiption [%s]", str_value);
@@ -1932,7 +2016,7 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
 
 	/*7. EXIF_TAG_SOFTWARE*/
 /*
-	{
+	if (control != NULL) {
 		char software[50] = {0,};
 		unsigned int len = 0;
 
@@ -1980,20 +2064,24 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
 	}
 
 	/*9. EXIF_TAG_COLOR_SPACE */
- 	exif_set_short((unsigned char *)&eshort[cnts], exif_data_get_byte_order(ed), avsys_exif_info.colorspace);
-	ret = mm_exif_set_add_entry(ed, EXIF_IFD_EXIF, EXIF_TAG_COLOR_SPACE,
-	                            EXIF_FORMAT_SHORT, 1, (unsigned char *)&eshort[cnts++]);
-	if (ret != MM_ERROR_NONE) {
-		EXIF_SET_ERR(ret, EXIF_TAG_COLOR_SPACE);
+	if (control != NULL) {
+		exif_set_short((unsigned char *)&eshort[cnts], exif_data_get_byte_order(ed), avsys_exif_info.colorspace);
+		ret = mm_exif_set_add_entry(ed, EXIF_IFD_EXIF, EXIF_TAG_COLOR_SPACE,
+		                            EXIF_FORMAT_SHORT, 1, (unsigned char *)&eshort[cnts++]);
+		if (ret != MM_ERROR_NONE) {
+			EXIF_SET_ERR(ret, EXIF_TAG_COLOR_SPACE);
+		}
 	}
 
 	/*10. EXIF_TAG_COMPONENTS_CONFIGURATION */
-	config = avsys_exif_info.component_configuration;
-	_mmcam_dbg_log("EXIF_TAG_COMPONENTS_CONFIGURATION [%4x] ",config);
-	ret = mm_exif_set_add_entry(ed, EXIF_IFD_EXIF, EXIF_TAG_COMPONENTS_CONFIGURATION,
-	                            EXIF_FORMAT_UNDEFINED, 4, (unsigned char *)&config);
-	if (ret != MM_ERROR_NONE) {
-		EXIF_SET_ERR(ret, EXIF_TAG_COMPONENTS_CONFIGURATION);
+	if (control != NULL) {
+		config = avsys_exif_info.component_configuration;
+		_mmcam_dbg_log("EXIF_TAG_COMPONENTS_CONFIGURATION [%4x] ",config);
+		ret = mm_exif_set_add_entry(ed, EXIF_IFD_EXIF, EXIF_TAG_COMPONENTS_CONFIGURATION,
+		                            EXIF_FORMAT_UNDEFINED, 4, (unsigned char *)&config);
+		if (ret != MM_ERROR_NONE) {
+			EXIF_SET_ERR(ret, EXIF_TAG_COMPONENTS_CONFIGURATION);
+		}
 	}
 
 	/*11. EXIF_TAG_COMPRESSED_BITS_PER_PIXEL */
@@ -2001,6 +2089,7 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
 
 	/*12. EXIF_TAG_DATE_TIME_ORIGINAL */
 	/*13. EXIF_TAG_DATE_TIME_DIGITIZED*/
+
 	/*14. EXIF_TAG_EXPOSURE_TIME*/
 	if (avsys_exif_info.exposure_time_numerator && avsys_exif_info.exposure_time_denominator) {
 		unsigned char *b = NULL;
@@ -2212,23 +2301,27 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle)
 	/* defualt : none */
 
 	/*24. EXIF_TAG_METERING_MODE */
-	exif_set_short((unsigned char *)&eshort[cnts], exif_data_get_byte_order(ed),avsys_exif_info.metering_mode);
-	_mmcam_dbg_log("EXIF_TAG_METERING_MODE [%d]", avsys_exif_info.metering_mode);
-	ret = mm_exif_set_add_entry(ed, EXIF_IFD_EXIF, EXIF_TAG_METERING_MODE,
-	                            EXIF_FORMAT_SHORT, 1, (unsigned char *)&eshort[cnts++]);
-	if (ret != MM_ERROR_NONE) {
-		EXIF_SET_ERR(ret, EXIF_TAG_METERING_MODE);
+	if (control != NULL) {
+		exif_set_short((unsigned char *)&eshort[cnts], exif_data_get_byte_order(ed),avsys_exif_info.metering_mode);
+		_mmcam_dbg_log("EXIF_TAG_METERING_MODE [%d]", avsys_exif_info.metering_mode);
+		ret = mm_exif_set_add_entry(ed, EXIF_IFD_EXIF, EXIF_TAG_METERING_MODE,
+		                            EXIF_FORMAT_SHORT, 1, (unsigned char *)&eshort[cnts++]);
+		if (ret != MM_ERROR_NONE) {
+			EXIF_SET_ERR(ret, EXIF_TAG_METERING_MODE);
+		}
 	}
 
 	/*25. EXIF_TAG_LIGHT_SOURCE*/
 
 	/*26. EXIF_TAG_FLASH*/
-	exif_set_short((unsigned char *)&eshort[cnts], exif_data_get_byte_order (ed),avsys_exif_info.flash);
-	_mmcam_dbg_log("EXIF_TAG_FLASH [%d]", avsys_exif_info.flash);
-	ret = mm_exif_set_add_entry(ed, EXIF_IFD_EXIF, EXIF_TAG_FLASH,
-	                            EXIF_FORMAT_SHORT, 1, (unsigned char *)&eshort[cnts++]);
-	if (ret != MM_ERROR_NONE) {
-		EXIF_SET_ERR(ret, EXIF_TAG_FLASH);
+	if (control != NULL) {
+		exif_set_short((unsigned char *)&eshort[cnts], exif_data_get_byte_order (ed),avsys_exif_info.flash);
+		_mmcam_dbg_log("EXIF_TAG_FLASH [%d]", avsys_exif_info.flash);
+		ret = mm_exif_set_add_entry(ed, EXIF_IFD_EXIF, EXIF_TAG_FLASH,
+		                            EXIF_FORMAT_SHORT, 1, (unsigned char *)&eshort[cnts++]);
+		if (ret != MM_ERROR_NONE) {
+			EXIF_SET_ERR(ret, EXIF_TAG_FLASH);
+		}
 	}
 
 	/*27. EXIF_TAG_FOCAL_LENGTH*/

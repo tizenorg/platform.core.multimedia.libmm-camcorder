@@ -190,6 +190,16 @@ extern "C" {
 #define	_MMCAMCORDER_STATE_CHECK_INTERVAL	5000		/* checking interval */
 
 /**
+ * Default videosink type
+ */
+#define _MMCAMCORDER_DEFAULT_VIDEOSINK_TYPE     "VideosinkElementX"
+
+/**
+ * Default recording motion rate
+ */
+#define _MMCAMCORDER_DEFAULT_RECORDING_MOTION_RATE   1.0
+
+/**
  * Total level count of manual focus */
 #define _MMFCAMCORDER_FOCUS_TOTAL_LEVEL		8
 
@@ -201,12 +211,22 @@ extern "C" {
 /**
  *	Minimum integer value
  */
-#define _MMCAMCORDER_MIN_INT	(-2147483648)
+#define _MMCAMCORDER_MIN_INT	(INT_MIN)
 
 /**
  *	Maximum integer value
  */
-#define _MMCAMCORDER_MAX_INT	(2147483647)
+#define _MMCAMCORDER_MAX_INT	(INT_MAX)
+
+/**
+ *	Minimum double value
+ */
+#define _MMCAMCORDER_MIN_DOUBLE	(DBL_MIN)
+
+/**
+ *	Maximum integer value
+ */
+#define _MMCAMCORDER_MAX_DOUBLE	(DBL_MAX)
 
 /**
  *	Audio timestamp margin (msec)
@@ -295,6 +315,7 @@ extern "C" {
 #define MM_CAMCORDER_AUTO_EXPOSURE_NUM		9	/**< Number of Auto exposure type */
 #define MM_CAMCORDER_WDR_NUM			3	/**< Number of wide dynamic range */
 #define MM_CAMCORDER_AHS_NUM			4	/**< Number of anti-handshake */
+#define MM_CAMCORDER_HDR_CAPTURE_NUM		3	/**< Number of HDR capture mode */
 #define MM_CAMCORDER_GEOMETRY_METHOD_NUM	4	/**< Number of geometry method */
 #define MM_CAMCORDER_TAG_ORT_NUM		8	/**< Number of tag orientation */
 #define MM_CAMCORDER_STROBE_MODE_NUM		8	/**< Number of strobe mode type */
@@ -443,7 +464,6 @@ typedef enum {
 } _MMCamcorderStateChange;
 
 
-
 /*=======================================================================================
 | STRUCTURE DEFINITIONS									|
 ========================================================================================*/
@@ -503,37 +523,38 @@ typedef struct {
  * MMCamcorder Sub Context
  */
 typedef struct {
-	bool isMaxsizePausing;			/**< Because of size limit, pipeline is paused. */
-	bool isMaxtimePausing;			/**< Because of time limit, pipeline is paused. */
-	int element_num;			/**< count of element */
-	int cam_stability_count;		/**< camsensor stability count. the count of frame will drop */
-	GstClockTime pipeline_time;		/**< current time of Gstreamer Pipeline */
-	GstClockTime pause_time;		/** amount of time while pipeline is in PAUSE state.*/
-	GstClockTime stillshot_time;		/** pipeline time of capturing moment*/
-	gboolean is_slow;
-	gboolean error_occurs;
-	gboolean ferror_send;			/** file write/seek error **/
-	guint ferror_count;			/** file write/seek error count **/
+	bool isMaxsizePausing;                  /**< Because of size limit, pipeline is paused. */
+	bool isMaxtimePausing;                  /**< Because of time limit, pipeline is paused. */
+	int element_num;                        /**< count of element */
+	int cam_stability_count;                /**< camsensor stability count. the count of frame will drop */
+	GstClockTime pipeline_time;             /**< current time of Gstreamer Pipeline */
+	GstClockTime pause_time;                /**< amount of time while pipeline is in PAUSE state.*/
+	GstClockTime stillshot_time;            /**< pipeline time of capturing moment*/
+	gboolean is_modified_rate;              /**< whether recording motion rate is modified or not */
+	gboolean error_occurs;                  /**< flag for error */
+	int error_code;                         /**< error code for internal gstreamer error */
+	gboolean ferror_send;                   /**< file write/seek error **/
+	guint ferror_count;                     /**< file write/seek error count **/
 	GstClockTime previous_slot_time;
-	int display_interval;			/** This value is set as 'GST_SECOND / display FPS' */
-	gboolean bget_eos;			/** Whether getting EOS */
-	gboolean bencbin_capture;		/** Use Encodebin for capturing */
-	gboolean now_continuous_af;		/** whether continuous af starts */
+	int display_interval;                   /**< This value is set as 'GST_SECOND / display FPS' */
+	gboolean bget_eos;                      /**< Whether getting EOS */
+	gboolean bencbin_capture;               /**< Use Encodebin for capturing */
+	gboolean audio_disable;                 /**< whether audio is disabled or not when record */
 
 	/* For dropping video frame when start recording */
-	int drop_vframe;			/**< When this value is bigger than zero and pass_first_vframe is zero, MSL will drop video frame though cam_stability count is bigger then zero. */
-	int pass_first_vframe;			/**< When this value is bigger than zero, MSL won't drop video frame though "drop_vframe" is bigger then zero. */
+	int drop_vframe;                        /**< When this value is bigger than zero and pass_first_vframe is zero, MSL will drop video frame though cam_stability count is bigger then zero. */
+	int pass_first_vframe;                  /**< When this value is bigger than zero, MSL won't drop video frame though "drop_vframe" is bigger then zero. */
 
 	/* INI information */
-	unsigned int fourcc;			/**< Get fourcc value of camera INI file */
-	void *info;				/**< extra information for camcorder */
+	unsigned int fourcc;                    /**< Get fourcc value of camera INI file */
+	void *info;                             /**< extra information for camcorder */
 
-	_MMCamcorderGstElement *element;	/**< array of Gstreamer element */
-	_MMCamcorderKPIMeasure kpi;		/**< information related with performance measurement */
+	_MMCamcorderGstElement *element;        /**< array of Gstreamer element */
+	_MMCamcorderKPIMeasure kpi;             /**< information related with performance measurement */
 
-	type_element *VideosinkElement;		/**< configure data of videosink element */
-	gboolean SensorEncodedCapture;		/**< whether camera sensor support encoded image capture */
-	gboolean internal_encode;		/**< whether use internal encoding function */
+	type_element *VideosinkElement;         /**< configure data of videosink element */
+	gboolean SensorEncodedCapture;          /**< whether camera sensor support encoded image capture */
+	gboolean internal_encode;               /**< whether use internal encoding function */
 } _MMCamcorderSubContext;
 
 /**
@@ -575,15 +596,18 @@ typedef struct mmf_camcorder {
 	int (*command)(MMHandleType, int);			/**< camcorder's command */
 
 	/* etc */
-	_MMCamcorderMTSafe mtsafe;		/**< Thread safe */
-	_MMCamcorderCommand cmd;		/**< information for command loop */
-	int sync_state_change;			/**< Change framework state synchronously */
+	_MMCamcorderMTSafe mtsafe;				/**< Thread safe */
+	_MMCamcorderCommand cmd;				/**< information for command loop */
+	int sync_state_change;					/**< Change framework state synchronously */
 	int quick_device_close;
-	int state_change_by_system;		/**< MSL changes its state by itself because of system(ASM,MDM..) **/
-	int asm_event_code;			/**< event code of audio session manager */
-	pthread_mutex_t sound_lock;		/**< Capture sound mutex */
-	pthread_cond_t sound_cond;		/**< Capture sound cond */
-	int use_zero_copy_format;		/**< Whether use zero copy format for camera input */
+	int state_change_by_system;				/**< MSL changes its state by itself because of system(ASM,MDM..) **/
+	int asm_event_code;					/**< event code of audio session manager */
+	pthread_mutex_t sound_lock;				/**< Capture sound mutex */
+	pthread_cond_t sound_cond;				/**< Capture sound cond */
+	int use_zero_copy_format;				/**< Whether use zero copy format for camera input */
+
+	_MMCamcorderInfoConverting caminfo_convert[CAMINFO_CONVERT_NUM];	/**< converting structure of camera info */
+	_MMCamcorderEnumConvert enum_conv[ENUM_CONVERT_NUM];			/**< enum converting list that is modified by ini info */
 
 	int reserved[4];			/**< reserved */
 } mmf_camcorder_t;
@@ -994,6 +1018,22 @@ int _mmcamcorder_set_functions(MMHandleType handle, int type);
  *
  */
 gboolean _mmcamcorder_pipeline_cb_message(GstBus *bus, GstMessage *message, gpointer data);
+
+/**
+ * This function is callback function of main pipeline.
+ * Once this function is registered with certain pipeline using gst_bus_set_sync_handler(),
+ * this callback will be called every time when there is upcomming message from pipeline.
+ * Basically, this function is used as sync error handling function, now.
+ *
+ * @param[in]	bus		pointer of buf that called this function.
+ * @param[in]	message		callback message from pipeline.
+ * @param[in]	data		user data.
+ * @return	This function returns true on success, or false value with error
+ * @remarks
+ * @see		__mmcamcorder_create_preview_pipeline()
+ *
+ */
+GstBusSyncReply _mmcamcorder_pipeline_bus_sync_callback(GstBus *bus, GstMessage *message, gpointer data);
 
 /**
  * This function create main pipeline according to type.

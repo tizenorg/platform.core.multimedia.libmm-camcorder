@@ -140,7 +140,7 @@ static GTimer *timer = NULL;
 #define IMAGE_ENC_QUALITY               85    // quality of jpeg 
 #define IMAGE_CAPTURE_COUNT_STILL       1     // the number of still-shot
 #define IMAGE_CAPTURE_COUNT_MULTI       3     // default the number of multi-shot
-#define IMAGE_CAPTURE_COUNT_INTERVAL    500   // mili seconds
+#define IMAGE_CAPTURE_COUNT_INTERVAL    100   // mili seconds
 
 #define MAX_FILE_SIZE_FOR_MMS           (250 * 1024)
 
@@ -162,8 +162,9 @@ static GTimer *timer = NULL;
 #define AUDIO_SOURCE_FORMAT             MM_CAMCORDER_AUDIO_FORMAT_PCM_S16_LE
 #define AUDIO_SOURCE_CHANNEL_AAC        2
 #define AUDIO_SOURCE_CHANNEL_AMR        1
+#define VIDEO_ENCODE_BITRATE            3000000 /* bps */
 
-#define DEFAULT_CAM_DEVICE 				MM_VIDEO_DEVICE_CAMERA1
+#define DEFAULT_CAM_DEVICE              MM_VIDEO_DEVICE_CAMERA1
 
 /*
  * D E B U G   M E S S A G E
@@ -224,15 +225,15 @@ GTimeVal result;
  * Enumerations for command
  */
 #define SENSOR_WHITEBALANCE_NUM		10
-#define SENSOR_COLOR_TONE_NUM			27
-#define SENSOR_FLIP_NUM				3
+#define SENSOR_COLOR_TONE_NUM		27
+#define SENSOR_FLIP_NUM			3
 #define SENSOR_PROGRAM_MODE_NUM		15
-#define SENSOR_FOCUS_NUM				5
-#define SENSOR_INPUT_ROTATION			6
-#define SENSOR_AF_SCAN_NUM				4
-#define SENSOR_ISO_NUM					8
-#define SENSOR_EXPOSURE_NUM			9
-#define SENSOR_IMAGE_FORMAT			9
+#define SENSOR_FOCUS_NUM		6
+#define SENSOR_INPUT_ROTATION		4
+#define SENSOR_AF_SCAN_NUM		4
+#define SENSOR_ISO_NUM			8
+#define SENSOR_EXPOSURE_NUM		9
+#define SENSOR_IMAGE_FORMAT		9
 
 
 /*---------------------------------------------------------------------------
@@ -253,21 +254,21 @@ enum
 	MENU_STATE_NUM,
 };
 
-/*---------------------------------------------------------------------------
-|    LOCAL DATA TYPE DEFINITIONS:											|
----------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------
+|    LOCAL DATA TYPE DEFINITIONS:					|
+-----------------------------------------------------------------------*/
 typedef struct _cam_handle
 {
 	MMHandleType camcorder;
-	int mode;						 /* image(capture)/video(recording) mode */
-	bool isMultishot;
-	int stillshot_count; 			/* total stillshot count */ 
-	int multishot_count;			/* total multishot count */ 
-	char *stillshot_filename;		/* stored filename of  stillshot  */ 
-	char *multishot_filename;		/* stored filename of  multishot  */ 
-	int	menu_state;
-	int	fps;	
-	bool	isMute;
+	int mode;                       /* image(capture)/video(recording) mode */
+	bool isMultishot;               /* flag for multishot mode */
+	int stillshot_count;            /* total stillshot count */
+	int multishot_count;            /* total multishot count */
+	char *stillshot_filename;       /* stored filename of  stillshot  */
+	char *multishot_filename;       /* stored filename of  multishot  */
+	int menu_state;
+	int fps;
+	bool isMute;
 	unsigned int elapsed_time;
 } cam_handle_t;
 
@@ -356,6 +357,7 @@ char *focus_mode[SENSOR_FOCUS_NUM] = {
 	"Auto",
 	"Manual",
 	"Touch Auto",
+	"Continuous Auto",
 };
 
 char *camera_rotation[SENSOR_INPUT_ROTATION] = {
@@ -363,8 +365,6 @@ char *camera_rotation[SENSOR_INPUT_ROTATION] = {
 	"90",
 	"180",
 	"270",
-	"Flip Horizontal",
-	"Flip Vertical",
 };
 
 char *af_scan[SENSOR_AF_SCAN_NUM] = {
@@ -409,6 +409,17 @@ char *image_fmt[SENSOR_IMAGE_FORMAT] = {
 	"YV12",
 };
 
+char *face_zoom_mode[] = {
+	"Face Zoom OFF",
+	"Face Zoom ON",
+};
+
+char *display_mode[] = {
+	"Default",
+	"Primary Video ON and Secondary Video Full Screen",
+	"Primary Video OFF and Secondary Video Full Screen",
+};
+
 char *output_mode[] = {
 	"Letter Box mode",
 	"Original Size mode",
@@ -422,8 +433,6 @@ char *rotate_mode[] = {
 	"90",
 	"180",
 	"270",
-	"Flip Horizontal",
-	"Flip Vertical",
 };
 
 char* strobe_mode[] = {
@@ -446,6 +455,12 @@ char *wdr_mode[] = {
 	"WDR OFF",
 	"WDR ON",
 	"WDR AUTO",
+};
+
+char *hdr_mode[] = {
+	"HDR OFF",
+	"HDR ON",
+	"HDR ON and Original",
 };
 
 char *ahs_mode[] = {
@@ -519,6 +534,7 @@ static int camcordertest_video_stream_cb(MMCamcorderVideoStreamDataType *stream,
 		video_stream_cb_cnt++;
 		printf("video_stream cb is called ( data:%p, format:%d, length:%d, width:%d, height:%d, timestamp:%d)\n",  stream->data, stream->format, stream->length, stream->width, stream->height, stream->timestamp);
 	}
+
 	return TRUE;
 }
 
@@ -531,20 +547,19 @@ camcordertest_video_capture_cb(MMCamcorderCaptureDataType *main, MMCamcorderCapt
 	FILE *fp = NULL;
 	MMCamcorderCaptureDataType *scrnl = NULL;
 
-	debug_msg_t("hcamcorder->isMultishot=%d =>1: MULTI, 0: STILL",hcamcorder->isMultishot);
-
 	if (main == NULL) {
 		warn_msg_t("Capture callback : Main image buffer is NULL!!!");
 		return FALSE;
 	}
 
-	if (hcamcorder->isMultishot == TRUE) {
-		snprintf(m_filename, CAPTURE_FILENAME_LEN, "%s%03d.jpg",   hcamcorder->multishot_filename,hcamcorder->multishot_count++);
+	if (hcamcorder->isMultishot) {
+		snprintf(m_filename, CAPTURE_FILENAME_LEN, "%s%03d.jpg", hcamcorder->multishot_filename,hcamcorder->multishot_count++);
 	} else {
-		snprintf(m_filename, CAPTURE_FILENAME_LEN, "%s%03d.jpg",   hcamcorder->stillshot_filename,hcamcorder->stillshot_count++);
+		snprintf(m_filename, CAPTURE_FILENAME_LEN, "%s%03d.jpg", hcamcorder->stillshot_filename,hcamcorder->stillshot_count++);
 	}
 
-	debug_msg_t("filename : %s", m_filename);
+	debug_msg_t("hcamcorder->isMultishot=%d =>1: MULTI, 0: STILL, filename : %s",
+	            hcamcorder->isMultishot, m_filename);
 
 	if (main->format != MM_PIXEL_FORMAT_ENCODED) {
 		unsigned int dst_size = 0;
@@ -576,7 +591,8 @@ camcordertest_video_capture_cb(MMCamcorderCaptureDataType *main, MMCamcorderCapt
 
 		free(dst);
 		dst = NULL;
-	} else {
+	} else if (!hcamcorder->isMultishot) {
+
 		printf("MM_PIXEL_FORMAT_ENCODED main->data=%p main->length=%d, main->width=%d, main->heigtht=%d \n",
 		       main->data, main->length, main->width, main->height);
 
@@ -658,16 +674,8 @@ static gboolean test_idle_capture_start()
 {
 	int err;
 
-	if (!hcamcorder->isMultishot)
-	{
-		camcordertest_set_attr_int("capture-format", MM_PIXEL_FORMAT_ENCODED);
-		camcordertest_set_attr_int(MMCAM_IMAGE_ENCODER, MM_IMAGE_CODEC_JPEG);
-	}
-	else
-	{
-//		camcordertest_set_attr_int("capture-format", MM_PIXEL_FORMAT_I420);
-		camcordertest_set_attr_int("capture-format", MM_PIXEL_FORMAT_YUYV);
-	}
+	camcordertest_set_attr_int(MMCAM_CAPTURE_FORMAT, MM_PIXEL_FORMAT_ENCODED);
+	camcordertest_set_attr_int(MMCAM_IMAGE_ENCODER, MM_IMAGE_CODEC_JPEG);
 
 	g_timer_reset(timer);
 	err = mm_camcorder_capture_start(hcamcorder->camcorder);
@@ -756,24 +764,21 @@ int camcordertest_get_attr_valid_intarray(char * attr_name, int ** array, int *c
 	{
 		if (hcamcorder->camcorder)
 		{
-			debug_msg_t("camcordertest_get_attr_valid_intarray((%s),(%p, %p))",  attr_name, array, count);
+			debug_msg_t("camcordertest_get_attr_valid_intarray(%s)", attr_name);
 
 			err = mm_camcorder_get_attribute_info(hcamcorder->camcorder, attr_name, &info);
-
-			if (err < 0) 
-			{
-				err_msg_t("camcordertest_get_attr_valid_intarray : Error(%x)!!",  err);
+			if (err != MM_ERROR_NONE) {
+				err_msg_t("camcordertest_get_attr_valid_intarray : Error(%x)!!", err);
 				return FALSE;
-			}
-			else
-			{
-				if (info.type == MM_CAM_ATTRS_TYPE_INT)
-					if (info.validity_type == MM_CAM_ATTRS_VALID_TYPE_INT_ARRAY)
-					{								
+			} else {
+				if (info.type == MM_CAM_ATTRS_TYPE_INT) {
+					if (info.validity_type == MM_CAM_ATTRS_VALID_TYPE_INT_ARRAY) {
 						*array = info.int_array.array;
 						*count = info.int_array.count;
+						debug_msg_t("INT ARRAY - default value : %d", info.int_array.def);
 						return TRUE;
 					}
+				}
 
 				err_msg_t("camcordertest_get_attr_valid_intarray : Type mismatched!!");
 				return FALSE;
@@ -797,24 +802,21 @@ int camcordertest_get_attr_valid_intrange(char * attr_name, int *min, int *max)
 	{
 		if (hcamcorder->camcorder)
 		{
-			debug_msg_t("camcordertest_get_attr_valid_intarray((%s),(%p, %p))",  attr_name, min, max);
+			debug_msg_t("camcordertest_get_attr_valid_intrange(%s)", attr_name);
 
 			err = mm_camcorder_get_attribute_info(hcamcorder->camcorder, attr_name, &info);
-
-			if (err < 0) 
-			{
+			if (err != MM_ERROR_NONE) {
 				err_msg_t("camcordertest_get_attr_valid_intarray : Error(%x)!!",  err);
 				return FALSE;
-			}
-			else
-			{
-				if (info.type == MM_CAM_ATTRS_TYPE_INT)
-					if (info.validity_type == MM_CAM_ATTRS_VALID_TYPE_INT_RANGE)
-					{								
+			} else {
+				if (info.type == MM_CAM_ATTRS_TYPE_INT) {
+					if (info.validity_type == MM_CAM_ATTRS_VALID_TYPE_INT_RANGE) {
 						*min = info.int_range.min;
 						*max = info.int_range.max;
+						debug_msg_t("INT RANGE - default : %d", info.int_range.def);
 						return TRUE;
 					}
+				}
 
 				err_msg_t("camcordertest_get_attr_valid_intarray : Type mismatched!!");
 				return FALSE;
@@ -874,11 +876,13 @@ static void print_menu()
 					g_print("\t   'p' Pause Recording\n");
 					g_print("\t   'c' Cancel\n");
 					g_print("\t   's' Save\n");
+					g_print("\t   'n' Capture video snapshot\n");
 				}
 				else if(mmcamcorder_print_state == MM_CAMCORDER_STATE_PAUSED) {
 					g_print("\t   'r' Resume Recording\n");
 					g_print("\t   'c' Cancel\n");
 					g_print("\t   's' Save\n");
+					g_print("\t   'n' Capture video snapshot\n");
 				}
 				g_print("\t=======================================\n");
 			}
@@ -922,10 +926,12 @@ static void print_menu()
 				g_print("\t     '9' Shutter speed \n");
 				g_print("\t     'i' ISO \n");
 				g_print("\t     'r' Rotate camera input \n");
+				g_print("\t     'f' Flip camera input \n");
 				g_print("\t     'j' Jpeg quality \n");
 				g_print("\t     'p' Picture format \n");
 				g_print("\t  >>>>>>>>>>>>>>>>>>>> [Display/Filter]\n");
 				g_print("\t     'v' Visible \n");
+				g_print("\t     'n' Display mode \n");
 				g_print("\t     'o' Output mode \n");
 				g_print("\t     'y' Rotate display \n");
 				g_print("\t     'g' Brightness \n");
@@ -939,8 +945,8 @@ static void print_menu()
 				g_print("\t     'e' EV program mode \n");
 				g_print("\t  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> [etc.]\n");
 				g_print("\t     'z' Strobe (Flash) \n");
-				g_print("\t     'x' Capture mode (Still/Multishot)\n");
-				g_print("\t     'f' Face detection \n");
+				g_print("\t     'x' Capture mode (Still/Multishot/HDR)\n");
+				g_print("\t     'l' Face detection \n");
 				g_print("\t     'k' Anti-handshake \n");
 				g_print("\t     'u' Touch AF area \n");
 				g_print("\t     'm' Stream callback function \n");
@@ -962,9 +968,11 @@ static void print_menu()
 				g_print("\t     '8' F number \n");
 				g_print("\t     'i' ISO \n");
 				g_print("\t     'r' Rotate camera input \n");
+				g_print("\t     'f' Flip camera input \n");
 				g_print("\t     'p' FPS \n");
 				g_print("\t  >>>>>>>>>>>>>>>>>>>> [Display/Filter]\n");
 				g_print("\t     'v' Visible \n");
+				g_print("\t     'n' Display mode \n");
 				g_print("\t     'o' Output mode \n");
 				g_print("\t     'y' Rotate display \n");
 				g_print("\t     'g' Brightness \n");
@@ -976,7 +984,7 @@ static void print_menu()
 				g_print("\t     't' Color tone \n");
 				g_print("\t     'd' WDR \n");
 				g_print("\t  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> [etc.]\n");
-				g_print("\t     'x' High speed recording\n");
+				g_print("\t     'x' Recording motion rate\n");
 				g_print("\t     'u' Mute \n");
 				g_print("\t     'z' Strobe (Flash) \n");
 				g_print("\t     'k' Anti-handshake \n");
@@ -1007,21 +1015,22 @@ static void main_menu(gchar buf)
 		switch(buf) {
 			case '1' : //Capture
 				if(hcamcorder->isMultishot) {
+					int interval = 0;
+					flush_stdin();
+					printf("\ninput interval(ms) \n");
+					scanf("%d", &interval);
 					err = mm_camcorder_set_attributes(hcamcorder->camcorder, &err_attr_name,
-											MMCAM_CAPTURE_WIDTH, 640,
-											MMCAM_CAPTURE_HEIGHT, 480,
-											MMCAM_CAPTURE_COUNT, multishot_num,
-											MMCAM_CAPTURE_INTERVAL, IMAGE_CAPTURE_COUNT_INTERVAL,
-											NULL);
-					if (err < 0) {
+					                                  MMCAM_CAPTURE_INTERVAL, interval,
+					                                  NULL);
+					if (err != MM_ERROR_NONE) {
 						err_msg_t("Attribute setting fail : (%s:%x)", err_attr_name, err);
 						SAFE_FREE (err_attr_name);
-					}	
+					}
 				} else {
 					err = mm_camcorder_set_attributes(hcamcorder->camcorder, &err_attr_name,
-											MMCAM_CAPTURE_COUNT, IMAGE_CAPTURE_COUNT_STILL,
-											NULL);
-					if (err < 0) {
+					                                  MMCAM_CAPTURE_COUNT, IMAGE_CAPTURE_COUNT_STILL,
+					                                  NULL);
+					if (err != MM_ERROR_NONE) {
 						err_msg_t("Attribute setting fail : (%s:%x)", err_attr_name, err);
 						SAFE_FREE (err_attr_name);
 					}
@@ -1047,8 +1056,8 @@ static void main_menu(gchar buf)
 
 			default:
 				g_print("\t Invalid input \n");
-				break;					
-		}			
+				break;
+		}
 	}
 	else if (hcamcorder->mode == MODE_VIDEO)
 	{
@@ -1070,8 +1079,6 @@ static void main_menu(gchar buf)
 										MMCAM_CAMERA_AF_TOUCH_WIDTH, 30,
 										MMCAM_CAMERA_AF_TOUCH_HEIGHT, 30,
 										NULL );
-
-					mm_camcorder_start_focusing(hcamcorder->camcorder);
 
 					g_timer_reset(timer);
 					err = mm_camcorder_record(hcamcorder->camcorder);
@@ -1143,6 +1150,10 @@ static void main_menu(gchar buf)
 						warn_msg_t("Save recording mm_camcorder_commit  = %x", err);
 					}
 					mmcamcorder_print_state = MM_CAMCORDER_STATE_PREPARE;
+					break;
+
+				case 'n' : /* Capture video snapshot */
+					err = mm_camcorder_capture_start(hcamcorder->camcorder);
 					break;
 
 				default :
@@ -1244,13 +1255,13 @@ static void setting_menu(gchar buf)
 	int min = 0;
 	int max = 0;
 	int width_count = 0;
-	int heigh_count = 0;
+	int height_count = 0;
 	int i=0;
 	int count = 0;
 	int value = 0;
 	int* array = NULL;
 	int *width_array = NULL;
-	int *heigh_array = NULL;
+	int *height_array = NULL;
 	char *err_attr_name = NULL;
 	cam_xypair_t input_pair;
 	int err = MM_ERROR_NONE;
@@ -1263,12 +1274,31 @@ static void setting_menu(gchar buf)
 		switch(buf) {
 	/* Camera setting */
 			case '1' : // Setting > Capture Resolution setting
+				/* check recommend preview resolution */
+				camcordertest_get_attr_valid_intarray(MMCAM_RECOMMEND_CAMERA_WIDTH, &width_array, &width_count);
+				camcordertest_get_attr_valid_intarray(MMCAM_RECOMMEND_CAMERA_HEIGHT, &height_array, &height_count);
+				if(width_count != height_count) {
+					err_msg_t("System has wrong information!!\n");
+				} else if (width_count == 0) {
+					g_print("MMCAM_RECOMMEND_CAMERA_WIDTH/HEIGHT Not supported!!\n");
+				} else {
+					g_print("\n - MMCAM_RECOMMEND_CAMERA_WIDTH and HEIGHT (count %d) -\n", width_count);
+					g_print("\t NORMAL ratio : %dx%d\n",
+					        width_array[MM_CAMCORDER_PREVIEW_TYPE_NORMAL], height_array[MM_CAMCORDER_PREVIEW_TYPE_NORMAL]);
+					if (width_count >= 2) {
+						g_print("\t WIDE ratio   : %dx%d\n\n",
+						        width_array[MM_CAMCORDER_PREVIEW_TYPE_WIDE], height_array[MM_CAMCORDER_PREVIEW_TYPE_WIDE]);
+					} else {
+						g_print("\t There is ONLY NORMAL resolution\n\n");
+					}
+				}
+
 				g_print("*Select the resolution!\n");
 				camcordertest_get_attr_valid_intarray("capture-width", &width_array, &width_count);
-				camcordertest_get_attr_valid_intarray("capture-height", &heigh_array, &heigh_count);
+				camcordertest_get_attr_valid_intarray("capture-height", &height_array, &height_count);
 
-				if(width_count != heigh_count) {
-					err_msg_t("System has wrong information!!");
+				if(width_count != height_count) {
+					err_msg_t("System has wrong information!!\n");
 				} else if (width_count == 0) {
 					g_print("Not supported!!\n");
 				} else {
@@ -1276,7 +1306,7 @@ static void setting_menu(gchar buf)
 					flush_stdin();
 
 					for ( i = 0; i < width_count; i++) {
-						g_print("\t %d. %d*%d\n", i+1, width_array[i], heigh_array[i]);
+						g_print("\t %d. %d*%d\n", i+1, width_array[i], height_array[i]);
 					}
 					scanf("%d",&index);
 
@@ -1285,7 +1315,7 @@ static void setting_menu(gchar buf)
 						input_pair.attr_subcat_x = "capture-width";
 						input_pair.attr_subcat_y = "capture-height";
 						input_pair.x = width_array[index-1];
-						input_pair.y = heigh_array[index-1];
+						input_pair.y = height_array[index-1];
 						bret = camcordertest_set_attr_xypair(input_pair);
 					}
 				}
@@ -1430,24 +1460,53 @@ static void setting_menu(gchar buf)
 				break;
 
 			case 'r' : // Setting > Rotate camera input when recording
-				g_print("*Rotate camera input when recording !\n");
-				camcordertest_get_attr_valid_intarray(MMCAM_CAMERA_ROTATION, &array, &count);
+				g_print("*Rotate camera input\n");
+				camcordertest_get_attr_valid_intrange(MMCAM_CAMERA_ROTATION, &min, &max);
 
-				if(count <= 0) {
+				if(min >= max) {
 					g_print("Not supported !! \n");
 				} else {
-					g_print("\n Select Rotate angle of camera \n");
 					flush_stdin();
-					for ( i = 0; i < count; i++) {
-						g_print("\t %d. %s\n", array[i], camera_rotation[array[i]]);
+					for (i = min ; i <= max ; i++) {
+						g_print("\t %d. %s\n", i, camera_rotation[i]);
 					}
 					scanf("%d",&index);
-					bret = camcordertest_set_attr_int(MMCAM_CAMERA_ROTATION, index);
 					CHECK_MM_ERROR(mm_camcorder_stop(hcamcorder->camcorder));
-					CHECK_MM_ERROR(mm_camcorder_unrealize(hcamcorder->camcorder));
-					CHECK_MM_ERROR(mm_camcorder_realize(hcamcorder->camcorder));
+					bret = camcordertest_set_attr_int(MMCAM_CAMERA_ROTATION, index);
 					CHECK_MM_ERROR(mm_camcorder_start(hcamcorder->camcorder));
 				}
+				break;
+
+			case 'f' : // Setting > Flip camera input
+				flush_stdin();
+				g_print("*Flip camera input\n");
+				g_print(" 1. Flip HORIZONTAL TRUE\n");
+				g_print(" 2. Flip HORIZONTAL FALSE\n");
+				g_print(" 3. Flip VERTICAL TRUE\n");
+				g_print(" 4. Flip VERTICAL FALSE\n");
+
+				scanf("%d", &index);
+
+				CHECK_MM_ERROR(mm_camcorder_stop(hcamcorder->camcorder));
+				CHECK_MM_ERROR(mm_camcorder_unrealize(hcamcorder->camcorder));
+
+				switch (index) {
+				case 1:
+					camcordertest_set_attr_int(MMCAM_CAMERA_FLIP_HORIZONTAL, TRUE);
+					break;
+				case 2:
+					camcordertest_set_attr_int(MMCAM_CAMERA_FLIP_HORIZONTAL, FALSE);
+					break;
+				case 3:
+					camcordertest_set_attr_int(MMCAM_CAMERA_FLIP_VERTICAL, TRUE);
+					break;
+				case 4:
+					camcordertest_set_attr_int(MMCAM_CAMERA_FLIP_VERTICAL, FALSE);
+					break;
+				}
+
+				CHECK_MM_ERROR(mm_camcorder_realize(hcamcorder->camcorder));
+				CHECK_MM_ERROR(mm_camcorder_start(hcamcorder->camcorder));
 				break;
 
 			case 'j' : // Setting > Jpeg quality
@@ -1503,6 +1562,23 @@ static void setting_menu(gchar buf)
 				}
 				break;
 
+			case 'n' : //  Setting > Display mode
+				g_print("* Display mode!\n");
+				camcordertest_get_attr_valid_intarray(MMCAM_DISPLAY_MODE, &array, &count);
+
+				if (count <= 0 || count > 255) {
+					g_print("Not supported !! \n");
+				} else {
+					flush_stdin();
+					g_print("\n Select Display mode\n");
+					for (i = 0 ; i < count ; i++) {
+						g_print("\t %d. %s\n", array[i], display_mode[array[i]]);
+					}
+					scanf("%d",&index);
+					bret = camcordertest_set_attr_int(MMCAM_DISPLAY_MODE, index);
+				}
+				break;
+
 			case 'o' : //  Setting > Output mode
 				g_print("* Output mode!\n");
 				camcordertest_get_attr_valid_intrange("display-geometry-method", &min, &max);
@@ -1521,18 +1597,16 @@ static void setting_menu(gchar buf)
 				break;
 
 			case 'y' : // Setting > Rotate Display
-				camcordertest_get_attr_valid_intarray( MMCAM_DISPLAY_ROTATION, &array, &count );
+				camcordertest_get_attr_valid_intrange(MMCAM_DISPLAY_ROTATION, &min, &max);
 
-				if( count <= 0 || count > 256 ) {
+				if( min > max ) {
 					g_print("Not supported !! \n");
 				} else {
 					flush_stdin();
-					g_print("\n Select Rotation mode\n");
-					for ( i = 0; i < count; i++) {
-						g_print("\t %d. %s\n", array[i], rotate_mode[array[i]]);
-					}
+					g_print("\n Select Rotate mode(%d ~ %d)\n", min, max);
+					g_print("\t0. 0\n\t1. 90\n\t2. 180\n\t1. 270\n\n");
 					scanf("%d",&index);
-					bret = camcordertest_set_attr_int( MMCAM_DISPLAY_ROTATION, index );
+					bret = camcordertest_set_attr_int(MMCAM_DISPLAY_ROTATION, index);
 				}
 				break;
 
@@ -1695,14 +1769,19 @@ static void setting_menu(gchar buf)
 			case 'x' : // Setting > Capture mode ,Muitishot?
 				g_print("*Select Capture mode!\n");
 				flush_stdin();
-				g_print(" \n\t1. Stillshot mode\n\t2. Multishot mode \n");
+				g_print(" \n\t1. Stillshot mode\n\t2. Multishot mode\n\t3. HDR capture\n");
 				scanf("%d",&index);
 
-				if(index == 1) {
+				switch (index) {
+				case 1:
 					g_print("stillshot mode selected and capture callback is set!!!!\n");
 					hcamcorder->isMultishot = FALSE;
-				} else if (index == 2) {
+					camcordertest_set_attr_int(MMCAM_CAMERA_HDR_CAPTURE, 0);
+					break;
+				case 2:
 					g_print("Multilshot mode selected!!\n");
+
+					camcordertest_set_attr_int(MMCAM_CAMERA_HDR_CAPTURE, 0);
 
 					index = 0;
 					min = 0;
@@ -1718,17 +1797,39 @@ static void setting_menu(gchar buf)
 						scanf("%d",&index);
 						if( index >= min && index <= max ) {
 							multishot_num = index;
+							mm_camcorder_set_attributes(hcamcorder->camcorder, &err_attr_name,
+							                            MMCAM_CAPTURE_COUNT, multishot_num,
+							                            NULL);
 							hcamcorder->isMultishot = TRUE;
 						} else {
 							g_print("Wrong input value, Multishot setting failed!!\n");
 						}
 					}
-				} else {
+					break;
+				case 3:
+					g_print("HDR Capture mode selected\n");
+					hcamcorder->isMultishot = FALSE;
+
+					camcordertest_get_attr_valid_intarray(MMCAM_CAMERA_HDR_CAPTURE, &array, &count);
+					if(count <= 0) {
+						g_print("Not supported !! \n");
+					} else {
+						g_print("\nSelect HDR capture mode\n");
+						flush_stdin();
+						for ( i = 0; i < count; i++) {
+							g_print("\t %d. %s\n", array[i], hdr_mode[array[i]]);
+						}
+						scanf("%d",&index);
+						bret = camcordertest_set_attr_int(MMCAM_CAMERA_HDR_CAPTURE, index);
+					}
+					break;
+				default:
 					g_print("Wrong input, select again!!\n");
+					break;
 				}
 				break;
 
-			case 'f' : // Setting > Face detection setting
+			case 'l' : // Setting > Face detection setting
 				//hcamcorder->menu_state = MENU_STATE_SETTING_DETECTION;
 				g_print("* Face detect mode !\n");
 
@@ -1812,7 +1913,27 @@ static void setting_menu(gchar buf)
 				break;
 
 			case 'm' : // Setting > Stream callback function
-				g_print("Not supported !! \n");
+				g_print("\n Select Stream Callback Function\n");
+				g_print("\t 1. Set Video Stream Callback \n");
+				g_print("\t 2. Unset Video Stream Callback \n");
+				flush_stdin();
+				scanf("%d", &index);
+				if(index == 1) {
+					video_stream_cb_cnt = 0;
+					error_num = mm_camcorder_set_video_stream_callback(hcamcorder->camcorder, (mm_camcorder_video_stream_callback)camcordertest_video_stream_cb, (void*)hcamcorder->camcorder);
+					if( error_num == MM_ERROR_NONE ) {
+						g_print("\n Setting Success\n");
+					} else {
+						g_print("\n Setting Failure\n");
+					}
+				} else if(index == 2) {
+					mm_camcorder_set_video_stream_callback(hcamcorder->camcorder, NULL, (void*)hcamcorder->camcorder);
+					video_stream_cb_cnt = 0;
+					audio_stream_cb_cnt = 0;
+					g_print("\n Unset stream callback success\n");
+				} else {
+					g_print("\t Invalid input \n");
+				}
 				break;
 
 			case 'b' : // back
@@ -1833,9 +1954,9 @@ static void setting_menu(gchar buf)
 				g_print("*Select resolution!\n");
 
 				camcordertest_get_attr_valid_intarray("camera-width", &width_array, &width_count);
-				camcordertest_get_attr_valid_intarray("camera-height", &heigh_array, &heigh_count);
+				camcordertest_get_attr_valid_intarray("camera-height", &height_array, &height_count);
 
-				if(width_count != heigh_count) {
+				if(width_count != height_count) {
 					err_msg_t("System has wrong information!!");
 				} else if(width_count == 0) {
 					g_print("Not supported !! \n");
@@ -1843,7 +1964,7 @@ static void setting_menu(gchar buf)
 					g_print("\n Select  the resolution \n");
 					flush_stdin();
 					for ( i = 0; i < width_count; i++) {
-						g_print("\t %d. %d*%d\n", i+1, width_array[i], heigh_array[i]);
+						g_print("\t %d. %d*%d\n", i+1, width_array[i], height_array[i]);
 					}
 					scanf("%d",&index);
 
@@ -1856,7 +1977,7 @@ static void setting_menu(gchar buf)
 						input_pair.attr_subcat_x = "camera-width";
 						input_pair.attr_subcat_y = "camera-height";
 						input_pair.x = width_array[index-1];
-						input_pair.y = heigh_array[index-1];
+						input_pair.y = height_array[index-1];
 
 						bret = camcordertest_set_attr_xypair(input_pair);
 
@@ -1988,27 +2109,55 @@ static void setting_menu(gchar buf)
 				break;
 
 			case 'r' : // Setting > Rotate camera input when recording
-				g_print("*Rotate camera input !\n");
-				camcordertest_get_attr_valid_intarray(MMCAM_CAMERA_ROTATION, &array, &count);
+				g_print("*Rotate camera input when recording !\n");
+				camcordertest_get_attr_valid_intrange(MMCAM_CAMERA_ROTATION, &min, &max);
 
-				if(count <= 0) {
+				if(min > max) {
 					g_print("Not supported !! \n");
 				} else {
-					g_print("\n Select Rotate angle of camera (Do Not use it for recording test !!) \n");
 					flush_stdin();
-					for ( i = 0; i < count; i++) {
-						g_print("\t %d. %s\n", array[i], camera_rotation[array[i]]);
+					for (i = min ; i <= max ; i++) {
+						g_print("\t %d. %s\n", i, camera_rotation[i]);
 					}
 					scanf("%d",&index);
-
 					CHECK_MM_ERROR(mm_camcorder_stop(hcamcorder->camcorder));
 					CHECK_MM_ERROR(mm_camcorder_unrealize(hcamcorder->camcorder));
-
 					bret = camcordertest_set_attr_int(MMCAM_CAMERA_ROTATION, index);
-
 					CHECK_MM_ERROR(mm_camcorder_realize(hcamcorder->camcorder));
 					CHECK_MM_ERROR(mm_camcorder_start(hcamcorder->camcorder));
 				}
+				break;
+
+			case 'f' : // Setting > Flip camera input
+				flush_stdin();
+				g_print("*Flip camera input\n");
+				g_print(" 1. Flip HORIZONTAL TRUE\n");
+				g_print(" 2. Flip HORIZONTAL FALSE\n");
+				g_print(" 3. Flip VERTICAL TRUE\n");
+				g_print(" 4. Flip VERTICAL FALSE\n");
+
+				scanf("%d", &index);
+
+				CHECK_MM_ERROR(mm_camcorder_stop(hcamcorder->camcorder));
+				CHECK_MM_ERROR(mm_camcorder_unrealize(hcamcorder->camcorder));
+
+				switch (index) {
+				case 1:
+					camcordertest_set_attr_int(MMCAM_CAMERA_FLIP_HORIZONTAL, TRUE);
+					break;
+				case 2:
+					camcordertest_set_attr_int(MMCAM_CAMERA_FLIP_HORIZONTAL, FALSE);
+					break;
+				case 3:
+					camcordertest_set_attr_int(MMCAM_CAMERA_FLIP_VERTICAL, TRUE);
+					break;
+				case 4:
+					camcordertest_set_attr_int(MMCAM_CAMERA_FLIP_VERTICAL, FALSE);
+					break;
+				}
+
+				CHECK_MM_ERROR(mm_camcorder_realize(hcamcorder->camcorder));
+				CHECK_MM_ERROR(mm_camcorder_start(hcamcorder->camcorder));
 				break;
 
 			case 'p' : // Setting > FPS
@@ -2061,6 +2210,23 @@ static void setting_menu(gchar buf)
 				}
 				break;
 
+			case 'n' : //  Setting > Display mode
+				g_print("* Display mode!\n");
+				camcordertest_get_attr_valid_intarray(MMCAM_DISPLAY_MODE, &array, &count);
+
+				if (count <= 0 || count > 255) {
+					g_print("Not supported !! \n");
+				} else {
+					flush_stdin();
+					g_print("\n Select Display mode\n");
+					for (i = 0 ; i < count ; i++) {
+						g_print( "%d. %s\n", i, display_mode[i] );
+					}
+					scanf("%d",&index);
+					bret = camcordertest_set_attr_int(MMCAM_DISPLAY_MODE, index);
+				}
+				break;
+
 			case 'o' : // Setting > Output mode
 				g_print("* Output mode!\n");
 				camcordertest_get_attr_valid_intrange("display-geometry-method", &min, &max);
@@ -2079,18 +2245,16 @@ static void setting_menu(gchar buf)
 				break;
 
 			case 'y' : // Setting > Rotate Display
-				camcordertest_get_attr_valid_intarray( MMCAM_DISPLAY_ROTATION, &array, &count );
+				camcordertest_get_attr_valid_intrange(MMCAM_DISPLAY_ROTATION, &min, &max);
 
-				if( count <= 0 || count > 256 ) {
+				if( min > max ) {
 					g_print("Not supported !! \n");
 				} else {
 					flush_stdin();
-					g_print("\n Select Rotation mode\n");
-					for ( i = 0; i < count; i++) {
-						g_print("\t %d. %s\n", array[i], rotate_mode[array[i]]);
-					}
+					g_print("\n Select Rotate mode(%d ~ %d)\n", min, max);
+					g_print("\t0. 0\n\t1. 90\n\t2. 180\n\t1. 270\n\n");
 					scanf("%d",&index);
-					bret = camcordertest_set_attr_int( MMCAM_DISPLAY_ROTATION, index );
+					bret = camcordertest_set_attr_int(MMCAM_DISPLAY_ROTATION, index);
 				}
 				break;
 
@@ -2217,66 +2381,25 @@ static void setting_menu(gchar buf)
 				break;
 
 		/* ext. setting */
-			case 'x' : // Setting > High Speed
+			case 'x' : // Setting > Recording motion rate
 			{
-				static int backup_width = 0;
-				static int backup_height = 0;
+				double set_rate;
 
-				g_print("\n Select High Speed Recording mode\n");
-				g_print("\t 1. High Speed Recording mode ON\n");
-				g_print("\t 2. High Speed Recording mode OFF \n");
+				g_print("\n Set Recording motion rate (double, should be bigger than zero)\n");
 
 				flush_stdin();
-				scanf("%d",&index);
-				if (index == 1) {
-					mm_camcorder_get_attributes(hcamcorder->camcorder, &err_attr_name,
-					                            MMCAM_CAMERA_WIDTH, &backup_width,
-					                            MMCAM_CAMERA_HEIGHT, &backup_height,
-					                            NULL);
+				scanf("%lf", &set_rate);
 
-					CHECK_MM_ERROR(mm_camcorder_stop(hcamcorder->camcorder));
-					CHECK_MM_ERROR(mm_camcorder_unrealize(hcamcorder->camcorder));
-
+				if (set_rate > 0) {
 					err = mm_camcorder_set_attributes(hcamcorder->camcorder, &err_attr_name,
-					                                  MMCAM_CAMERA_WIDTH, 320,
-					                                  MMCAM_CAMERA_HEIGHT, 240,
-					                                  MMCAM_CAMERA_FPS, 120,
-					                                  "camera-slow-motion-fps", 30,
+					                                  MMCAM_CAMERA_RECORDING_MOTION_RATE, set_rate,
 					                                  NULL);
 					if (err != MM_ERROR_NONE) {
-						warn_msg_t("High speed recording. mm_camcorder_set_attributes fail. (%s:%x)", err_attr_name, err);
+						warn_msg_t("Recording motion rate. mm_camcorder_set_attributes fail. (%s:%x)", err_attr_name, err);
 						SAFE_FREE(err_attr_name);
 					}
 
-					CHECK_MM_ERROR(mm_camcorder_realize(hcamcorder->camcorder));
-					CHECK_MM_ERROR(mm_camcorder_start(hcamcorder->camcorder));
-
-				} else if(index == 2) {
-					CHECK_MM_ERROR(mm_camcorder_stop(hcamcorder->camcorder));
-					CHECK_MM_ERROR(mm_camcorder_unrealize(hcamcorder->camcorder));
-
-					if (backup_width && backup_height) {
-						err = mm_camcorder_set_attributes(hcamcorder->camcorder, &err_attr_name,
-						                                  MMCAM_CAMERA_WIDTH, backup_width,
-						                                  MMCAM_CAMERA_HEIGHT, backup_height,
-						                                  NULL);
-						if (err != MM_ERROR_NONE) {
-							warn_msg_t("get_attributes fail. (%s:%x)", err_attr_name, err);
-							SAFE_FREE (err_attr_name);
-						}
-					}
-
-					err = mm_camcorder_set_attributes(hcamcorder->camcorder, &err_attr_name,
-					                                  MMCAM_CAMERA_FPS, SRC_VIDEO_FRAME_RATE_30,
-					                                  "camera-slow-motion-fps", 0,
-					                                  NULL);
-					if (err != MM_ERROR_NONE) {
-						warn_msg_t("Normal speed recording. mm_camcorder_set_attributes fail. (%s:%x)", err_attr_name, err);
-						SAFE_FREE (err_attr_name);
-					}
-
-					CHECK_MM_ERROR(mm_camcorder_realize(hcamcorder->camcorder));
-					CHECK_MM_ERROR(mm_camcorder_start(hcamcorder->camcorder));
+					g_print("\tset recording motion rate %lf\n", set_rate);
 				} else {
 					g_print("Wrong input, Try again!!\n");
 				}
@@ -2526,7 +2649,6 @@ static gboolean init(int type)
 		                                   "tag-gps-time-stamp", 72815.5436243543,
 		                                   "tag-gps-date-stamp", "2010:09:20", 10,
 		                                   "tag-gps-processing-method", "GPS NETWORK HYBRID ARE ALL FINE.", 32,
-		                                   "capture-sound-enable", TRUE,
 		                                   NULL );
 
 		if (err != MM_ERROR_NONE) {
@@ -2552,18 +2674,19 @@ static gboolean init(int type)
 		err = mm_camcorder_set_attributes( (MMHandleType)cam_handle, &err_attr_name,
 		                                   MMCAM_MODE, MM_CAMCORDER_MODE_VIDEO,
 		                                   MMCAM_AUDIO_DEVICE, MM_AUDIO_DEVICE_MIC,
-		                                   MMCAM_AUDIO_ENCODER, MM_AUDIO_CODEC_AMR,
-		                                   MMCAM_VIDEO_ENCODER, MM_VIDEO_CODEC_H264,
+		                                   MMCAM_AUDIO_ENCODER, MM_AUDIO_CODEC_AAC,
+		                                   MMCAM_VIDEO_ENCODER, MM_VIDEO_CODEC_MPEG4,
+		                                   MMCAM_VIDEO_ENCODER_BITRATE, VIDEO_ENCODE_BITRATE,
 		                                   MMCAM_FILE_FORMAT, MM_FILE_FORMAT_3GP,
 		                                   MMCAM_CAMERA_FORMAT, preview_format,
 		                                   MMCAM_CAMERA_FPS, SRC_VIDEO_FRAME_RATE_30,
 		                                   MMCAM_CAMERA_FPS_AUTO, 0,
 		                                   "camera-delay-attr-setting", TRUE,
 		                                   MMCAM_CAMERA_ROTATION, MM_VIDEO_INPUT_ROTATION_NONE,
-		                                   MMCAM_AUDIO_SAMPLERATE, AUDIO_SOURCE_SAMPLERATE_AMR,
+		                                   MMCAM_AUDIO_SAMPLERATE, AUDIO_SOURCE_SAMPLERATE_AAC,
 		                                   MMCAM_AUDIO_FORMAT, AUDIO_SOURCE_FORMAT,
-		                                   MMCAM_AUDIO_CHANNEL, AUDIO_SOURCE_CHANNEL_AMR,
-		                                   MMCAM_AUDIO_INPUT_ROUTE, MM_AUDIOROUTE_CAPTURE_NORMAL,
+		                                   MMCAM_AUDIO_CHANNEL, AUDIO_SOURCE_CHANNEL_AAC,
+		                                   //MMCAM_AUDIO_DISABLE, TRUE,
 		                                   MMCAM_TAG_ENABLE, 1,
 		                                   MMCAM_TAG_LATITUDE, 37.25796666,
 		                                   MMCAM_TAG_LONGITUDE, 127.05332222,
@@ -2576,7 +2699,7 @@ static gboolean init(int type)
 		                                   MMCAM_DISPLAY_RECT_HEIGHT, 640,
 		                                   MMCAM_DISPLAY_ROTATION, MM_DISPLAY_ROTATION_270,
 		                                   MMCAM_TARGET_FILENAME, TARGET_FILENAME_VIDEO, size,
-		                                   "capture-sound-enable", TRUE,
+		                                   MMCAM_TARGET_TIME_LIMIT, 360000,
 		                                   NULL );
 
 		if (err != MM_ERROR_NONE) {
@@ -2584,6 +2707,8 @@ static gboolean init(int type)
 			SAFE_FREE (err_attr_name);
 			goto ERROR;
 		}
+
+		mm_camcorder_set_video_capture_callback(hcamcorder->camcorder, (mm_camcorder_video_capture_callback)camcordertest_video_capture_cb, hcamcorder);
 //		mm_camcorder_set_audio_stream_callback(hcamcorder->camcorder, (mm_camcorder_audio_stream_callback)camcordertest_audio_stream_cb, (void*)hcamcorder->camcorder);
 	}
 
@@ -2598,18 +2723,16 @@ static gboolean init(int type)
 		err = mm_camcorder_set_attributes( hcamcorder->camcorder, &err_attr_name,
 		                                   MMCAM_MODE, MM_CAMCORDER_MODE_AUDIO,
 		                                   MMCAM_AUDIO_DEVICE, MM_AUDIO_DEVICE_MIC,
-		                                   MMCAM_AUDIO_ENCODER, MM_AUDIO_CODEC_AMR,
-		                                   MMCAM_FILE_FORMAT, MM_FILE_FORMAT_AMR,
-		                                   MMCAM_AUDIO_SAMPLERATE, AUDIO_SOURCE_SAMPLERATE_AMR,
+		                                   MMCAM_AUDIO_ENCODER, MM_AUDIO_CODEC_AAC,
+		                                   MMCAM_FILE_FORMAT, MM_FILE_FORMAT_AAC,
+		                                   MMCAM_AUDIO_SAMPLERATE, AUDIO_SOURCE_SAMPLERATE_AAC,
 		                                   MMCAM_AUDIO_FORMAT, AUDIO_SOURCE_FORMAT,
-		                                   MMCAM_AUDIO_CHANNEL, AUDIO_SOURCE_CHANNEL_AMR,
-		                                   MMCAM_AUDIO_INPUT_ROUTE, MM_AUDIOROUTE_CAPTURE_NORMAL,
+		                                   MMCAM_AUDIO_CHANNEL, AUDIO_SOURCE_CHANNEL_AAC,
 		                                   MMCAM_TARGET_FILENAME, TARGET_FILENAME_AUDIO, size,
 		                                   MMCAM_TARGET_TIME_LIMIT, 360000,
 		                                   NULL);
  	
-		if (err < 0) 
-		{
+		if (err < 0) {
 			warn_msg_t("Init fail. (%s:%x)", err_attr_name, err);
 			SAFE_FREE (err_attr_name);
 			goto ERROR;
@@ -2682,16 +2805,12 @@ static gboolean msg_callback(int message, void *msg_param, void *user_param)
 		{
 			if (hcamcorder->mode == MODE_IMAGE)
 			{
-				time_msg_t("Stillshot capture  : %12.6lf s", g_timer_elapsed(timer, NULL));	
-				
-				g_print("*******************************************************\n");
-				g_print("[Camcorder Testsuite] Camcorder Stillshot Captured!!\n");
-				g_print("*******************************************************\n");
+				time_msg_t("Stillshot capture  : %12.6lf s", g_timer_elapsed(timer, NULL));
 
 				if (hcamcorder->isMultishot)		//multishot
 				{
-					g_print("[CamcorderApp] Camcorder Captured(Capture Count=%d)\n", param->code);
-					
+					//g_print("[CamcorderApp] Camcorder Captured(Capture Count=%d)\n", param->code);
+
 					if (param->code >= multishot_num)
 					{
 						get_me_out();
@@ -2751,7 +2870,7 @@ static gboolean msg_callback(int message, void *msg_param, void *user_param)
 				temp_time = elapsed % 3600;
 				minute = temp_time / 60;
 				second = temp_time % 60;
-				debug_msg_t("Current Time - %d:%d:%d", hour, minute, second);
+				debug_msg_t("Current Time - %d:%d:%d, remained %u ms", hour, minute, second, param->recording_status.remained_time);
 			}
 		}
 			break;			
@@ -2788,6 +2907,47 @@ static gboolean msg_callback(int message, void *msg_param, void *user_param)
 		case MM_MESSAGE_CAMCORDER_FOCUS_CHANGED:
 		{
 			g_print( "Focus State changed. State:[%d]\n", param->code );
+		}
+			break;
+		case MM_MESSAGE_CAMCORDER_FACE_DETECT_INFO:
+		{
+			static int info_count = 0;
+			MMCamFaceDetectInfo *cam_fd_info = NULL;
+
+			cam_fd_info = (MMCamFaceDetectInfo *)(param->data);
+
+			if (cam_fd_info) {
+				int i = 0;
+
+				g_print("\tface detect num %d, pointer %p\n", cam_fd_info->num_of_faces, cam_fd_info);
+
+				for (i = 0 ; i < cam_fd_info->num_of_faces ; i++) {
+					g_print("\t\t[%2d][score %d] position %d,%d %dx%d\n",
+					        cam_fd_info->face_info[i].id,
+					        cam_fd_info->face_info[i].score,
+					        cam_fd_info->face_info[i].rect.x,
+					        cam_fd_info->face_info[i].rect.y,
+					        cam_fd_info->face_info[i].rect.width,
+					        cam_fd_info->face_info[i].rect.height);
+				}
+
+				if (info_count == 0) {
+					mm_camcorder_set_attributes(hcamcorder->camcorder, NULL,
+					                            MMCAM_CAMERA_FACE_ZOOM_MODE, MM_CAMCORDER_FACE_ZOOM_MODE_ON,
+					                            MMCAM_CAMERA_FACE_ZOOM_X, cam_fd_info->face_info[0].rect.x + (cam_fd_info->face_info[0].rect.width>>1),
+					                            MMCAM_CAMERA_FACE_ZOOM_Y, cam_fd_info->face_info[0].rect.y + (cam_fd_info->face_info[0].rect.height>>1),
+					                            MMCAM_CAMERA_FACE_ZOOM_LEVEL, 0,
+					                            NULL);
+					info_count = 1;
+					g_print("\n\t##### START FACE ZOOM [%d,%d] #####\n", cam_fd_info->face_info[0].rect.x, cam_fd_info->face_info[0].rect.y);
+				} else if (info_count++ == 90) {
+					mm_camcorder_set_attributes(hcamcorder->camcorder, NULL,
+					                            MMCAM_CAMERA_FACE_ZOOM_MODE, MM_CAMCORDER_FACE_ZOOM_MODE_OFF,
+					                            NULL);
+					g_print("\n\t##### STOP FACE ZOOM #####\n");
+					info_count = -60;
+				}
+			}
 		}
 			break;
 		default:
@@ -2983,6 +3143,18 @@ static gboolean mode_change()
 	if (err != MM_ERROR_NONE) {
 		err_msg_t("mm_camcorder_start  = %x", err);
 		return -1;
+	}
+
+	/* start focusing if TOUCH AUTO or AUTO mode*/
+	{
+		int focus_mode;
+		mm_camcorder_get_attributes(hcamcorder->camcorder, NULL,
+		                            MMCAM_CAMERA_FOCUS_MODE, &focus_mode,
+		                            NULL);
+		if (focus_mode == MM_CAMCORDER_FOCUS_MODE_TOUCH_AUTO ||
+		    focus_mode == MM_CAMCORDER_FOCUS_MODE_AUTO) {
+			mm_camcorder_start_focusing(hcamcorder->camcorder);
+		}
 	}
 
  	g_get_current_time(&current);

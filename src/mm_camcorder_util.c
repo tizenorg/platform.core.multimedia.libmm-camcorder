@@ -570,33 +570,54 @@ void _mmcamcorder_element_release_noti(gpointer data, GObject *where_the_object_
 gboolean
 _mmcamcroder_msg_callback(void *data)
 {
-	_MMCamcorderMsgItem * item = (_MMCamcorderMsgItem*)data;
-	mmf_camcorder_t *hcamcorder= NULL;
+	_MMCamcorderMsgItem *item = (_MMCamcorderMsgItem*)data;
+	mmf_camcorder_t *hcamcorder = NULL;
 	mmf_return_val_if_fail( item, FALSE );
-	
+
 	hcamcorder = MMF_CAMCORDER(item->handle);
 	mmf_return_val_if_fail( hcamcorder, FALSE );
 
-//	_mmcam_dbg_log("msg id:%x, msg_cb:%p, msg_data:%p, item:%p", item->id, hcamcorder->msg_cb, hcamcorder->msg_data, item);
+	/*_mmcam_dbg_log("msg id:%x, msg_cb:%p, msg_data:%p, item:%p", item->id, hcamcorder->msg_cb, hcamcorder->msg_data, item);*/
 
-	_MMCAMCORDER_LOCK_MESSAGE_CALLBACK( hcamcorder );
+	_MMCAMCORDER_LOCK_MESSAGE_CALLBACK(hcamcorder);
+
+	/* check delay of CAPTURED message */
+	if (item->id == MM_MESSAGE_CAMCORDER_CAPTURED) {
+		MMTA_ACUM_ITEM_END("                CAPTURED MESSAGE DELAY", FALSE);
+	}
 
 	if ((hcamcorder) && (hcamcorder->msg_cb)) {
 		hcamcorder->msg_cb(item->id, (MMMessageParamType*)(&(item->param)), hcamcorder->msg_cb_param);
 	}
 
-	_MMCAMCORDER_UNLOCK_MESSAGE_CALLBACK( hcamcorder );
+	_MMCAMCORDER_UNLOCK_MESSAGE_CALLBACK(hcamcorder);
 
 	_MMCAMCORDER_LOCK((MMHandleType)hcamcorder);
-	
-	if (hcamcorder->msg_data)
-		hcamcorder->msg_data = g_list_remove(hcamcorder->msg_data, item);
 
-	SAFE_FREE(item);
+	if (hcamcorder->msg_data) {
+		hcamcorder->msg_data = g_list_remove(hcamcorder->msg_data, item);
+	}
+
+	/* release allocated memory */
+	if (item->id == MM_MESSAGE_CAMCORDER_FACE_DETECT_INFO) {
+		MMCamFaceDetectInfo *cam_fd_info = (MMCamFaceDetectInfo *)item->param.data;
+		if (cam_fd_info) {
+			SAFE_FREE(cam_fd_info->face_info);
+			free(cam_fd_info);
+			cam_fd_info = NULL;
+		}
+
+		item->param.data = NULL;
+		item->param.size = 0;
+	}
+
+	free(item);
+	item = NULL;
 
 	_MMCAMCORDER_UNLOCK((MMHandleType)hcamcorder);
 
-	return FALSE;		//For not being called again
+	/* For not being called again */
+	return FALSE;
 }
 
 
@@ -695,6 +716,12 @@ _mmcamcroder_remove_message_all(MMHandleType handle)
 		g_list_free(hcamcorder->msg_data);
 		hcamcorder->msg_data = NULL;
 	}
+
+	/* remove idle function for playing capture sound */
+	do {
+		ret = g_idle_remove_by_data(hcamcorder);
+		_mmcam_dbg_log("remove idle function for playing capture sound. ret[%d]", ret);
+	} while (ret);
 
 	_MMCAMCORDER_UNLOCK(handle);
 
@@ -837,9 +864,17 @@ unsigned int _mmcamcorder_get_fourcc(int pixtype, int codectype, int use_zero_co
 			fourcc = GST_MAKE_FOURCC ('J', 'P', 'E', 'G');
 		}
 		break;
+	/*FIXME*/
+	case MM_PIXEL_FORMAT_ITLV_JPEG_UYVY:
+		fourcc = GST_MAKE_FOURCC('I','T','L','V');
+		break;
 	default:
-		_mmcam_dbg_log("Not proper pixel type. Set default.");
-		fourcc = GST_MAKE_FOURCC ('S', '4', '2', '0');
+		_mmcam_dbg_log("Not proper pixel type[%d]. Set default - I420", pixtype);
+		if (use_zero_copy_format) {
+			fourcc = GST_MAKE_FOURCC ('S', '4', '2', '0');
+		} else {
+			fourcc = GST_MAKE_FOURCC ('I', '4', '2', '0');
+		}
 		break;
 	}
 
@@ -894,6 +929,10 @@ int _mmcamcorder_get_pixtype(unsigned int fourcc)
 	case GST_MAKE_FOURCC ('J', 'P', 'E', 'G'):
 	case GST_MAKE_FOURCC ('P', 'N', 'G', ' '):
 		pixtype = MM_PIXEL_FORMAT_ENCODED;
+		break;
+	/*FIXME*/
+	case GST_MAKE_FOURCC ('I', 'T', 'L', 'V'):
+		pixtype = MM_PIXEL_FORMAT_ITLV_JPEG_UYVY;
 		break;
 	default:
 		_mmcam_dbg_log("Not supported fourcc type(%x)", fourcc);

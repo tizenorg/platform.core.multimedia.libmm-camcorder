@@ -351,6 +351,10 @@
 		<td>Target filename. Only used in Audio/Video recording. This is not used for capturing.</td>
 	</tr>
 	<tr>
+		<td>#MMCAM_TARGET_MAX_SIZE</td>
+		<td>Maximum size of recording file(Kbyte). If the size of file reaches this value.</td>
+	</tr>
+	<tr>
 		<td>#MMCAM_TARGET_TIME_LIMIT</td>
 		<td>Time limit of recording file. If the elapsed time of recording reaches this value.</td>
 	</tr>
@@ -680,6 +684,11 @@ extern "C" {
 #define MMCAM_AUDIO_VOLUME                      "audio-volume"
 
 /**
+ * Disable Audio stream when record.
+ */
+#define MMCAM_AUDIO_DISABLE                     "audio-disable"
+
+/**
  * Set audio input route
  * @remarks	Deprecated. This will be removed soon.
  * @see		MMAudioRoutePolicy (in mm_types.h)
@@ -691,6 +700,21 @@ extern "C" {
  * @see		MMPixelFormatType (in mm_types.h)
  */
 #define MMCAM_CAMERA_FORMAT                     "camera-format"
+
+/**
+ * Slow motion rate when video recording
+ * @remarks	Deprecated
+ */
+#define MMCAM_CAMERA_SLOW_MOTION_RATE           "camera-slow-motion-rate"
+
+/**
+ * Motion rate when video recording
+ * @remarks	This should be bigger than 0(zero).
+ *		Default value is 1 and it's for normal video recording.
+ *		If the value is smaller than 1, recorded file will be played slower,
+ *		otherwise, recorded file will be played faster.
+ */
+#define MMCAM_CAMERA_RECORDING_MOTION_RATE      "camera-recording-motion-rate"
 
 /**
  * Frames per second. This is an integer field
@@ -811,6 +835,12 @@ extern "C" {
 #define MMCAM_CAMERA_ROTATION                   "camera-rotation"
 
 /**
+ * HDR(High Dynamic Range) Capture mode
+ * @see		MMCamcorderHDRMode
+ */
+#define MMCAM_CAMERA_HDR_CAPTURE                "camera-hdr-capture"
+
+/**
  * Bitrate of Audio Encoder
  */
 #define MMCAM_AUDIO_ENCODER_BITRATE             "audio-encoder-bitrate"
@@ -919,6 +949,12 @@ extern "C" {
  * @see		MMDisplaySurfaceType (in mm_types.h)
  */
 #define MMCAM_DISPLAY_SURFACE                    "display-surface"
+
+/**
+ * Mode of display.
+ * @see		MMDisplayModeType (in mm_types.h)
+ */
+#define MMCAM_DISPLAY_MODE                       "display-mode"
 
 /**
  * X position of display rectangle.
@@ -1087,9 +1123,50 @@ extern "C" {
 #define MMCAM_RECOMMEND_DISPLAY_ROTATION               "recommend-display-rotation"
 
 /**
- * Rotation angle of video input stream and display for video recording.
+ * Recommend width of camera preview.
+ * This attribute can be used with #mm_camcorder_get_attribute_info and #MMCamcorderPreviewType.
+ * @see		mm_camcorder_get_attribute_info, MMCamcorderPreviewType
  */
-#define MMCAM_CAMCORDER_ROTATION                   "camcorder-rotation"
+#define MMCAM_RECOMMEND_CAMERA_WIDTH                   "recommend-camera-width"
+
+/**
+ * Recommend height of camera preview
+ * This attribute can be used with #mm_camcorder_get_attribute_info and #MMCamcorderPreviewType.
+ * @see		mm_camcorder_get_attribute_info, MMCamcorderPreviewType
+ */
+#define MMCAM_RECOMMEND_CAMERA_HEIGHT                  "recommend-camera-height"
+
+/**
+ * Horizontal Flip of video input stream.
+ */
+#define MMCAM_CAMERA_FLIP_HORIZONTAL                   "camera-flip-horizontal"
+
+/**
+ * Vertical Flip of video input stream.
+ */
+#define MMCAM_CAMERA_FLIP_VERTICAL                     "camera-flip-vertical"
+
+/**
+ * X coordinate of Face zoom.
+ */
+#define MMCAM_CAMERA_FACE_ZOOM_X                      "camera-face-zoom-x"
+
+/**
+ * Y coordinate of Face zoom.
+ */
+#define MMCAM_CAMERA_FACE_ZOOM_Y                      "camera-face-zoom-y"
+
+/**
+ * Zoom level of Face zoom.
+ */
+#define MMCAM_CAMERA_FACE_ZOOM_LEVEL                  "camera-face-zoom-level"
+
+/**
+ * Mode of Face zoom.
+ * @see		MMCamcorderFaceZoomMode
+ */
+#define MMCAM_CAMERA_FACE_ZOOM_MODE                   "camera-face-zoom-mode"
+
 
 /*=======================================================================================
 | ENUM DEFINITIONS									|
@@ -1290,6 +1367,16 @@ enum MMCamcorderWDRMode {
 
 
 /**
+ * An enumeration for HDR capture mode
+ */
+enum MMCamcorderHDRMode {
+	MM_CAMCORDER_HDR_OFF = 0,               /**< HDR OFF */
+	MM_CAMCORDER_HDR_ON,                    /**< HDR ON and no original data - capture callback will be come once */
+	MM_CAMCORDER_HDR_ON_AND_ORIGINAL,       /**< HDR ON and original data - capture callback will be come twice(1st:Original, 2nd:HDR) */
+};
+
+
+/**
  * An enumeration for Anti-handshake mode .
  */
 enum MMCamcorderAHSMode {
@@ -1362,6 +1449,23 @@ enum MMCamcorderDetectMode {
 };
 
 
+/**
+ * An enumeration for Face zoom mode.
+ */
+enum MMCamcorderFaceZoomMode {
+	MM_CAMCORDER_FACE_ZOOM_MODE_OFF = 0,    /**< turn face zoom off */
+	MM_CAMCORDER_FACE_ZOOM_MODE_ON,         /**< turn face zoom on */
+};
+
+/**
+ * An enumeration for recommended preview resolution.
+ */
+enum MMCamcorderPreviewType {
+	MM_CAMCORDER_PREVIEW_TYPE_NORMAL = 0,   /**< normal ratio like 4:3 */
+	MM_CAMCORDER_PREVIEW_TYPE_WIDE,         /**< wide ratio like 16:9 */
+};
+
+
 /**********************************
 *          Attribute info         *
 **********************************/
@@ -1374,8 +1478,6 @@ typedef enum{
 	MM_CAM_ATTRS_TYPE_DOUBLE,		/**< Double type attribute */
 	MM_CAM_ATTRS_TYPE_STRING,		/**< UTF-8 String type attribute */
 	MM_CAM_ATTRS_TYPE_DATA,			/**< Pointer type attribute */
-	MM_CAM_ATTRS_TYPE_ARRAY,		/**< Array type attribute */
-	MM_CAM_ATTRS_TYPE_RANGE,		/**< Range type attribute */
 }MMCamAttrsType;
 
 
@@ -1514,9 +1616,27 @@ typedef struct {
 /**
  * Report structure of recording file
  */
-typedef struct MMCamRecordingReport {
+typedef struct {
 	char *recording_filename;		/**< File name of stored recording file. Please free after using. */
-}MMCamRecordingReport; /**< report structure definition of recording file */
+} MMCamRecordingReport; /**< report structure definition of recording file */
+
+
+/**
+ * Face detect defailed information
+ */
+typedef struct _MMCamFaceInfo {
+	int id;                                 /**< id of each face */
+	int score;                              /**< score of each face */
+	MMRectType rect;                        /**< area of face */
+} MMCamFaceInfo;
+
+/**
+ * Face detect information
+ */
+typedef struct _MMCamFaceDetectInfo {
+	int num_of_faces;                       /**< number of detected faces */
+	MMCamFaceInfo *face_info;               /**< face information, this should be freed after use it. */
+} MMCamFaceDetectInfo;
 
 
 /*=======================================================================================

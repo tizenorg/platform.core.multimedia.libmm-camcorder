@@ -52,7 +52,7 @@ extern "C" {
 typedef struct {
 	gboolean b_commiting;		/**< Is it commiting now? */
 	char *filename;			/**< recorded filename */
-	gint multiple_fps;		/**< fps for high speed recording(slow motion recording) */
+	double record_timestamp_ratio;	/**< timestamp ratio of video recording for slow motion recording */
 	guint64 video_frame_count;	/**< current video frame */
 	guint64 audio_frame_count;	/**< current audio frame */
 	guint64 filesize;		/**< current file size */
@@ -131,6 +131,19 @@ int _mmcamcorder_video_command(MMHandleType handle, int command);
  * @see		_mmcamcorder_set_functions()
  */
 int _mmcamcorder_video_handle_eos(MMHandleType handle);
+
+/**
+ * This function is called for captured image data while video recording.
+ *
+ * @param[in]	element		GStreamer element that calls this.
+ * @param[in]	buffer1		Main image buffer.
+ * @param[in]	buffer2		Thumbnail image buffer.
+ * @param[in]	buffer3		Screennail image buffer for postview.
+ * @param[in]	u_data		user data.
+ * @return	void
+ * @remarks
+ */
+void _mmcamcorder_video_snapshot_capture_cb(GstElement *element, GstBuffer *buffer1, GstBuffer *buffer2, GstBuffer *buffer3, gpointer u_data);
 
 #ifdef __cplusplus
 }

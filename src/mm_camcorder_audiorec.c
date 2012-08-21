@@ -57,7 +57,6 @@ static void __mmcamcorder_audiorec_pad_added_cb(GstElement *element, GstPad *pad
 |    GLOBAL FUNCTION DEFINITIONS:							|
 ---------------------------------------------------------------------------------------*/
 
-
 static int __mmcamcorder_create_audiop_with_encodebin(MMHandleType handle)
 {
 	int err = MM_ERROR_NONE;
@@ -911,6 +910,7 @@ static gboolean __mmcamcorder_audio_dataprobe_record(GstPad *pad, GstBuffer *buf
 	guint64 buffer_size = 0;
 	guint64 trailer_size = 0;
 	char *filename = NULL;
+	unsigned int remained_time = 0;
 
 	_MMCamcorderSubContext *sc = NULL;
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
@@ -949,7 +949,9 @@ static gboolean __mmcamcorder_audio_dataprobe_record(GstPad *pad, GstBuffer *buf
 	}
 
 	/* get trailer size */
-	if (info->fileformat == MM_FILE_FORMAT_3GP || info->fileformat == MM_FILE_FORMAT_MP4) {
+	if (info->fileformat == MM_FILE_FORMAT_3GP ||
+	    info->fileformat == MM_FILE_FORMAT_MP4 ||
+	    info->fileformat == MM_FILE_FORMAT_AAC) {
 		MMCAMCORDER_G_OBJECT_GET(sc->element[_MMCAMCORDER_ENCSINK_MUX].gst, "expected-trailer-size", &trailer_size);
 		/*_mmcam_dbg_log("trailer_size %d", trailer_size);*/
 	} else {
@@ -1014,6 +1016,12 @@ static gboolean __mmcamcorder_audio_dataprobe_record(GstPad *pad, GstBuffer *buf
 
 	rec_pipe_time = GST_TIME_AS_MSECONDS(GST_BUFFER_TIMESTAMP(buffer));
 
+	if (info->max_time > 0 && info->max_time < (remained_time + rec_pipe_time)) {
+		remained_time = info->max_time - rec_pipe_time;
+	}
+
+	/*_mmcam_dbg_log("remained time : %u", remained_time);*/
+
 	/* check recording time limit and send recording status message */
 	if (info->max_time > 0 && rec_pipe_time > info->max_time) {
 		_mmcam_dbg_warn("Current time : [%" G_GUINT64_FORMAT "], Maximum time : [%" G_GUINT64_FORMAT "]", \
@@ -1040,6 +1048,7 @@ static gboolean __mmcamcorder_audio_dataprobe_record(GstPad *pad, GstBuffer *buf
 		msg.id = MM_MESSAGE_CAMCORDER_RECORDING_STATUS;
 		msg.param.recording_status.elapsed = (unsigned int)rec_pipe_time;
 		msg.param.recording_status.filesize = (unsigned int)((info->filesize + trailer_size) >> 10);
+		msg.param.recording_status.remained_time = remained_time;
 		_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
 
 		return TRUE;

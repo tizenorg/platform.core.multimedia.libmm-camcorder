@@ -1,5 +1,0 @@
-# if your module creates shared libraries
-@PREFIX@/include/mmf/*
-@PREFIX@/lib/*.*a
-@PREFIX@/lib/pkgconfig/*
-

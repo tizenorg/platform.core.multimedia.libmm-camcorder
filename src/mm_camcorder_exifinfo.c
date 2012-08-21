@@ -33,9 +33,14 @@
 #include <mm_error.h>
 #include <glib.h>
 
-#define MM_EXIFINFO_USE_BINARY_EXIFDATA		1
-#define JPEG_MAX_SIZE 20000000
-#define JPEG_THUMBNAIL_MAX_SIZE	(128*1024)
+#define MM_EXIFINFO_USE_BINARY_EXIFDATA         1
+#define JPEG_MAX_SIZE                           20000000
+#define JPEG_THUMBNAIL_MAX_SIZE                 (128*1024)
+#define JPEG_DATA_OFFSET                        2
+#define EXIF_MARKER_SOI_LENGTH                  2
+#define EXIF_MARKER_APP1_LENGTH                 2
+#define EXIF_APP1_LENGTH                        2
+
 #if MM_EXIFINFO_USE_BINARY_EXIFDATA
 /**
  * Exif Binary Data.
@@ -524,23 +529,16 @@ int mm_exif_mnote_set_add_entry (ExifData *exif, MnoteSamsungTag tag, int index,
 int
 mm_exif_write_exif_jpeg_to_file (char *filename, mm_exif_info_t *info,  void *jpeg, int jpeg_len)
 {
-	FILE			*fp = NULL;
-	unsigned long	offset_jpeg_start;
-	unsigned short	head[2]={0,};
-	unsigned short	head_len=0;
-	unsigned char	*eb = NULL;
-	unsigned int	ebs;
+	FILE *fp = NULL;
+	unsigned short head[2] = {0,};
+	unsigned short head_len = 0;
+	unsigned char *eb = NULL;
+	unsigned int ebs;
 
 	mmf_debug (MMF_DEBUG_LOG,"[%05d][%s]\n", __LINE__, __func__);
 
 	eb = info->data;
 	ebs = info->size;
-
-	/*get DQT*/
-	offset_jpeg_start = _exif_get_jpeg_marker_offset (jpeg, jpeg_len, 0xffdb);
-	if (offset_jpeg_start == 0) {
-		return -1;
-	}
 
 	/*create file*/
 	fp = fopen (filename, "wb");
@@ -554,19 +552,19 @@ mm_exif_write_exif_jpeg_to_file (char *filename, mm_exif_info_t *info,  void *jp
 	_exif_set_uint16 (0, &head[1], 0xffe1);
 	/*set header length*/
 	_exif_set_uint16 (0, &head_len, (unsigned short)(ebs + 2));
-	
+
 	if(head[0]==0 || head[1]==0 || head_len==0)
 	{
 		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s]setting error\n", __LINE__, __func__);
 		fclose (fp);
 		return -1;
 	}
-	
-	fwrite (&head[0], 1, 2, fp);			/*SOI marker*/
-	fwrite (&head[1], 1, 2, fp);			/*APP1 marker*/
-	fwrite (&head_len, 1, 2, fp);			/*length of APP1*/
-	fwrite (eb, 1, ebs, fp);				/*EXIF*/
-	fwrite (jpeg + offset_jpeg_start, 1, jpeg_len - offset_jpeg_start, fp);	/*IMAGE*/
+
+	fwrite (&head[0], 1, EXIF_MARKER_SOI_LENGTH, fp);       /*SOI marker*/
+	fwrite (&head[1], 1, EXIF_MARKER_APP1_LENGTH, fp);      /*APP1 marker*/
+	fwrite (&head_len, 1, EXIF_APP1_LENGTH, fp);            /*length of APP1*/
+	fwrite (eb, 1, ebs, fp);                                /*EXIF*/
+	fwrite (jpeg + JPEG_DATA_OFFSET, 1, jpeg_len - JPEG_DATA_OFFSET, fp);   /*IMAGE*/
 
 	fclose (fp);
 
@@ -576,15 +574,15 @@ mm_exif_write_exif_jpeg_to_file (char *filename, mm_exif_info_t *info,  void *jp
 int
 mm_exif_write_exif_jpeg_to_memory (void **mem, unsigned int *length, mm_exif_info_t *info,  void *jpeg, unsigned int jpeg_len)
 {
+	unsigned short head[2] = {0,};
+	unsigned short head_len = 0;
+	unsigned char *eb = NULL;
+	unsigned int ebs;
+
 	/*output*/
-	unsigned char	*m = NULL;
-	int				m_len = 0;	
-	/**/
-	unsigned long	offset_jpeg_start;
-	unsigned short	head[2]={0,};
-	unsigned short	head_len=0;
-	unsigned char	*eb = NULL;
-	unsigned int	ebs;
+	unsigned char *m = NULL;
+	int m_len = 0;
+
 	mmf_debug (MMF_DEBUG_LOG,"[%05d][%s]\n", __LINE__, __func__);
 
 	if(info==NULL || jpeg==NULL)
@@ -601,15 +599,10 @@ mm_exif_write_exif_jpeg_to_memory (void **mem, unsigned int *length, mm_exif_inf
 
 	eb = info->data;
 	ebs = info->size;
-	/*get DQT*/
-	offset_jpeg_start = _exif_get_jpeg_marker_offset (jpeg, (int)jpeg_len, 0xffdb);
-	if (offset_jpeg_start == 0) {
-		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
-	}
 
 	/*length of output image*/
 	/*SOI + APP1 + length of APP1 + length of EXIF + IMAGE*/
-	m_len = 2 + 2 + 2 + ebs + (jpeg_len - offset_jpeg_start);
+	m_len = EXIF_MARKER_SOI_LENGTH + EXIF_MARKER_APP1_LENGTH + EXIF_APP1_LENGTH + ebs + (jpeg_len - JPEG_DATA_OFFSET);
 	/*alloc output image*/
 	m = malloc (m_len);
 	if (!m) {
@@ -622,17 +615,30 @@ mm_exif_write_exif_jpeg_to_memory (void **mem, unsigned int *length, mm_exif_inf
 	_exif_set_uint16 (0, &head[1], 0xffe1);
 	/*set header length*/
 	_exif_set_uint16 (0, &head_len, (unsigned short)(ebs + 2));
-	if(head[0]==0 || head[1]==0 || head_len==0)
-	{
+	if (head[0] == 0 || head[1] == 0 || head_len == 0) {
 		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s]setting error\n", __LINE__, __func__);
 		free(m);
 		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
-	}	
-	memcpy (m,						&head[0],					2);	/*SOI marker*/
-	memcpy (m + 2,					&head[1],					2);	/*APP1 marker*/
-	memcpy (m + 2 + 2,				&head_len,					2);	/*length of APP1*/
-	memcpy (m + 2 + 2 + 2,			eb,							ebs);	/*EXIF*/
-	memcpy (m + 2 + 2 + 2 + ebs,	jpeg + offset_jpeg_start,	jpeg_len - offset_jpeg_start);	/*IMAGE*/
+	}
+
+	/* Complete JPEG+EXIF */
+	/*SOI marker*/
+	memcpy(m, &head[0], EXIF_MARKER_SOI_LENGTH);
+	/*APP1 marker*/
+	memcpy(m + EXIF_MARKER_SOI_LENGTH,
+	       &head[1], EXIF_MARKER_APP1_LENGTH);
+	/*length of APP1*/
+	memcpy(m + EXIF_MARKER_SOI_LENGTH + EXIF_MARKER_APP1_LENGTH,
+	       &head_len, EXIF_APP1_LENGTH);
+	/*EXIF*/
+	memcpy(m + EXIF_MARKER_SOI_LENGTH + EXIF_MARKER_APP1_LENGTH + EXIF_APP1_LENGTH,
+	       eb, ebs);
+	/*IMAGE*/
+	memcpy(m + EXIF_MARKER_SOI_LENGTH + EXIF_MARKER_APP1_LENGTH + EXIF_APP1_LENGTH + ebs,
+	       jpeg + JPEG_DATA_OFFSET, jpeg_len - JPEG_DATA_OFFSET);
+
+	mmf_debug(MMF_DEBUG_LOG,"[%05d][%s] JPEG+EXIF Copy DONE(original:%d, copied:%d)\n",
+	                        __LINE__, __func__, jpeg_len, jpeg_len - JPEG_DATA_OFFSET);
 
 	/*set ouput param*/
 	*mem    = m;

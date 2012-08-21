@@ -66,6 +66,9 @@ typedef struct {
 	int width;					/**< Width of capture image */
 	int height;					/**< Height of capture image */
 	int interval;					/**< Capture interval */
+	int preview_format;				/**< Preview format */
+	int hdr_capture_mode;				/**< HDR Capture mode */
+	gboolean played_capture_sound;			/**< whether play capture sound when capture starts */
 } _MMCamcorderImageInfo;
 
 /*=======================================================================================
@@ -119,12 +122,11 @@ int _mmcamcorder_image_command(MMHandleType handle, int command);
 int _mmcamcorder_set_resize_property(MMHandleType handle, int capture_width, int capture_height);
 
 /* Function for capture */
-int __mmcamcorder_set_exif_basic_info(MMHandleType handle);
+int __mmcamcorder_set_exif_basic_info(MMHandleType handle, MMCamcorderCaptureDataType *capture_data);
 void __mmcamcorder_init_stillshot_info(MMHandleType handle);
 void __mmcamcorder_get_capture_data_from_buffer(MMCamcorderCaptureDataType *capture_data, int pixtype, GstBuffer *buffer);
 void __mmcamcorder_release_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest);
 gboolean __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCaptureDataType *original, MMCamcorderCaptureDataType *thumbnail);
-gboolean __mmcamcorder_capture_send_msg(MMHandleType handle, int type, int count);
 gboolean __mmcamcorder_set_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest, MMCamcorderCaptureDataType *thumbnail);
 
 #ifdef __cplusplus
