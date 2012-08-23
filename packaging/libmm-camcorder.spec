@@ -5,6 +5,7 @@ Release:    0
 Group:      libs
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
+Source1001: packaging/libmm-camcorder.manifest
 Requires(post): /usr/bin/vconftool
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
@@ -43,6 +44,7 @@ Camera and recorder development library.
 
 %build
 export CFLAGS+=" -DGST_EXT_TIME_ANALYSIS"
+cp %{SOURCE1001} .
 ./autogen.sh
 %configure --disable-static
 make %{?jobs:-j%jobs}
@@ -60,12 +62,14 @@ vconftool set -t int memory/camera/state 0 -i -u 5000
 %postun -p /sbin/ldconfig
 
 %files
+%manifest libmm-camcorder.manifest
 %defattr(-,root,root,-)
 %{_bindir}/*
 %{_libdir}/*.so.*
 /usr/share/sounds/mm-camcorder/*
 
 %files devel
+%manifest libmm-camcorder.manifest
 %defattr(-,root,root,-)
 %{_includedir}/mmf/mm_camcorder.h
 %{_libdir}/pkgconfig/mm-camcorder.pc
