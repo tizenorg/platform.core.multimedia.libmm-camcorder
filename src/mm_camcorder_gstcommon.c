@@ -164,6 +164,7 @@ int _mmcamcorder_create_videosrc_bin(MMHandleType handle)
 	int codectype = 0;
 	int capture_width = 0;
 	int capture_height = 0;
+	int capture_jpg_quality = 100;
 	int anti_shake = 0;
 	char *videosrc_name = NULL;
 	char *err_name = NULL;
@@ -214,6 +215,7 @@ int _mmcamcorder_create_videosrc_bin(MMHandleType handle)
 	                                  MMCAM_CAPTURE_WIDTH, &capture_width,
 	                                  MMCAM_CAPTURE_HEIGHT, &capture_height,
 	                                  MMCAM_IMAGE_ENCODER, &codectype,
+	                                  MMCAM_IMAGE_ENCODER_QUALITY, &capture_jpg_quality,
 	                                  "camera-hold-af-after-capturing", &hold_af,
 	                                  NULL);
 	if (err != MM_ERROR_NONE) {
@@ -248,9 +250,10 @@ int _mmcamcorder_create_videosrc_bin(MMHandleType handle)
 	/* init high-speed-fps */
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "high-speed-fps", 0);
 
-	/* set capture size and flip setting which were set before mm_camcorder_realize */
+	/* set capture size, quality and flip setting which were set before mm_camcorder_realize */
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-width", capture_width);
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-height", capture_height);
+	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-jpg-quality", capture_jpg_quality);
 	_mmcamcorder_set_videosrc_hflip(handle, hflip);
 	_mmcamcorder_set_videosrc_vflip(handle, vflip);
 
@@ -1498,6 +1501,7 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 	int origin_size = 0;
 	int zoom_attr = 0;
 	int zoom_level = 0;
+	int do_scaling = FALSE;
 	int *overlay = NULL;
 	gulong xid;
 	char *err_name = NULL;
@@ -1532,20 +1536,17 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 	                                  MMCAM_DISPLAY_MODE, &display_mode,
 	                                  MMCAM_DISPLAY_GEOMETRY_METHOD, &display_geometry_method,
 	                                  MMCAM_DISPLAY_SCALE, &zoom_attr,
+	                                  MMCAM_DISPLAY_EVAS_DO_SCALING, &do_scaling,
 	                                  NULL);
 	);
-	if (err != MM_ERROR_NONE) {
-		_mmcam_dbg_warn("Get display attrs fail. (%s:%x)", err_name, err);
-		SAFE_FREE(err_name);
-		return err;
-	}
 
 	_mmcam_dbg_log("(overlay=%p, size=%d)", overlay, size);
 
 	_mmcamcorder_conf_get_value_element_name(VideosinkElement, &videosink_name);
 
-	/* Set xid */
-	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "ximagesink")) {
+	/* Set display handle */
+	if (!strcmp(videosink_name, "xvimagesink") ||
+	    !strcmp(videosink_name, "ximagesink")) {
 		if (overlay) {
 			xid = *overlay;
 			_mmcam_dbg_log("xid = %lu )", xid);
@@ -1557,12 +1558,14 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 
 		_mmcam_dbg_log("%s set: display_geometry_method[%d],origin-size[%d],visible[%d],rotate[enum:%d]",
 		               videosink_name, display_geometry_method, origin_size, visible, rotation);
-	} else if (!strcmp(videosink_name, "evasimagesink") || !strcmp(videosink_name, "evaspixmapsink")) {
+	} else if (!strcmp(videosink_name, "evasimagesink") ||
+	           !strcmp(videosink_name, "evaspixmapsink")) {
 		_mmcam_dbg_log("videosink : %s, handle : %p", videosink_name, overlay);
 		if (overlay) {
-			MMCAMCORDER_G_OBJECT_SET( vsink, "evas-object", overlay );
+			MMCAMCORDER_G_OBJECT_SET(vsink, "evas-object", overlay);
+			MMCAMCORDER_G_OBJECT_SET(vsink, "origin-size", !do_scaling);
 		} else {
-			_mmcam_dbg_err("Evas Object pointer is NULL");
+			_mmcam_dbg_err("display handle(eavs object) is NULL");
 			return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
 		}
 	} else {

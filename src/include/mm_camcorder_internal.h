@@ -38,6 +38,7 @@
 #include <mm_message.h>
 #include <mm_ta.h>
 #include <sndfile.h>
+#include <vconf.h>
 
 #include "mm_camcorder.h"
 #include "mm_debug.h"
@@ -562,52 +563,53 @@ typedef struct {
   */
 typedef struct mmf_camcorder {
 	/* information */
-	int type;		/**< mmcamcorder_mode_type */
-	int state;		/**< state of camcorder */
-	int target_state;	/**< Target state that want to set. This is a flag that
-				   * stands for async state changing. If this value differ from state,
-				   * it means state is changing now asychronously. */
+	int type;               /**< mmcamcorder_mode_type */
+	int state;              /**< state of camcorder */
+	int target_state;       /**< Target state that want to set. This is a flag that
+	                           * stands for async state changing. If this value differ from state,
+	                           * it means state is changing now asychronously. */
 
 	/* handles */
-	MMHandleType attributes;	       /**< Attribute handle */
+	MMHandleType attributes;               /**< Attribute handle */
 	_MMCamcorderSubContext *sub_context;   /**< sub context */
-	mm_exif_info_t *exif_info;	       /**< EXIF */
-	GList *buffer_probes;		       /**< a list of buffer probe handle */
-	GList *event_probes;		       /**< a list of event probe handle */
-	GList *data_probes;		       /**< a list of data probe handle */
-	GList *signals;			       /**< a list of signal handle */
-	GList *msg_data;		       /**< a list of msg data */
-	camera_conf *conf_main;		       /**< Camera configure Main structure */
-	camera_conf *conf_ctrl;		       /**< Camera configure Control structure */
-	int asm_handle;			       /**< Audio session manager handle */
-	guint pipeline_cb_event_id;	       /**< Event source ID of pipeline message callback */
-	guint setting_event_id;		       /**< Event source ID of attributes setting to sensor */
-	SOUND_INFO snd_info;		       /**< Sound handle for multishot capture */
+	mm_exif_info_t *exif_info;             /**< EXIF */
+	GList *buffer_probes;                  /**< a list of buffer probe handle */
+	GList *event_probes;                   /**< a list of event probe handle */
+	GList *data_probes;                    /**< a list of data probe handle */
+	GList *signals;                        /**< a list of signal handle */
+	GList *msg_data;                       /**< a list of msg data */
+	camera_conf *conf_main;                /**< Camera configure Main structure */
+	camera_conf *conf_ctrl;                /**< Camera configure Control structure */
+	int asm_handle;                        /**< Audio session manager handle */
+	guint pipeline_cb_event_id;            /**< Event source ID of pipeline message callback */
+	guint setting_event_id;                /**< Event source ID of attributes setting to sensor */
+	SOUND_INFO snd_info;                   /**< Sound handle for multishot capture */
 
 	/* callback handlers */
-	MMMessageCallback msg_cb;				/**< message callback */
-	void *msg_cb_param;					/**< message callback parameter */
-	mm_camcorder_video_stream_callback vstream_cb;		/**< Video stream callback */
-	void *vstream_cb_param;					/**< Video stream callback parameter */
-	mm_camcorder_audio_stream_callback astream_cb;		/**< Audio stream callback */
-	void *astream_cb_param;					/**< Audio stream callback parameter */
-	mm_camcorder_video_capture_callback vcapture_cb;	/**< Video capture callback */
-	void *vcapture_cb_param;				/**< Video capture callback parameter */
-	int (*command)(MMHandleType, int);			/**< camcorder's command */
+	MMMessageCallback msg_cb;                               /**< message callback */
+	void *msg_cb_param;                                     /**< message callback parameter */
+	mm_camcorder_video_stream_callback vstream_cb;          /**< Video stream callback */
+	void *vstream_cb_param;                                 /**< Video stream callback parameter */
+	mm_camcorder_audio_stream_callback astream_cb;          /**< Audio stream callback */
+	void *astream_cb_param;                                 /**< Audio stream callback parameter */
+	mm_camcorder_video_capture_callback vcapture_cb;        /**< Video capture callback */
+	void *vcapture_cb_param;                                /**< Video capture callback parameter */
+	int (*command)(MMHandleType, int);                      /**< camcorder's command */
 
 	/* etc */
-	_MMCamcorderMTSafe mtsafe;				/**< Thread safe */
-	_MMCamcorderCommand cmd;				/**< information for command loop */
-	int sync_state_change;					/**< Change framework state synchronously */
+	_MMCamcorderMTSafe mtsafe;                              /**< Thread safe */
+	_MMCamcorderCommand cmd;                                /**< information for command loop */
+	int sync_state_change;                                  /**< Change framework state synchronously */
 	int quick_device_close;
-	int state_change_by_system;				/**< MSL changes its state by itself because of system(ASM,MDM..) **/
-	int asm_event_code;					/**< event code of audio session manager */
-	pthread_mutex_t sound_lock;				/**< Capture sound mutex */
-	pthread_cond_t sound_cond;				/**< Capture sound cond */
-	int use_zero_copy_format;				/**< Whether use zero copy format for camera input */
+	int state_change_by_system;                             /**< MSL changes its state by itself because of system(ASM,MDM..) **/
+	int asm_event_code;                                     /**< event code of audio session manager */
+	pthread_mutex_t sound_lock;                             /**< Capture sound mutex */
+	pthread_cond_t sound_cond;                              /**< Capture sound cond */
+	int use_zero_copy_format;                               /**< Whether use zero copy format for camera input */
+	int shutter_sound_policy;                               /**< shutter sound policy */
 
-	_MMCamcorderInfoConverting caminfo_convert[CAMINFO_CONVERT_NUM];	/**< converting structure of camera info */
-	_MMCamcorderEnumConvert enum_conv[ENUM_CONVERT_NUM];			/**< enum converting list that is modified by ini info */
+	_MMCamcorderInfoConverting caminfo_convert[CAMINFO_CONVERT_NUM];        /**< converting structure of camera info */
+	_MMCamcorderEnumConvert enum_conv[ENUM_CONVERT_NUM];                    /**< enum converting list that is modified by ini info */
 
 	int reserved[4];			/**< reserved */
 } mmf_camcorder_t;

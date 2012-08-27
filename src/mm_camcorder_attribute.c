@@ -1225,7 +1225,7 @@ mm_cam_attr_construct_info cam_attrs_const_info[] ={
 		MM_CAM_CAPTURED_SCREENNAIL,
 		"captured-screennail",
 		MMF_VALUE_TYPE_DATA,
-		MM_ATTRS_FLAG_RW,
+		MM_ATTRS_FLAG_READABLE,
 		{(void*)NULL},
 		MM_ATTRS_VALID_TYPE_NONE,
 		0,
@@ -1242,7 +1242,7 @@ mm_cam_attr_construct_info cam_attrs_const_info[] ={
 		MM_ATTRS_VALID_TYPE_INT_RANGE,
 		0,
 		1,
-		NULL,
+		_mmcamcorder_commit_capture_sound_enable,
 	},
 	//99
 	{
@@ -1388,6 +1388,42 @@ mm_cam_attr_construct_info cam_attrs_const_info[] ={
 		0,
 		NULL,
 	},
+	//112
+	{
+		MM_CAM_CAPTURED_EXIF_RAW_DATA,
+		"captured-exif-raw-data",
+		MMF_VALUE_TYPE_DATA,
+		MM_ATTRS_FLAG_READABLE,
+		{(void*)NULL},
+		MM_ATTRS_VALID_TYPE_NONE,
+		0,
+		0,
+		NULL,
+	},
+	//113
+	{
+		MM_CAM_DISPLAY_EVAS_SURFACE_SINK,
+		"display-evas-surface-sink",
+		MMF_VALUE_TYPE_STRING,
+		MM_ATTRS_FLAG_READABLE,
+		{(void*)NULL},
+		MM_ATTRS_VALID_TYPE_NONE,
+		0,
+		0,
+		NULL,
+	},
+	//114
+	{
+		MM_CAM_DISPLAY_EVAS_DO_SCALING,
+		"display-evas-do-scaling",
+		MMF_VALUE_TYPE_INT,
+		MM_ATTRS_FLAG_RW,
+		{(void*)TRUE},
+		MM_ATTRS_VALID_TYPE_INT_RANGE,
+		FALSE,
+		TRUE,
+		_mmcamcorder_commit_display_evas_do_scaling,
+	}
 };
 
 
@@ -1564,7 +1600,7 @@ _mmcamcorder_get_attributes(MMHandleType handle,  char **err_attr_name, const ch
 	attrs = MMF_CAMCORDER_ATTRS(handle);
 	mmf_return_val_if_fail( attrs, MM_ERROR_CAMCORDER_NOT_INITIALIZED );
 
-	ret = mm_attrs_get_valist (attrs, err_attr_name, attribute_name, var_args);
+	ret = mm_attrs_get_valist(attrs, err_attr_name, attribute_name, var_args);
 
 	return ret;
 }
@@ -1588,7 +1624,7 @@ _mmcamcorder_set_attributes(MMHandleType handle, char **err_attr_name, const cha
 
 	if( ret == MM_ERROR_NONE )
 	{
-		ret = mm_attrs_set_valist (attrs, err_attr_name, attribute_name, var_args);
+		ret = mm_attrs_set_valist(attrs, err_attr_name, attribute_name, var_args);
 	}
 
 	return ret;
@@ -1883,7 +1919,7 @@ bool _mmcamcorder_commit_capture_break_cont_shot (MMHandleType handle, int attr_
 }
 
 
-bool _mmcamcorder_commit_capture_count (MMHandleType handle, int attr_idx, const mmf_value_t *value)
+bool _mmcamcorder_commit_capture_count(MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
 	int ret = FALSE;
 	int cap_count = 0;
@@ -1896,7 +1932,7 @@ bool _mmcamcorder_commit_capture_count (MMHandleType handle, int attr_idx, const
 	cap_count = value->value.i_val;
 
 	mm_camcorder_get_attributes(handle, NULL, MMCAM_MODE, &mode, NULL);
-	if (mode == MM_CAMCORDER_MODE_IMAGE) {
+	if (mode != MM_CAMCORDER_MODE_AUDIO) {
 		if (cap_count > 1) {
 			__ta__("_mmcamcorder_sound_init",
 #ifdef _MMCAMCORDER_UPLOAD_SAMPLE
@@ -1911,11 +1947,36 @@ bool _mmcamcorder_commit_capture_count (MMHandleType handle, int attr_idx, const
 			);
 			_mmcam_dbg_log("sound finalize [%d]", ret);
 		}
+
+		_mmcam_dbg_log("Capture Count %d, ret %d", cap_count, ret);
+	} else {
+		_mmcam_dbg_err("Current mode is AUDIO recording");
+		ret = FALSE;
 	}
 
-	_mmcam_dbg_log("Capture Count(%d)", cap_count);
+	return ret;
+}
 
-	return TRUE;
+
+bool _mmcamcorder_commit_capture_sound_enable(MMHandleType handle, int attr_idx, const mmf_value_t *value)
+{
+	int shutter_sound_policy = FALSE;
+
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+
+	mmf_return_val_if_fail(hcamcorder, FALSE);
+
+	_mmcam_dbg_log("shutter sound policy: %d", hcamcorder->shutter_sound_policy);
+
+	/* return error when disable shutter sound if policy is TRUE */
+	if (!value->value.i_val &&
+	    hcamcorder->shutter_sound_policy == VCONFKEY_CAMERA_SHUTTER_SOUND_POLICY_ON) {
+		_mmcam_dbg_err("not permitted DISABLE SHUTTER SOUND");
+		return FALSE;
+	} else {
+		_mmcam_dbg_log("set value [%d] success", value->value.i_val);
+		return TRUE;
+	}
 }
 
 
@@ -2515,7 +2576,7 @@ bool _mmcamcorder_commit_camera_capture_mode (MMHandleType handle, int attr_idx,
 	if (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst) {
 		if (!GST_IS_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst)) {
 			_mmcam_dbg_log("Can't cast Video source into camera control.");
-			return TRUE; 
+			return TRUE;
 		}
 
 		control = GST_CAMERA_CONTROL (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
@@ -2525,15 +2586,14 @@ bool _mmcamcorder_commit_camera_capture_mode (MMHandleType handle, int attr_idx,
 				__ta__("                gst_camera_control_set_exposure",
 				ret = gst_camera_control_set_exposure(control, exposure_type, newVal1, newVal2);
 				);
-
 				if (ret) {
-					//_mmcam_dbg_log( "Succeed in setting exposure. Type[%d],value1[%d],value2[%d]", exposure_type, mslVal1, mslVal2 );
+					_mmcam_dbg_log("Succeed in setting exposure. Type[%d],value1[%d],value2[%d]", exposure_type, mslVal1, mslVal2 );
 					return TRUE;
 				} else {
-					_mmcam_dbg_warn( "Failed to set exposure. Type[%d],value1[%d],value2[%d]", exposure_type, mslVal1, mslVal2 );
+					_mmcam_dbg_warn("Failed to set exposure. Type[%d],value1[%d],value2[%d]", exposure_type, mslVal1, mslVal2 );
 				}
 			} else {
-				//_mmcam_dbg_log( "No need to set exposure. Type[%d],value1[%d],value2[%d]", exposure_type, mslVal1, mslVal2 );
+				_mmcam_dbg_log("No need to set exposure. Type[%d],value1[%d],value2[%d]", exposure_type, mslVal1, mslVal2);
 				return TRUE;
 			}
 		} else {
@@ -2644,7 +2704,7 @@ bool _mmcamcorder_commit_camera_hold_af_after_capturing (MMHandleType handle, in
 	if (!sc)
 		return TRUE;
 
-	current_state = _mmcamcorder_get_state( handle);
+	current_state = _mmcamcorder_get_state(handle);
 
 	if( current_state < MM_CAMCORDER_STATE_READY )
 	{
@@ -2670,7 +2730,7 @@ bool _mmcamcorder_commit_camera_rotate (MMHandleType handle, int attr_idx, const
 
 	_mmcam_dbg_log("rotate(%d)", value->value.i_val);
 
-	current_state = _mmcamcorder_get_state( handle);
+	current_state = _mmcamcorder_get_state(handle);
 
 	if (current_state > MM_CAMCORDER_STATE_READY) {
 		_mmcam_dbg_err("camera rotation setting failed.(state=%d, is_state_changing(%d))", current_state);
@@ -2681,10 +2741,39 @@ bool _mmcamcorder_commit_camera_rotate (MMHandleType handle, int attr_idx, const
 }
 
 
-bool _mmcamcorder_commit_image_encoder_quality (MMHandleType handle, int attr_idx, const mmf_value_t *value)
+bool _mmcamcorder_commit_image_encoder_quality(MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
+	int current_state = MM_CAMCORDER_STATE_NONE;
+
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+	_MMCamcorderSubContext *sc = NULL;
+
+	mmf_return_val_if_fail(handle, FALSE);
+
+	/* check type */
+	if (hcamcorder->type == MM_CAMCORDER_MODE_AUDIO) {
+		_mmcam_dbg_err("invalid mode %d", hcamcorder->type);
+		return FALSE;
+	}
+
+	/* check current state */
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_READY) {
+		_mmcam_dbg_log("NOT initialized. this will be applied later");
+		return TRUE;
+	}
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+
 	_mmcam_dbg_log("Image encoder quality(%d)", value->value.i_val);
-	return TRUE;
+
+	if (current_state == MM_CAMCORDER_STATE_PREPARE) {
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-jpg-quality", value->value.i_val);
+		return TRUE;
+	} else {
+		_mmcam_dbg_err("invalid state %d", current_state);
+		return FALSE;
+	}
 }
 
 
@@ -3114,34 +3203,50 @@ bool _mmcamcorder_commit_audio_disable(MMHandleType handle, int attr_idx, const 
 
 bool _mmcamcorder_commit_display_handle(MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
-	_MMCamcorderSubContext *sc = NULL;
+	int current_state = MM_CAMCORDER_STATE_NONE;
 	char *videosink_name = NULL;
+	void *p_handle = NULL;
 
-	mmf_return_val_if_fail(handle, TRUE);
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+	_MMCamcorderSubContext *sc = NULL;
+
+	mmf_return_val_if_fail(handle, FALSE);
+
+	/* check type */
+	if (hcamcorder->type == MM_CAMCORDER_MODE_AUDIO) {
+		_mmcam_dbg_err("invalid mode %d", hcamcorder->type);
+		return FALSE;
+	}
+
+	/* check current state */
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_READY) {
+		_mmcam_dbg_log("NOT initialized. this will be applied later");
+		return TRUE;
+	}
 
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
-	mmf_return_val_if_fail(sc, TRUE);
 
-	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	p_handle = value->value.p_val;
+	if (p_handle) {
+		/* get videosink name */
+		_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+		_mmcam_dbg_log("Commit : videosinkname[%s]", videosink_name);
 
-	_mmcam_dbg_log("Commit : videosinkname[%s]", videosink_name);
-
-	if (sc->element && sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst) {
-		void *p_handle = value->value.p_val;
-
-		if (p_handle) {
-			if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "ximagesink")) {
-				_mmcam_dbg_log("Commit : Set XID[%x]", *(int*)(p_handle));
-				gst_x_overlay_set_xwindow_id(GST_X_OVERLAY(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst), *(int*)(p_handle));
-			} else if (!strcmp(videosink_name, "evasimagesink")) {
-				_mmcam_dbg_log("Commit : Set evas object [%p]", p_handle);
-				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "evas-object", p_handle);
-			} else {
-				_mmcam_dbg_log("Commit : Nothing to commit with this element[%s]", videosink_name);
-			}
+		if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "ximagesink")) {
+			_mmcam_dbg_log("Commit : Set XID[%x]", *(int*)(p_handle));
+			gst_x_overlay_set_xwindow_id(GST_X_OVERLAY(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst), *(int*)(p_handle));
+		} else if (!strcmp(videosink_name, "evasimagesink") ||
+		           !strcmp(videosink_name, "evaspixmapsink")) {
+			_mmcam_dbg_log("Commit : Set evas object [%p]", p_handle);
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "evas-object", p_handle);
 		} else {
-			_mmcam_dbg_warn("Display handle is NULL. Nothing to do.");
+			_mmcam_dbg_warn("Commit : Nothing to commit with this element[%s]", videosink_name);
+			return FALSE;
 		}
+	} else {
+		_mmcam_dbg_warn("Display handle is NULL");
+		return FALSE;
 	}
 
 	return TRUE;
@@ -3150,395 +3255,347 @@ bool _mmcamcorder_commit_display_handle(MMHandleType handle, int attr_idx, const
 
 bool _mmcamcorder_commit_display_mode(MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
-	_MMCamcorderSubContext *sc = NULL;
+	int current_state = MM_CAMCORDER_STATE_NONE;
 	char *videosink_name = NULL;
 
-	mmf_return_val_if_fail(handle, TRUE);
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+	_MMCamcorderSubContext *sc = NULL;
 
-	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
-	mmf_return_val_if_fail(sc, TRUE);
+	mmf_return_val_if_fail(handle, FALSE);
 
-	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
-
-	_mmcam_dbg_log("Commit : videosinkname[%s]", videosink_name);
-
-	if (sc->element && sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst) {
-		if (!strcmp(videosink_name, "xvimagesink")) {
-			_mmcam_dbg_log("Commit : display mode [%d]", value->value.i_val);
-			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "display-mode", value->value.i_val);
-		} else {
-			_mmcam_dbg_log("Commit : This element [%s] does not support display mode", videosink_name);
-		}
+	/* check type */
+	if (hcamcorder->type == MM_CAMCORDER_MODE_AUDIO) {
+		_mmcam_dbg_err("invalid mode %d", hcamcorder->type);
+		return FALSE;
 	}
 
-	return TRUE;
-}
-
-
-bool _mmcamcorder_commit_display_rotation (MMHandleType handle, int attr_idx, const mmf_value_t *value)
-{
-	mmf_camcorder_t *hcamcorder =  NULL;
-	_MMCamcorderSubContext *sc  = NULL;
-	int current_state = MM_CAMCORDER_STATE_NONE;
-
-	hcamcorder = MMF_CAMCORDER(handle);
-	if(!hcamcorder)
+	/* check current state */
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_READY) {
+		_mmcam_dbg_log("NOT initialized. this will be applied later");
 		return TRUE;
+	}
+
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
-	if (!sc)
+
+	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	_mmcam_dbg_log("Commit : videosinkname[%s]", videosink_name);
+
+	if (!strcmp(videosink_name, "xvimagesink")) {
+		_mmcam_dbg_log("Commit : display mode [%d]", value->value.i_val);
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "display-mode", value->value.i_val);
 		return TRUE;
-
-	current_state = _mmcamcorder_get_state( handle);
-
-	if( current_state > MM_CAMCORDER_STATE_NULL ) {
-		if( hcamcorder->type != MM_CAMCORDER_MODE_AUDIO ) {
-			return _mmcamcorder_set_display_rotation( handle, value->value.i_val );
-		} else {
-			_mmcam_dbg_warn( "Current Mode is AUDIO only mode." );
-			return FALSE;
-		}
 	} else {
-		_mmcam_dbg_err("display rotation change failed.(state=%d)", current_state);
+		_mmcam_dbg_warn("Commit : This element [%s] does not support display mode", videosink_name);
 		return FALSE;
 	}
 }
 
 
+bool _mmcamcorder_commit_display_rotation(MMHandleType handle, int attr_idx, const mmf_value_t *value)
+{
+	int current_state = MM_CAMCORDER_STATE_NONE;
+
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+
+	mmf_return_val_if_fail(handle, FALSE);
+
+	/* check type */
+	if (hcamcorder->type == MM_CAMCORDER_MODE_AUDIO) {
+		_mmcam_dbg_err("invalid mode %d", hcamcorder->type);
+		return FALSE;
+	}
+
+	/* check current state */
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_READY) {
+		_mmcam_dbg_log("NOT initialized. this will be applied later");
+		return TRUE;
+	}
+
+	return _mmcamcorder_set_display_rotation(handle, value->value.i_val);
+}
+
+
 bool _mmcamcorder_commit_display_visible (MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
-	mmf_camcorder_t *hcamcorder= MMF_CAMCORDER( handle);
+	int current_state = MM_CAMCORDER_STATE_NONE;
+	char *videosink_name = NULL;
+
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderSubContext *sc = NULL;
 
-	int is_visible = 0;
-	int current_state = MM_CAMCORDER_STATE_NONE;
-	int bret = 0;
+	mmf_return_val_if_fail(handle, FALSE);
 
-	char *videosink_name = NULL;
-	
-	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
-	if (!sc)
+	/* check type */
+	if (hcamcorder->type == MM_CAMCORDER_MODE_AUDIO) {
+		_mmcam_dbg_err("invalid mode %d", hcamcorder->type);
+		return FALSE;
+	}
+
+	/* check current state */
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_READY) {
+		_mmcam_dbg_log("NOT initialized. this will be applied later");
 		return TRUE;
-	current_state = _mmcamcorder_get_state( handle);
-
-	if( current_state > MM_CAMCORDER_STATE_NULL )
-	{
-		if( hcamcorder->type != MM_CAMCORDER_MODE_AUDIO )
-		{
-			if( sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst )
-			{
-				// Get videosink name
-				_mmcamcorder_conf_get_value_element_name( sc->VideosinkElement, &videosink_name );
-
-				is_visible = value->value.i_val;
-
-				if( !strcmp( videosink_name, "xvimagesink" )
-				 || !strcmp( videosink_name, "avsysvideosink" ) )
-				{
-					MMCAMCORDER_G_OBJECT_SET( sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, 
-						"visible", is_visible);
-
-					_mmcam_dbg_log( "Set visible [%d] done.", is_visible );
-					bret = TRUE;
-				}
-				else
-				{
-					_mmcam_dbg_warn( "videosink[%s] does not support VISIBLE.", videosink_name );
-					bret = FALSE;
-				}
-			}
-			else
-			{
-				_mmcam_dbg_warn( "Videosink element is null, but current state is [%d]", current_state );
-				bret = FALSE;
-			}
-		}
-		else
-		{
-			_mmcam_dbg_warn( "Current Mode is AUDIO only mode." );
-			bret = FALSE;
-		}				
 	}
-	else
-	{
-		_mmcam_dbg_log("It doesn't need to change dynamically.(state=%d)", current_state);
-		bret = TRUE;
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+
+	/* Get videosink name */
+	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	if (!strcmp(videosink_name, "xvimagesink") ||
+	    !strcmp(videosink_name, "evaspixmapsink")) {
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "visible", value->value.i_val);
+		_mmcam_dbg_log("Set visible [%d] done.", value->value.i_val);
+		return TRUE;
+	} else {
+		_mmcam_dbg_warn("videosink[%s] does not support VISIBLE.", videosink_name);
+		return FALSE;
 	}
-	return bret;
 }
 
 
 bool _mmcamcorder_commit_display_geometry_method (MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
-	mmf_camcorder_t *hcamcorder= MMF_CAMCORDER( handle);
+	int method = 0;
+	int current_state = MM_CAMCORDER_STATE_NONE;
+	char *videosink_name = NULL;
+
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderSubContext *sc = NULL;
 
-	int newattrs = 0;
-	int current_state = MM_CAMCORDER_STATE_NONE;
-	int bret = 0;
-	
-	char *videosink_name = NULL;
-	
-	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
-	if (!sc)
+	mmf_return_val_if_fail(handle, FALSE);
+
+	/* check type */
+	if (hcamcorder->type == MM_CAMCORDER_MODE_AUDIO) {
+		_mmcam_dbg_err("invalid mode %d", hcamcorder->type);
+		return FALSE;
+	}
+
+	/* check current state */
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_READY) {
+		_mmcam_dbg_log("NOT initialized. this will be applied later");
 		return TRUE;
-	current_state = _mmcamcorder_get_state( handle);
-
-	if (current_state > MM_CAMCORDER_STATE_NULL)
-	{
-		if (sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst)
-		{			
-			// Get videosink name
-			_mmcamcorder_conf_get_value_element_name( sc->VideosinkElement, &videosink_name );
-
-			if(strcmp(videosink_name, "xvimagesink") == 0) //only for xvimagesink
-			{
-				if (hcamcorder->type != MM_CAMCORDER_MODE_AUDIO)
-				{
-					newattrs = value->value.i_val;
-					MMCAMCORDER_G_OBJECT_SET( sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "display-geometry-method", newattrs);
-				}
-			}
-			bret = TRUE;
-		}
-		else
-		{
-			_mmcam_dbg_log("Videosink element is null");
-			bret = FALSE;
-		}
 	}
-	else
-	{
-		_mmcam_dbg_log("It doesn't need to change dynamically.(state=%d)", current_state);
-		bret = TRUE;
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+
+	/* Get videosink name */
+	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	if (!strcmp(videosink_name, "xvimagesink") ||
+	    !strcmp(videosink_name, "evaspixmapsink")) {
+		method = value->value.i_val;
+		MMCAMCORDER_G_OBJECT_SET( sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "display-geometry-method", method);
+		return TRUE;
+	} else {
+		_mmcam_dbg_warn("videosink[%s] does not support geometry method.", videosink_name);
+		return FALSE;
 	}
-	
-	return bret;
 }
 
 
-bool _mmcamcorder_commit_display_rect (MMHandleType handle, int attr_idx, const mmf_value_t *value)
+bool _mmcamcorder_commit_display_rect(MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
-	mmf_camcorder_t *hcamcorder= MMF_CAMCORDER( handle);
+	int current_state = MM_CAMCORDER_STATE_NONE;
+	int method = 0;
+	char *videosink_name = NULL;
+
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderSubContext *sc = NULL;
 
-	int current_state = MM_CAMCORDER_STATE_NONE;
-	int bret = 0;
-	
-	char *videosink_name = NULL;
-	
-	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
-	if (!sc)
+	mmf_return_val_if_fail(handle, FALSE);
+
+	/* check type */
+	if (hcamcorder->type == MM_CAMCORDER_MODE_AUDIO) {
+		_mmcam_dbg_err("invalid mode %d", hcamcorder->type);
+		return FALSE;
+	}
+
+	/* check current state */
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_READY) {
+		_mmcam_dbg_log("NOT initialized. this will be applied later");
 		return TRUE;
-	current_state = _mmcamcorder_get_state( handle);
-
-	if (current_state > MM_CAMCORDER_STATE_NULL)
-	{
-		if (sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst)
-		{
-			// Get videosink name
-			_mmcamcorder_conf_get_value_element_name( sc->VideosinkElement, &videosink_name );
-	
-			if(strcmp(videosink_name, "xvimagesink") == 0) //only for xvimagesink
-			{
-				if (hcamcorder->type != MM_CAMCORDER_MODE_AUDIO)
-				{
-					int err = 0;
-					int rectx, recty, rectw, recth;
-					int display_geometry_method = 0;
-
-					err = mm_camcorder_get_attributes(handle, NULL,
-													MMCAM_DISPLAY_RECT_X, &rectx,
-													MMCAM_DISPLAY_RECT_Y, &recty,
-													MMCAM_DISPLAY_RECT_WIDTH, &rectw,
-													MMCAM_DISPLAY_RECT_HEIGHT, &recth,
-													MMCAM_DISPLAY_GEOMETRY_METHOD, &display_geometry_method,
-													NULL);
-					if (err < 0) 
-					{
-						_mmcam_dbg_warn("Get display-geometry-method attrs fail. (%x)", err);
-						return FALSE;
-					}
-
-					if (display_geometry_method == MM_DISPLAY_METHOD_CUSTOM_ROI)
-					{
-						int flags = MM_ATTRS_FLAG_NONE;
-						MMCamAttrsInfo info;
-						_mmcam_dbg_log("FRECT(x,y,w,h) = (%d,%d,%d,%d)", rectx, recty, rectw, recth);
-						switch(attr_idx)
-						{
-							case MM_CAM_DISPLAY_RECT_X:
-								mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_Y, &info);
-								flags |= info.flag;
-								memset(&info, 0x00, sizeof(info));
-								mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_WIDTH, &info);
-								flags |= info.flag;
-								memset(&info, 0x00, sizeof(info));
-								mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_HEIGHT, &info);
-								flags |= info.flag;
-
-								rectx = value->value.i_val;
-							break;
-							case MM_CAM_DISPLAY_RECT_Y:
-								mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_WIDTH, &info);
-								flags |= info.flag;
-								memset(&info, 0x00, sizeof(info));
-								mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_HEIGHT, &info);
-								flags |= info.flag;
-
-								recty = value->value.i_val;
-							break;
-							case MM_CAM_DISPLAY_RECT_WIDTH:
-								mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_HEIGHT, &info);
-								flags |= info.flag;
-
-								rectw = value->value.i_val;
-							break;
-							case MM_CAM_DISPLAY_RECT_HEIGHT:
-								recth = value->value.i_val;
-							break;
-							default:
-								_mmcam_dbg_err("Wrong attr_idx!");
-								return FALSE;
-						}
-
-						if (!(flags & MM_ATTRS_FLAG_MODIFIED))
-						{
-							_mmcam_dbg_log("RECT(x,y,w,h) = (%d,%d,%d,%d)", rectx, recty, rectw, recth);
-
-							//Do we need to check all?
-							if(g_object_class_find_property(G_OBJECT_GET_CLASS(G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst)), "dst-roi-x"))
-							{
-								g_object_set (sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst,
-									"dst-roi-x", rectx,
-									"dst-roi-y", recty,
-									"dst-roi-w", rectw,
-									"dst-roi-h", recth,
-									NULL);
-							}
-						}
-					}
-				}
-			}
-			bret = TRUE;
-		}
-		else
-		{
-			_mmcam_dbg_log("Videosink element is null");
-			bret = FALSE;
-		}
 	}
-	else
-	{
-		_mmcam_dbg_log("It doesn't need to change dynamically.(state=%d)", current_state);
-		bret = TRUE;
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+
+	/* check current method */
+	mm_camcorder_get_attributes(handle, NULL,
+	                            MMCAM_DISPLAY_GEOMETRY_METHOD, &method,
+	                            NULL);
+	if (method != MM_DISPLAY_METHOD_CUSTOM_ROI) {
+		_mmcam_dbg_log("current method[%d] is not supported rect", method);
+		return FALSE;
 	}
-	
-	return bret;
+
+	/* Get videosink name */
+	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	if (!strcmp(videosink_name, "xvimagesink") ||
+	    !strcmp(videosink_name, "evaspixmapsink")) {
+		int rect_x = 0;
+		int rect_y = 0;
+		int rect_width = 0;
+		int rect_height = 0;
+		int flags = MM_ATTRS_FLAG_NONE;
+		MMCamAttrsInfo info;
+
+		mm_camcorder_get_attributes(handle, NULL,
+		                            MMCAM_DISPLAY_RECT_X, &rect_x,
+		                            MMCAM_DISPLAY_RECT_Y, &rect_y,
+		                            MMCAM_DISPLAY_RECT_WIDTH, &rect_width,
+		                            MMCAM_DISPLAY_RECT_HEIGHT, &rect_height,
+		                            NULL);
+		switch (attr_idx) {
+		case MM_CAM_DISPLAY_RECT_X:
+			mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_Y, &info);
+			flags |= info.flag;
+			memset(&info, 0x00, sizeof(info));
+			mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_WIDTH, &info);
+			flags |= info.flag;
+			memset(&info, 0x00, sizeof(info));
+			mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_HEIGHT, &info);
+			flags |= info.flag;
+
+			rect_x = value->value.i_val;
+			break;
+		case MM_CAM_DISPLAY_RECT_Y:
+			mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_WIDTH, &info);
+			flags |= info.flag;
+			memset(&info, 0x00, sizeof(info));
+			mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_HEIGHT, &info);
+			flags |= info.flag;
+
+			rect_y = value->value.i_val;
+			break;
+		case MM_CAM_DISPLAY_RECT_WIDTH:
+			mm_camcorder_get_attribute_info(handle, MMCAM_DISPLAY_RECT_HEIGHT, &info);
+			flags |= info.flag;
+
+			rect_width = value->value.i_val;
+			break;
+		case MM_CAM_DISPLAY_RECT_HEIGHT:
+			rect_height = value->value.i_val;
+			break;
+		default:
+			_mmcam_dbg_err("Wrong attr_idx!");
+			return FALSE;
+		}
+
+		if (!(flags & MM_ATTRS_FLAG_MODIFIED)) {
+			_mmcam_dbg_log("RECT(x,y,w,h) = (%d,%d,%d,%d)",
+			               rect_x, rect_y, rect_width, rect_height);
+			g_object_set(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst,
+			             "dst-roi-x", rect_x,
+			             "dst-roi-y", rect_y,
+			             "dst-roi-w", rect_width,
+			             "dst-roi-h", rect_height,
+			             NULL);
+		}
+
+		return TRUE;
+	} else {
+		_mmcam_dbg_warn("videosink[%s] does not support display rect.", videosink_name);
+		return FALSE;
+	}
 }
 
 
-bool _mmcamcorder_commit_display_scale (MMHandleType handle, int attr_idx, const mmf_value_t *value)
+bool _mmcamcorder_commit_display_scale(MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
-	mmf_camcorder_t *hcamcorder= MMF_CAMCORDER( handle);
-	_MMCamcorderSubContext *sc = NULL;
-
 	int zoom = 0;
 	int current_state = MM_CAMCORDER_STATE_NONE;
-	int bret = 0;
-
 	char *videosink_name = NULL;
+	GstElement *vs_element = NULL;
+
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+	_MMCamcorderSubContext *sc = NULL;
+
+	mmf_return_val_if_fail(handle, FALSE);
+
+	/* check type */
+	if (hcamcorder->type == MM_CAMCORDER_MODE_AUDIO) {
+		_mmcam_dbg_err("invalid mode %d", hcamcorder->type);
+		return FALSE;
+	}
+
+	/* check current state */
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_READY) {
+		_mmcam_dbg_log("NOT initialized. this will be applied later");
+		return TRUE;
+	}
 
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
-	if (!sc)
+
+	/* Get videosink name */
+	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	zoom = value->value.i_val;
+	if (!strcmp(videosink_name, "xvimagesink")) {
+		vs_element = sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst;
+
+		MMCAMCORDER_G_OBJECT_SET(vs_element, "zoom", zoom + 1);
+		_mmcam_dbg_log("Set display zoom to %d", zoom + 1);
+
 		return TRUE;
-	current_state = _mmcamcorder_get_state( handle);
-
-	if( current_state > MM_CAMCORDER_STATE_NULL )
-	{
-		if( hcamcorder->type != MM_CAMCORDER_MODE_AUDIO )
-		{
-			if( sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst )
-			{
-				// Get videosink name
-				_mmcamcorder_conf_get_value_element_name( sc->VideosinkElement, &videosink_name );
-			
-				zoom = value->value.i_val;
-
-				if( !strcmp( videosink_name, "xvimagesink" ))
-				{
-					//xvimagesink
-					switch (zoom)
-					{
-						case MM_DISPLAY_SCALE_DEFAULT:
-						{
- 							MMCAMCORDER_G_OBJECT_SET( sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "zoom", 1);
-
-							_mmcam_dbg_log( "Set display zoom to default.");
-							break;
-						}
-						case MM_DISPLAY_SCALE_DOUBLE_LENGTH:
-						{
-							MMCAMCORDER_G_OBJECT_SET( sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "zoom", 2);
-
-							_mmcam_dbg_log( "Set display zoom to double.");
-							break;
-						}
-						case MM_DISPLAY_SCALE_TRIPLE_LENGTH:
-						{
-							MMCAMCORDER_G_OBJECT_SET( sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "zoom", 3);
-
-							_mmcam_dbg_log( "Set display zoom to triple.");
-							break;
-						}
-						default:
-						{
-							_mmcam_dbg_warn( "Unsupported value.");
-						}
-					}
-					
-					bret = TRUE;
-				}
-				else if (!strcmp( videosink_name, "avsysvideosink" ) )
-				{
-					//avsysvideosink
-					bret = TRUE;
-				}
-				else
-				{
-					_mmcam_dbg_warn( "videosink[%s] does not support 'zoom'.", videosink_name );
-					bret = FALSE;
-				}
-			}
-			else
-			{
-				_mmcam_dbg_warn( "Videosink element is null, but current state is [%d]", current_state );
-				bret = FALSE;
-			}
-		}
-		else
-		{
-			_mmcam_dbg_warn( "Current Mode is AUDIO only mode." );
-			bret = FALSE;
-		}				
+	} else {
+		_mmcam_dbg_warn("videosink[%s] does not support scale", videosink_name);
+		return FALSE;
 	}
-	else
-	{
-		_mmcam_dbg_log("It doesn't need to change dynamically.(state=%d)", current_state);
-		bret = TRUE;
+}
+
+
+bool _mmcamcorder_commit_display_evas_do_scaling(MMHandleType handle, int attr_idx, const mmf_value_t *value)
+{
+	int current_state = MM_CAMCORDER_STATE_NONE;
+	int do_scaling = 0;
+	char *videosink_name = NULL;
+
+	mmf_camcorder_t *hcamcorder= MMF_CAMCORDER( handle);
+	_MMCamcorderSubContext *sc = NULL;
+
+	mmf_return_val_if_fail(handle, FALSE);
+
+	/* check type */
+	if (hcamcorder->type == MM_CAMCORDER_MODE_AUDIO) {
+		_mmcam_dbg_err("invalid mode %d", hcamcorder->type);
+		return FALSE;
 	}
 
-	return bret;
+	/* check current state */
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_READY) {
+		_mmcam_dbg_log("NOT initialized. this will be applied later");
+		return TRUE;
+	}
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+
+	do_scaling = value->value.i_val;
+
+	/* Get videosink name */
+	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	if (!strcmp(videosink_name, "evaspixmapsink")) {
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "origin-size", !do_scaling);
+		_mmcam_dbg_log("Set origin-size to %d", !(value->value.i_val));
+		return TRUE;
+	} else {
+		_mmcam_dbg_warn("videosink[%s] does not support scale", videosink_name);
+		return FALSE;
+	}
 }
 
 
 bool _mmcamcorder_commit_strobe (MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
-	bool				bret		= FALSE;
-	_MMCamcorderSubContext*	sc		= NULL;
-	int					strobe_type, mslVal, newVal, cur_value;
-	int 				current_state = MM_CAMCORDER_STATE_NONE;
+	bool bret = FALSE;
+	_MMCamcorderSubContext *sc = NULL;
+	int strobe_type, mslVal, newVal, cur_value;
+	int current_state = MM_CAMCORDER_STATE_NONE;
 
-	sc		= MMF_CAMCORDER_SUBCONTEXT( handle );
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
 	if (!sc)
 		return TRUE;
 

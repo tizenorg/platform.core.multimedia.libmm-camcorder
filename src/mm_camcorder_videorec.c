@@ -834,17 +834,10 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 		break;
 	case _MMCamcorder_CMD_CAPTURE:
 	{
-		int cap_jpeg_quality = 0;
-
 		GstCameraControl *control = NULL;
-
-		ret = mm_camcorder_get_attributes(handle, &err_name,
-		                                  MMCAM_IMAGE_ENCODER_QUALITY, &cap_jpeg_quality,
-		                                  NULL);
 
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-fourcc", GST_MAKE_FOURCC('J','P','E','G'));
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-count", 1);
-		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-jpg-quality", cap_jpeg_quality);
 
 		control = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
 		gst_camera_control_set_capture_command(control, GST_CAMERA_CONTROL_CAPTURE_COMMAND_START);
@@ -1010,6 +1003,9 @@ void _mmcamcorder_video_snapshot_capture_cb(GstElement *element, GstBuffer *buff
 	int pixtype = MM_PIXEL_FORMAT_INVALID;
 	int pixtype_sub = MM_PIXEL_FORMAT_INVALID;
 	int attr_index = 0;
+	int tag_enable = FALSE;
+	int provide_exif = FALSE;
+	unsigned char *exif_raw_data = NULL;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
 	_MMCamcorderVideoInfo *info = NULL;
@@ -1020,9 +1016,8 @@ void _mmcamcorder_video_snapshot_capture_cb(GstElement *element, GstBuffer *buff
 	MMCamcorderCaptureDataType scrnail = {0,};
 
 	mmf_attrs_t *attrs = NULL;
-	mmf_attribute_t *item = NULL;
-
-	char *err_attr_name = NULL;
+	mmf_attribute_t *item_screennail = NULL;
+	mmf_attribute_t *item_exif_raw_data = NULL;
 
 	mmf_return_if_fail(hcamcorder);
 
@@ -1067,7 +1062,7 @@ void _mmcamcorder_video_snapshot_capture_cb(GstElement *element, GstBuffer *buff
 	/* Screennail image buffer */
 	attrs = (mmf_attrs_t*)MMF_CAMCORDER_ATTRS(hcamcorder);
 	mm_attrs_get_index((MMHandleType)attrs, "captured-screennail", &attr_index);
-	item = &attrs->items[attr_index];
+	item_screennail = &attrs->items[attr_index];
 
 	if (buffer3 && GST_BUFFER_DATA(buffer3) && GST_BUFFER_SIZE(buffer3) != 0) {
 		_mmcam_dbg_log("Screennail (buffer3=%p,size=%d)", buffer3, GST_BUFFER_SIZE(buffer3));
@@ -1076,24 +1071,69 @@ void _mmcamcorder_video_snapshot_capture_cb(GstElement *element, GstBuffer *buff
 		__mmcamcorder_get_capture_data_from_buffer(&scrnail, pixtype_sub, buffer3);
 
 		/* Set screennail attribute for application */
-		mmf_attribute_set_data(item, &scrnail, sizeof(scrnail));
+		mmf_attribute_set_data(item_screennail, &scrnail, sizeof(scrnail));
 	} else {
-		mmf_attribute_set_data(item, NULL, 0);
-
+		mmf_attribute_set_data(item_screennail, NULL, 0);
 		_mmcam_dbg_log("buffer3 has wrong pointer. Not Error. (buffer3=%p)",buffer3);
 	}
 
-	mmf_attrs_commit_err((MMHandleType)attrs, &err_attr_name);
+	/* commit attribute */
+	mmf_attribute_commit(item_screennail);
+
+	/* create EXIF info */
+	__ta__("                    mm_exif_create_exif_info",
+	ret = mm_exif_create_exif_info(&(hcamcorder->exif_info));
+	);
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("Failed to create exif_info [%x], but keep going...", ret);
+	} else {
+		/* add basic exif info */
+		_mmcam_dbg_log("add basic exif info");
+		__ta__("                    __mmcamcorder_set_exif_basic_info",
+		ret = __mmcamcorder_set_exif_basic_info((MMHandleType)hcamcorder, dest.width, dest.height);
+		);
+		if (ret != MM_ERROR_NONE) {
+			_mmcam_dbg_warn("Failed set_exif_basic_info [%x], but keep going...", ret);
+			ret = MM_ERROR_NONE;
+		}
+	}
+
+	/* get attribute item for EXIF data */
+	mm_attrs_get_index((MMHandleType)attrs, MMCAM_CAPTURED_EXIF_RAW_DATA, &attr_index);
+	item_exif_raw_data = &attrs->items[attr_index];
+
+	/* set EXIF data to attribute */
+	if (hcamcorder->exif_info && hcamcorder->exif_info->data) {
+		exif_raw_data = (unsigned char *)malloc(hcamcorder->exif_info->size);
+		if (exif_raw_data) {
+			memcpy(exif_raw_data, hcamcorder->exif_info->data, hcamcorder->exif_info->size);
+			mmf_attribute_set_data(item_exif_raw_data, exif_raw_data, hcamcorder->exif_info->size);
+			_mmcam_dbg_log("set EXIF raw data %p, size %d", exif_raw_data, hcamcorder->exif_info->size);
+		} else {
+			_mmcam_dbg_warn("failed to alloc for EXIF, size %d", hcamcorder->exif_info->size);
+		}
+	} else {
+		_mmcam_dbg_warn("failed to create EXIF. set EXIF as NULL");
+		mmf_attribute_set_data(item_exif_raw_data, NULL, 0);
+	}
+
+	/* commit EXIF data */
+	mmf_attribute_commit(item_exif_raw_data);
+
+	/* get tag-enable and provide-exif */
+	mm_camcorder_get_attributes((MMHandleType)hcamcorder, NULL, MMCAM_TAG_ENABLE, &tag_enable, NULL);
+	MMCAMCORDER_G_OBJECT_GET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "provide-exif", &provide_exif);
 
 	/* Set extra data for jpeg */
-	if (dest.format == MM_PIXEL_FORMAT_ENCODED) {
+	if (dest.format == MM_PIXEL_FORMAT_ENCODED &&
+	    tag_enable && !provide_exif) {
 		__ta__( "                VideoSnapshot:__mmcamcorder_set_jpeg_data",
 		ret = __mmcamcorder_set_jpeg_data((MMHandleType)hcamcorder, &dest, &thumb);
 		);
-		if (!ret) {
+		if (ret != MM_ERROR_NONE) {
 			_mmcam_dbg_err("Error on setting extra data to jpeg");
 			msg.id = MM_MESSAGE_CAMCORDER_ERROR;
-			msg.param.code = MM_ERROR_CAMCORDER_INTERNAL;
+			msg.param.code = ret;
 			goto error;
 		}
 	}
@@ -1125,6 +1165,19 @@ void _mmcamcorder_video_snapshot_capture_cb(GstElement *element, GstBuffer *buff
 err_release_exif:
 	_MMCAMCORDER_UNLOCK_VCAPTURE_CALLBACK(hcamcorder);
 
+	/* init screennail and EXIF raw data */
+	__ta__("                init attributes:scrnl and EXIF",
+	mmf_attribute_set_data(item_screennail, NULL, 0);
+	mmf_attribute_commit(item_screennail);
+	if (exif_raw_data) {
+		free(exif_raw_data);
+		exif_raw_data = NULL;
+
+		mmf_attribute_set_data(item_exif_raw_data, NULL, 0);
+		mmf_attribute_commit(item_exif_raw_data);
+	}
+	);
+
 	/* Release jpeg data */
 	if (pixtype == MM_PIXEL_FORMAT_ENCODED) {
 		__ta__( "                VideoSnapshot:__mmcamcorder_release_jpeg_data",
@@ -1147,6 +1200,12 @@ error:
 	if (buffer3) {
 		gst_buffer_unref(buffer3);
 	}
+
+	/* destroy exif info */
+	__ta__("                mm_exif_destory_exif_info",
+	mm_exif_destory_exif_info(hcamcorder->exif_info);
+	);
+	hcamcorder->exif_info = NULL;
 
 	MMTA_ACUM_ITEM_END("            VideoSnapshot:MSL capture callback", FALSE);
 
@@ -1341,6 +1400,8 @@ static gboolean __mmcamcorder_video_dataprobe_record(GstPad *pad, GstBuffer *buf
 
 	info->filesize += (guint64)buffer_size;
 
+	_mmcam_dbg_log("filesize %u, ", info->filesize);
+
 	return TRUE;
 }
 
@@ -1349,7 +1410,6 @@ static gboolean __mmcamcorder_video_dataprobe_audio_disable(GstPad *pad, GstBuff
 {
 	guint64 trailer_size = 0;
 	guint64 rec_pipe_time = 0;
-	static guint count = 0;
 	unsigned int remained_time = 0;
 
 	GstClockTime b_time;
@@ -1410,6 +1470,9 @@ static gboolean __mmcamcorder_video_dataprobe_audio_disable(GstPad *pad, GstBuff
 	msg.param.recording_status.filesize = (unsigned int)((info->filesize + trailer_size) >> 10);
 	msg.param.recording_status.remained_time = remained_time;
 	_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
+
+	_mmcam_dbg_log("time [%" GST_TIME_FORMAT "], size [%d]",
+	               GST_TIME_ARGS(rec_pipe_time), msg.param.recording_status.filesize);
 
 	if (info->record_timestamp_ratio != _MMCAMCORDER_DEFAULT_RECORDING_MOTION_RATE) {
 		GST_BUFFER_TIMESTAMP(buffer) = b_time * (info->record_timestamp_ratio);
@@ -1480,14 +1543,14 @@ static gboolean __mmcamcorder_audioque_dataprobe(GstPad *pad, GstBuffer *buffer,
 		return FALSE;
 	}
 
-	/*_mmcam_dbg_log("_mmcamcorder_audioque_dataprobe :: time [%" GST_TIME_FORMAT "], size [%d]",
-	               GST_TIME_ARGS(rec_pipe_time), (info->filesize + trailer_size) >> 10);*/
-
 	msg.id = MM_MESSAGE_CAMCORDER_RECORDING_STATUS;
 	msg.param.recording_status.elapsed = (unsigned int)rec_pipe_time;
 	msg.param.recording_status.filesize = (unsigned int)((info->filesize + trailer_size) >> 10);
 	msg.param.recording_status.remained_time = remained_time;
 	_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
+
+	_mmcam_dbg_log("_mmcamcorder_audioque_dataprobe :: time [%" GST_TIME_FORMAT "], size [%d]",
+	               GST_TIME_ARGS(rec_pipe_time), msg.param.recording_status.filesize);
 
 	return TRUE;
 }

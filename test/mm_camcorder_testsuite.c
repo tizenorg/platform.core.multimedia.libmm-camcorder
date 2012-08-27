@@ -150,8 +150,11 @@ static GTimer *timer = NULL;
 #define EXT_AMR                         "amr"
 #define EXT_MKV                         "mkv"
 
-#define STILL_CAPTURE_FILE_PATH_NAME    "/root/StillshotCapture"
-#define MULTI_CAPTURE_FILE_PATH_NAME    "/root/MultishotCapture"
+#define STILL_CAPTURE_FILE_PATH_NAME    "/opt/media/StillshotCapture"
+#define MULTI_CAPTURE_FILE_PATH_NAME    "/opt/media/MultishotCapture"
+#define IMAGE_CAPTURE_THUMBNAIL_PATH    "/opt/media/thumbnail.jpg"
+#define IMAGE_CAPTURE_SCREENNAIL_PATH   "/opt/media/screennail.yuv"
+#define IMAGE_CAPTURE_EXIF_PATH         "/opt/media/exif.raw"
 #define TARGET_FILENAME_PATH            "/opt/media/"
 #define TARGET_FILENAME_VIDEO           "/opt/media/test_rec_video.3gp"
 #define TARGET_FILENAME_AUDIO           "/opt/media/test_rec_audio.amr"
@@ -538,14 +541,42 @@ static int camcordertest_video_stream_cb(MMCamcorderVideoStreamDataType *stream,
 	return TRUE;
 }
 
+static void _file_write(char *path, void *data, int size)
+{
+	FILE *fp = NULL;
+
+	if (!path || !data || size <= 0) {
+		printf("ERROR %p %p %d\n", path, data, size);
+		return;
+	}
+
+	fp = fopen(path, "w");
+	if (fp == NULL) {
+		printf("open error! [%s], errno %d\n", path, errno);
+		return;
+	} else {
+		printf("open success [%s]\n", path);
+		if (fwrite(data, size, 1, fp) != 1) {
+			printf("write error! errno %d\n", errno);
+		} else {
+			printf("write success [%s]\n", path);
+		}
+
+		fclose(fp);
+		fp = NULL;
+	}
+}
+
+
 static int
 camcordertest_video_capture_cb(MMCamcorderCaptureDataType *main, MMCamcorderCaptureDataType *thumb, void *data)
 {
 	int nret = 0;
 	int scrnl_size = 0;
+	int exif_size = 0;
 	char m_filename[CAPTURE_FILENAME_LEN];
-	FILE *fp = NULL;
 	MMCamcorderCaptureDataType *scrnl = NULL;
+	unsigned char *exif_data = NULL;
 
 	if (main == NULL) {
 		warn_msg_t("Capture callback : Main image buffer is NULL!!!");
@@ -553,9 +584,9 @@ camcordertest_video_capture_cb(MMCamcorderCaptureDataType *main, MMCamcorderCapt
 	}
 
 	if (hcamcorder->isMultishot) {
-		snprintf(m_filename, CAPTURE_FILENAME_LEN, "%s%03d.jpg", hcamcorder->multishot_filename,hcamcorder->multishot_count++);
+		snprintf(m_filename, CAPTURE_FILENAME_LEN, "%s%03d.jpg", hcamcorder->multishot_filename, hcamcorder->multishot_count++);
 	} else {
-		snprintf(m_filename, CAPTURE_FILENAME_LEN, "%s%03d.jpg", hcamcorder->stillshot_filename,hcamcorder->stillshot_count++);
+		snprintf(m_filename, CAPTURE_FILENAME_LEN, "%s%03d.jpg", hcamcorder->stillshot_filename, hcamcorder->stillshot_count++);
 	}
 
 	debug_msg_t("hcamcorder->isMultishot=%d =>1: MULTI, 0: STILL, filename : %s",
@@ -568,23 +599,7 @@ camcordertest_video_capture_cb(MMCamcorderCaptureDataType *main, MMCamcorderCapt
 		nret = _mmcamcorder_encode_jpeg(main->data, main->width, main->height, main->format,
 		                                main->length, 90, &dst, &dst_size);
 		if (nret) {
-			fp = fopen(m_filename, "w+");
-			if (fp == NULL) {
-				printf("FileOPEN error!!\n");
-				warn_msg_t("FileOPEN error!!");
-				return FALSE;
-			} else {
-				printf("open success\n");
-				if (fwrite(dst, dst_size, 1, fp) != 1) {
-					printf("File write error!!\n");
-					warn_msg_t("File write error!!");
-					fclose(fp);
-					return FALSE;
-				}
-				printf("write success\n");
-			}
-			fclose(fp);
-			fp = NULL;
+			_file_write(m_filename, dst, dst_size);
 		} else {
 			printf("Failed to encode YUV(%d) -> JPEG. \n", main->format);
 		}
@@ -597,43 +612,11 @@ camcordertest_video_capture_cb(MMCamcorderCaptureDataType *main, MMCamcorderCapt
 		       main->data, main->length, main->width, main->height);
 
 		/* main image */
-		fp = fopen(m_filename, "w+");
-		if (fp == NULL) {
-			printf("FileOPEN error!!\n");
-			warn_msg_t("FileOPEN error!!");
-			return FALSE;
-		} else {
-			printf("open success\n");
-			if (fwrite(main->data, main->length, 1, fp) != 1) {
-				printf("File write error!!\n");
-				warn_msg_t("File write error!!");
-				fclose(fp);
-				return FALSE;
-			}
-			printf("write success\n");
-		}
-		fclose(fp);
-		fp = NULL;
+		_file_write(m_filename, main->data, main->length);
 
 		/* thumbnail */
 		if (thumb != NULL) {
-			fp = fopen("./thumbnail.jpg", "w+");
-			if (fp == NULL) {
-				printf("FileOPEN error!!\n");
-				warn_msg_t("FileOPEN error!!");
-				return FALSE;
-			} else {
-				printf("open success\n");
-				if (fwrite(thumb->data, thumb->length, 1, fp) != 1) {
-					printf("File write error!!\n");
-					warn_msg_t("File write error!!");
-					fclose(fp);
-					return FALSE;
-				}
-				printf("write success\n");
-			}
-			fclose(fp);
-			fp = NULL;
+			_file_write(IMAGE_CAPTURE_THUMBNAIL_PATH, thumb->data, thumb->length);
 		}
 
 		/* screennail */
@@ -641,29 +624,17 @@ camcordertest_video_capture_cb(MMCamcorderCaptureDataType *main, MMCamcorderCapt
 		                            "captured-screennail", &scrnl, &scrnl_size,
 		                            NULL);
 		if (scrnl != NULL) {
-			fp = fopen("./screennail.yuv", "w+");
-			if (fp == NULL) {
-				printf("FileOPEN error!!\n");
-				warn_msg_t("FileOPEN error!!");
-				return FALSE;
-			} else {
-				printf("open success\n");
-
-				if (fwrite(scrnl->data, scrnl->length, 1, fp) != 1) {
-					printf("File write error!!\n");
-					warn_msg_t("File write error!!");
-					fclose(fp);
-					fp = NULL;
-					return FALSE;
-				}
-
-				fclose(fp);
-				fp = NULL;
-
-				printf("write success\n");
-			}
+			_file_write(IMAGE_CAPTURE_SCREENNAIL_PATH, scrnl->data, scrnl->length);
 		} else {
 			printf( "Screennail buffer is NULL.\n" );
+		}
+
+		/* EXIF data */
+		mm_camcorder_get_attributes(hcamcorder->camcorder, NULL,
+		                            "captured-exif-raw-data", &exif_data, &exif_size,
+		                            NULL);
+		if (exif_data) {
+			_file_write(IMAGE_CAPTURE_EXIF_PATH, exif_data, exif_size);
 		}
 	}
 
@@ -2986,8 +2957,10 @@ static gboolean init_handle()
 static gboolean mode_change()
 {
 	int err = MM_ERROR_NONE;
-	int state;
+	int state = MM_CAMCORDER_STATE_NONE;
+	int name_size = 0;
 	char media_type = '\0';
+	char *evassink_name = NULL;
 	bool check= FALSE;
 
 	debug_msg_t("MMCamcorder State : %d", mmcamcorder_state);
@@ -3113,6 +3086,12 @@ static gboolean mode_change()
 	} else {
 		mmcamcorder_state = MM_CAMCORDER_STATE_NULL;
 	}
+
+	/* get evassink name */
+	mm_camcorder_get_attributes(hcamcorder->camcorder, NULL,
+	                            MMCAM_DISPLAY_EVAS_SURFACE_SINK, &evassink_name, &name_size,
+	                            NULL);
+	debug_msg_t("evassink name [%s]", evassink_name);
 
 	mm_camcorder_set_message_callback(hcamcorder->camcorder, (MMMessageCallback)msg_callback, hcamcorder);
 

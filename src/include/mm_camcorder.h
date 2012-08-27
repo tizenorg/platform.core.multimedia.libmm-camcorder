@@ -934,6 +934,18 @@ extern "C" {
 #define MMCAM_CAPTURE_BREAK_CONTINUOUS_SHOT     "capture-break-cont-shot"
 
 /**
+ * Raw data of captured image which resolution is same as preview.
+ * This is READ-ONLY attribute and only available in capture callback.
+ * This should be used after casted as MMCamcorderCaptureDataType.
+ */
+#define MMCAM_CAPTURED_SCREENNAIL               "captured-screennail"
+
+/**
+ * Raw data of EXIF. This is READ-ONLY attribute and only available in capture callback.
+ */
+#define MMCAM_CAPTURED_EXIF_RAW_DATA            "captured-exif-raw-data"
+
+/**
  * Pointer of display buffer or ID of xwindow.
  */
 #define MMCAM_DISPLAY_HANDLE                    "display-handle"
@@ -1026,6 +1038,17 @@ extern "C" {
  * @see		MMCamcorderGeometryMethod
  */
 #define MMCAM_DISPLAY_GEOMETRY_METHOD           "display-geometry-method"
+
+/**
+ * A videosink name of evas surface.
+ * This is READ-ONLY attribute.
+ */
+#define MMCAM_DISPLAY_EVAS_SURFACE_SINK         "display-evas-surface-sink"
+
+/**
+ * This attribute is only available if value of MMCAM_DISPLAY_EVAS_SURFACE_SINK "evaspixmapsink"
+ */
+#define MMCAM_DISPLAY_EVAS_DO_SCALING           "display-evas-do-scaling"
 
 /**
  * Target filename. Only used in Audio/Video recording. This is not used for capturing.

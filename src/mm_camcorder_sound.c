@@ -36,9 +36,17 @@
 |    LOCAL VARIABLE DEFINITIONS for internal						|
 ---------------------------------------------------------------------------------------*/
 #define SAMPLE_SOUND_NAME       "camera-shutter"
-#define SAMPLE_SOUND_VOLUME     65535
+#define SAMPLE_SOUND_VOLUME_MAX 65535
 #define SAMPLE_SOUND_RATE       44100
 #define DEFAULT_ACTIVE_DEVICE   -1
+#define VOLUME_LEVEL_MIN        0
+#define VOLUME_LEVEL_MAX        15
+
+enum {
+	SOUND_DEVICE_TYPE_SPEAKER,
+	SOUND_DEVICE_TYPE_HEADSET,
+	SOUND_DEVICE_TYPE_NUM
+};
 
 /*---------------------------------------------------------------------------------------
 |    LOCAL FUNCTION PROTOTYPES:								|
@@ -160,13 +168,9 @@ gboolean _mmcamcorder_sound_init(MMHandleType handle)
 	ret = mm_camcorder_get_attributes((MMHandleType)hcamcorder, NULL,
 	                                  "capture-sound-enable", &sound_enable,
 	                                  NULL);
-	if (ret == MM_ERROR_NONE) {
-		_mmcam_dbg_log("Capture sound enable %d", sound_enable);
-		if (sound_enable == FALSE) {
-			return TRUE;
-		}
-	} else {
-		_mmcam_dbg_warn("capture-sound-enable get FAILED.[%x]", ret);
+	_mmcam_dbg_log("Capture sound enable %d", sound_enable);
+	if (!sound_enable) {
+		return TRUE;
 	}
 
 	info = &(hcamcorder->snd_info);
@@ -176,7 +180,7 @@ gboolean _mmcamcorder_sound_init(MMHandleType handle)
 	if (info->state > _MMCAMCORDER_SOUND_STATE_NONE) {
 		_mmcam_dbg_warn("already initialized [%d]", info->state);
 		pthread_mutex_unlock(&(info->open_mutex));
-		return FALSE;
+		return TRUE;
 	}
 
 #ifdef _MMCAMCORDER_UPLOAD_SAMPLE
@@ -203,33 +207,24 @@ gboolean _mmcamcorder_sound_init(MMHandleType handle)
 		_mmcam_dbg_err("Failed to open sound file");
 		goto SOUND_INIT_ERROR;
 	}
-
-	/* open PCM handle and set session */
-	__ta__("        mm_sound_pcm_play_open",
-	ret = mm_sound_pcm_play_open_ex(&(info->handle), info->sfinfo.samplerate,
-	                                (info->sfinfo.channels == 1) ? MMSOUND_PCM_MONO : MMSOUND_PCM_STEREO,
-	                                MMSOUND_PCM_S16_LE, VOLUME_TYPE_FIXED, ASM_EVENT_EXCLUSIVE_MMSOUND);
-	);
-	if (ret < 0) {
-		/* error */
-		_mmcam_dbg_err("mm_sound_pcm_play_open failed [%x]", ret);
-		goto SOUND_INIT_ERROR;
-	}
-#else /* _MMCAMCORDER_UPLOAD_SAMPLE */
-	/* open PCM handle and set session */
-	__ta__("        mm_sound_pcm_play_open",
-	ret = mm_sound_pcm_play_open_ex(&(info->handle), SAMPLE_SOUND_RATE,
-	                                MMSOUND_PCM_STEREO, MMSOUND_PCM_S16_LE,
-	                                VOLUME_TYPE_FIXED, ASM_EVENT_EXCLUSIVE_MMSOUND);
-	);
-	if (ret < 0) {
-		/* error */
-		_mmcam_dbg_err("mm_sound_pcm_play_open failed [%x]", ret);
-		goto SOUND_INIT_ERROR;
-	}
 #endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 
-	_mmcam_dbg_log("mm_sound_pcm_play_open done");
+	if (hcamcorder->shutter_sound_policy == VCONFKEY_CAMERA_SHUTTER_SOUND_POLICY_ON) {
+		/* open PCM handle and set session */
+		__ta__("        mm_sound_pcm_play_open",
+		ret = mm_sound_pcm_play_open_ex(&(info->handle), SAMPLE_SOUND_RATE,
+		                                MMSOUND_PCM_STEREO, MMSOUND_PCM_S16_LE,
+		                                VOLUME_TYPE_FIXED, ASM_EVENT_EXCLUSIVE_MMSOUND);
+		);
+		if (ret < 0) {
+			_mmcam_dbg_err("mm_sound_pcm_play_open failed [%x]", ret);
+			goto SOUND_INIT_ERROR;
+		}
+
+		_mmcam_dbg_log("mm_sound_pcm_play_open and session PLAYING done.");
+	} else {
+		_mmcam_dbg_log("do not register session to pause another playing session");
+	}
 
 	/**
 	 * Init Pulseaudio thread
@@ -309,26 +304,34 @@ gboolean _mmcamcorder_sound_init(MMHandleType handle)
 	pa_threaded_mainloop_wait(info->pulse_mainloop);
 
 	pa_threaded_mainloop_unlock (info->pulse_mainloop);
+
+	/* close sndfile */
+	sf_close(info->infile);
+	info->infile = NULL;
 #endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 
-	/* backup current route */
-	info->active_out_backup = DEFAULT_ACTIVE_DEVICE;
+	if (hcamcorder->shutter_sound_policy == VCONFKEY_CAMERA_SHUTTER_SOUND_POLICY_ON) {
+		/* backup current route */
+		info->active_out_backup = DEFAULT_ACTIVE_DEVICE;
 
-	ret = mm_sound_get_active_device(&device_in, &device_out);
-	if (ret != MM_ERROR_NONE) {
-		_mmcam_dbg_err("mm_sound_get_active_device failed [%x]. skip sound play.", ret);
-		goto SOUND_INIT_ERROR;
-	}
-
-	_mmcam_dbg_log("current out [%x]", device_out);
-
-	if (device_out != MM_SOUND_DEVICE_OUT_SPEAKER) {
-		ret = mm_sound_set_active_route (MM_SOUND_ROUTE_OUT_SPEAKER);
+		__ta__("        mm_sound_get_active_device",
+		ret = mm_sound_get_active_device(&device_in, &device_out);
+		);
 		if (ret != MM_ERROR_NONE) {
-			_mmcam_dbg_err("mm_sound_set_active_route failed [%x]. skip sound play.", ret);
+			_mmcam_dbg_err("mm_sound_get_active_device failed [%x]. skip sound play.", ret);
 			goto SOUND_INIT_ERROR;
 		}
-		info->active_out_backup = device_out;
+
+		_mmcam_dbg_log("current out [%x]", device_out);
+
+		if (device_out != MM_SOUND_DEVICE_OUT_SPEAKER) {
+			ret = mm_sound_set_active_route (MM_SOUND_ROUTE_OUT_SPEAKER);
+			if (ret != MM_ERROR_NONE) {
+				_mmcam_dbg_err("mm_sound_set_active_route failed [%x]. skip sound play.", ret);
+				goto SOUND_INIT_ERROR;
+			}
+			info->active_out_backup = device_out;
+		}
 	}
 
 	info->state = _MMCAMCORDER_SOUND_STATE_INIT;
@@ -395,6 +398,11 @@ gboolean _mmcamcorder_sound_play(MMHandleType handle)
 {
 	int ret = 0;
 	int sound_enable = TRUE;
+	int set_volume = SAMPLE_SOUND_VOLUME_MAX;
+	int volume_table[SOUND_DEVICE_TYPE_NUM][VOLUME_LEVEL_MAX+1] = {
+		{0, 19000, 22323, 25647, 28971, 32295, 35619, 38943, 42267, 45591, 48915, 52239, 55563, 58887, 62211, 65535}, /* SPEAKER */
+		{0, 20480, 23698, 26916, 30135, 33353, 36571, 39789, 43008, 46226, 49444, 52662, 55880, 59099, 62317, 65535}  /* HEADSET */
+	};
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	SOUND_INFO *info = NULL;
@@ -406,13 +414,9 @@ gboolean _mmcamcorder_sound_play(MMHandleType handle)
 	ret = mm_camcorder_get_attributes((MMHandleType)hcamcorder, NULL,
 	                                  "capture-sound-enable", &sound_enable,
 	                                  NULL);
-	if (ret == MM_ERROR_NONE) {
-		_mmcam_dbg_log("Capture sound enable %d", sound_enable);
-		if (sound_enable == FALSE) {
-			return TRUE;
-		}
-	} else {
-		_mmcam_dbg_warn("capture-sound-enable get FAILED.[%x]", ret);
+	_mmcam_dbg_log("Capture sound enable %d", sound_enable);
+	if (!sound_enable) {
+		return TRUE;
 	}
 
 	info = &(hcamcorder->snd_info);
@@ -425,13 +429,55 @@ gboolean _mmcamcorder_sound_play(MMHandleType handle)
 		return FALSE;
 	}
 
+	/* get volume level and set volume */
+	if (hcamcorder->shutter_sound_policy == VCONFKEY_CAMERA_SHUTTER_SOUND_POLICY_OFF) {
+		unsigned int volume_level = 0;
+		gboolean sound_status = FALSE;
+		mm_sound_device_in device_in;
+		mm_sound_device_out device_out;
+		int device_type = SOUND_DEVICE_TYPE_SPEAKER;
+
+		/* get sound status */
+		__ta__("                    GET:VCONFKEY_SETAPPL_SOUND_STATUS_BOOL",
+		vconf_get_bool(VCONFKEY_SETAPPL_SOUND_STATUS_BOOL, &sound_status);
+		);
+		/* get sound path */
+		__ta__("                    mm_sound_get_active_device",
+		mm_sound_get_active_device(&device_in, &device_out);
+		);
+
+		_mmcam_dbg_log("sound status %d, device out %x", sound_status, device_out);
+
+		if (device_out != MM_SOUND_DEVICE_OUT_SPEAKER) {
+			device_type = SOUND_DEVICE_TYPE_HEADSET;
+		}
+
+		if (sound_status || device_out != MM_SOUND_DEVICE_OUT_SPEAKER) {
+			mm_sound_volume_get_value(VOLUME_TYPE_MEDIA, &volume_level);
+			_mmcam_dbg_log("current volume level %d", volume_level);
+		} else {
+			volume_level = 0;
+			_mmcam_dbg_log("current state is SILENT mode and SPEAKER output");
+		}
+
+		if (volume_level > VOLUME_LEVEL_MAX) {
+			_mmcam_dbg_warn("invalid volume level. set max");
+			set_volume = volume_table[device_type][VOLUME_LEVEL_MAX];
+		} else {
+			set_volume = volume_table[device_type][volume_level];
+		}
+	}
+
+	_mmcam_dbg_log("shutter sound policy %d, volume %d",
+	               hcamcorder->shutter_sound_policy, set_volume);
+
 	_mmcam_dbg_log("Play start");
 
 	__ta__("                    pa_context_play_sample",
 	pulse_op = pa_context_play_sample(info->pulse_context,
 	                                  SAMPLE_SOUND_NAME,
 	                                  NULL,
-	                                  SAMPLE_SOUND_VOLUME,
+	                                  set_volume,
 	                                  NULL,
 	                                  NULL);
 	);
@@ -470,22 +516,24 @@ gboolean _mmcamcorder_sound_finalize(MMHandleType handle)
 		return TRUE;
 	}
 
-	/**
-	 * Restore route
-	 */
-	_mmcam_dbg_log("restore route");
-	if (info->active_out_backup != DEFAULT_ACTIVE_DEVICE) {
-		ret = mm_sound_get_active_device(&device_in, &device_out);
-		if (ret != MM_ERROR_NONE) {
-			_mmcam_dbg_err("mm_sound_get_active_device failed [%x]. skip sound play.", ret);
-		}
-
-		_mmcam_dbg_log("current out [%x]", device_out);
-
-		if (device_out != info->active_out_backup) {
-			ret = mm_sound_set_active_route (info->active_out_backup);
+	if (hcamcorder->shutter_sound_policy == VCONFKEY_CAMERA_SHUTTER_SOUND_POLICY_ON) {
+		/**
+		 * Restore route
+		 */
+		_mmcam_dbg_log("restore route");
+		if (info->active_out_backup != DEFAULT_ACTIVE_DEVICE) {
+			ret = mm_sound_get_active_device(&device_in, &device_out);
 			if (ret != MM_ERROR_NONE) {
-				_mmcam_dbg_err("mm_sound_set_active_route failed [%x]. skip sound play.", ret);
+				_mmcam_dbg_err("mm_sound_get_active_device failed [%x]. skip sound play.", ret);
+			}
+
+			_mmcam_dbg_log("current out [%x]", device_out);
+
+			if (device_out != info->active_out_backup) {
+				ret = mm_sound_set_active_route (info->active_out_backup);
+				if (ret != MM_ERROR_NONE) {
+					_mmcam_dbg_err("mm_sound_set_active_route failed [%x]. skip sound play.", ret);
+				}
 			}
 		}
 	}
@@ -543,9 +591,11 @@ gboolean _mmcamcorder_sound_finalize(MMHandleType handle)
 	pthread_mutex_destroy(&(info->play_mutex));
 	pthread_cond_destroy(&(info->play_cond));
 
-	/* close PCM */
-	mm_sound_pcm_play_close(info->handle);
-	info->handle = 0;
+	if (hcamcorder->shutter_sound_policy == VCONFKEY_CAMERA_SHUTTER_SOUND_POLICY_ON) {
+		/* close PCM */
+		mm_sound_pcm_play_close(info->handle);
+		info->handle = 0;
+	}
 
 	pthread_mutex_unlock(&(info->open_mutex));
 
@@ -574,23 +624,19 @@ void _mmcamcorder_sound_solo_play(MMHandleType handle, const char* filepath, gbo
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
 	int sound_handle = 0;
-	int ret = 0;
+	int ret = MM_ERROR_NONE;
 	int sound_enable = TRUE;
 
 	mmf_return_if_fail(filepath && hcamcorder);
 
-	_mmcam_dbg_log( "START" );
+	_mmcam_dbg_log("START");
 
 	ret = mm_camcorder_get_attributes((MMHandleType)hcamcorder, NULL,
 	                                  "capture-sound-enable", &sound_enable,
 	                                  NULL);
-	if (ret == MM_ERROR_NONE) {
-		_mmcam_dbg_log("Capture sound enable %d", sound_enable);
-		if (sound_enable == FALSE) {
-			return;
-		}
-	} else {
-		_mmcam_dbg_warn("capture-sound-enable get FAILED.[%x]", ret);
+	_mmcam_dbg_log("Capture sound enable %d", sound_enable);
+	if (!sound_enable) {
+		return;
 	}
 
 	ret = pthread_mutex_trylock(&(hcamcorder->sound_lock));
@@ -599,10 +645,29 @@ void _mmcamcorder_sound_solo_play(MMHandleType handle, const char* filepath, gbo
 		return;
 	}
 
-	__ta__("CAPTURE SOUND:mm_sound_play_loud_solo_sound",
-	ret = mm_sound_play_loud_solo_sound(filepath, VOLUME_TYPE_FIXED, __solo_sound_callback,
-	                                    (void*)hcamcorder, &sound_handle);
-	);
+	if (hcamcorder->shutter_sound_policy == VCONFKEY_CAMERA_SHUTTER_SOUND_POLICY_ON) {
+		__ta__("CAPTURE SOUND:mm_sound_play_loud_solo_sound",
+		ret = mm_sound_play_loud_solo_sound(filepath, VOLUME_TYPE_FIXED, __solo_sound_callback,
+		                                    (void*)hcamcorder, &sound_handle);
+		);
+	} else {
+		gboolean sound_status = FALSE;
+		mm_sound_device_in device_in;
+		mm_sound_device_out device_out;
+
+		/* get sound status */
+		vconf_get_bool(VCONFKEY_SETAPPL_SOUND_STATUS_BOOL, &sound_status);
+		/* get sound path */
+		mm_sound_get_active_device(&device_in, &device_out);
+
+		_mmcam_dbg_log("sound status %d, device out %x", sound_status, device_out);
+
+		if (sound_status || device_out != MM_SOUND_DEVICE_OUT_SPEAKER) {
+			__ta__("CAPTURE SOUND:mm_sound_play_sound",
+			ret = mm_sound_play_sound(filepath, VOLUME_TYPE_MEDIA, __solo_sound_callback, (void*)hcamcorder, &sound_handle);
+			);
+		}
+	}
 	if (ret != MM_ERROR_NONE) {
 		_mmcam_dbg_err( "Capture sound play FAILED.[%x]", ret );
 	} else {

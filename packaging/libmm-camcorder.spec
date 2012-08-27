@@ -1,6 +1,6 @@
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.6.8
+Version:    0.6.11
 Release:    0
 Group:      libs
 License:    Apache-2.0
@@ -58,6 +58,7 @@ rm -rf %{buildroot}
 /sbin/ldconfig
 
 vconftool set -t int memory/camera/state 0 -i -u 5000
+vconftool set -t int file/camera/shutter_sound_policy 0 -u 5000
 
 %postun -p /sbin/ldconfig
 

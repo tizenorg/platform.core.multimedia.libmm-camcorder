@@ -165,6 +165,9 @@ typedef enum
 	MM_CAM_AUDIO_DISABLE,
 	MM_CAM_RECOMMEND_CAMERA_WIDTH,			/* 110 */
 	MM_CAM_RECOMMEND_CAMERA_HEIGHT,
+	MM_CAM_CAPTURED_EXIF_RAW_DATA,
+	MM_CAM_DISPLAY_EVAS_SURFACE_SINK,
+	MM_CAM_DISPLAY_EVAS_DO_SCALING,
 	MM_CAM_NUM
 }MMCamcorderAttrsID;
 
@@ -310,6 +313,7 @@ bool _mmcamcorder_commit_capture_width(MMHandleType handle, int attr_idx, const 
 bool _mmcamcorder_commit_capture_height(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_capture_break_cont_shot(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_capture_count(MMHandleType handle, int attr_idx, const mmf_value_t *value);
+bool _mmcamcorder_commit_capture_sound_enable(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_audio_volume(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_audio_input_route(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_audio_disable(MMHandleType handle, int attr_idx, const mmf_value_t *value);
@@ -339,6 +343,7 @@ bool _mmcamcorder_commit_display_visible(MMHandleType handle, int attr_idx, cons
 bool _mmcamcorder_commit_display_geometry_method(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_display_rect(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_display_scale(MMHandleType handle, int attr_idx, const mmf_value_t *value);
+bool _mmcamcorder_commit_display_evas_do_scaling(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_strobe(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_detect(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_flip_horizontal(MMHandleType handle, int attr_idx, const mmf_value_t *value);

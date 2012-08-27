@@ -39,7 +39,6 @@
 #include <mm_session.h>
 #include <mm_session_private.h>
 #include <audio-session-manager.h>
-#include <vconf.h>
 
 /*---------------------------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal						|
@@ -97,6 +96,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	char *ConfCtrlFile = NULL;
 	mmf_camcorder_t *hcamcorder = NULL;
 	ASM_resource_t mm_resource = ASM_RESOURCE_NONE;
+	type_element *EvasSurfaceElement = NULL;
 
 	_mmcam_dbg_log("Entered");
 
@@ -183,8 +183,8 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		goto _ERR_AUDIO_BLOCKED;
 	}
 
-	__ta__("    _mmcamcorder_alloc_attribute",   
-	hcamcorder->attributes= _mmcamcorder_alloc_attribute((MMHandleType)hcamcorder, info);
+	__ta__("    _mmcamcorder_alloc_attribute",
+	hcamcorder->attributes = _mmcamcorder_alloc_attribute((MMHandleType)hcamcorder, info);
 	);
 	if (!(hcamcorder->attributes)) {
 		_mmcam_dbg_err("_mmcamcorder_create::alloc attribute error.");
@@ -331,6 +331,30 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	if (!(hcamcorder->sync_state_change)) {
 		_mmcamcorder_create_command_loop((MMHandleType)hcamcorder);
 	}
+
+	/* Get videosink name for evas surface */
+	_mmcamcorder_conf_get_element(hcamcorder->conf_main,
+	                              CONFIGURE_CATEGORY_MAIN_VIDEO_OUTPUT,
+	                              "VideosinkElementEvas",
+	                              &EvasSurfaceElement);
+	if (EvasSurfaceElement) {
+		int attr_index = 0;
+		char *evassink_name = NULL;
+		mmf_attribute_t *item_evassink_name = NULL;
+		mmf_attrs_t *attrs = MMF_CAMCORDER_ATTRS(hcamcorder);
+
+		_mmcamcorder_conf_get_value_element_name(EvasSurfaceElement, &evassink_name);
+		mm_attrs_get_index((MMHandleType)attrs, MMCAM_DISPLAY_EVAS_SURFACE_SINK, &attr_index);
+		item_evassink_name = &attrs->items[attr_index];
+		mmf_attribute_set_string(item_evassink_name, evassink_name, strlen(evassink_name));
+		mmf_attribute_commit(item_evassink_name);
+
+		_mmcam_dbg_log("Evassink name : %d", evassink_name);
+	}
+
+	/* get shutter sound policy */
+	vconf_get_int(VCONFKEY_CAMERA_SHUTTER_SOUND_POLICY, &hcamcorder->shutter_sound_policy);
+	_mmcam_dbg_log("current shutter sound policy : %d", hcamcorder->shutter_sound_policy);
 
 	/* Set initial state */
 	_mmcamcorder_set_state((MMHandleType)hcamcorder, MM_CAMCORDER_STATE_NULL);
@@ -674,8 +698,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 		_mmcamcorder_conf_get_element(hcamcorder->conf_main,
 		                              CONFIGURE_CATEGORY_MAIN_VIDEO_OUTPUT,
 		                              videosink_element_type,
-		                              &hcamcorder->sub_context->VideosinkElement );
-
+		                              &hcamcorder->sub_context->VideosinkElement);
 		free(videosink_element_type);
 		videosink_element_type = NULL;
 	} else {
