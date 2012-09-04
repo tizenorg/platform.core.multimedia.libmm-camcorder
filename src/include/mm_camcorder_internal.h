@@ -133,16 +133,33 @@ extern "C" {
 		_mmcam_dbg_err("The element is existed. element_id=[%d], name=[%s]", eid, name); \
 		gst_object_unref(sub_context->element[eid].gst); \
 	} \
-	sub_context->element[eid].id = eid; \
 	sub_context->element[eid].gst = gst_element_factory_make(name, nickname); \
 	if (sub_context->element[eid].gst == NULL) { \
 		_mmcam_dbg_err("Element creation fail. element_id=[%d], name=[%s]", eid, name); \
 		err = MM_ERROR_CAMCORDER_RESOURCE_CREATION; \
 		goto pipeline_creation_error; \
 	} else { \
+		_mmcam_dbg_log("Element creation done. element_id=[%d], name=[%s]", eid, name); \
+		sub_context->element[eid].id = eid; \
 		g_object_weak_ref(G_OBJECT(sub_context->element[eid].gst), (GWeakNotify)_mmcamcorder_element_release_noti, sub_context); \
+		err = MM_ERROR_NONE; \
 	} \
 	elist = g_list_append(elist, &(sub_context->element[eid]));
+
+#define _MMCAMCORDER_ELEMENT_MAKE_IGNORE_ERROR(sub_context, eid, name /*char* */, nickname /*char* */, elist) \
+	if (sub_context->element[eid].gst != NULL) { \
+		_mmcam_dbg_err("The element is existed. element_id=[%d], name=[%s]", eid, name); \
+		gst_object_unref(sub_context->element[eid].gst); \
+	} \
+	sub_context->element[eid].gst = gst_element_factory_make(name, nickname); \
+	if (sub_context->element[eid].gst == NULL) { \
+		_mmcam_dbg_err("Element creation fail. element_id=[%d], name=[%s]", eid, name); \
+	} else { \
+		_mmcam_dbg_log("Element creation done. element_id=[%d], name=[%s]", eid, name); \
+		sub_context->element[eid].id = eid; \
+		g_object_weak_ref(G_OBJECT(sub_context->element[eid].gst), (GWeakNotify)_mmcamcorder_element_release_noti, sub_context); \
+		elist = g_list_append(elist, &(sub_context->element[eid])); \
+	}
 
 #define _MMCAMCORDER_ENCODEBIN_ELMGET(sub_context, eid, name /*char* */, err) \
 	if (sub_context->element[eid].gst != NULL) { \

@@ -3192,7 +3192,7 @@ bool _mmcamcorder_commit_audio_disable(MMHandleType handle, int attr_idx, const 
 
 	current_state = _mmcamcorder_get_state(handle);
 	if (current_state > MM_CAMCORDER_STATE_PREPARE) {
-		_mmcam_dbg_warn("Can NOT Disable AUDIO. invalid state %s", current_state);
+		_mmcam_dbg_warn("Can NOT Disable AUDIO. invalid state %d", current_state);
 		return FALSE;
 	} else {
 		_mmcam_dbg_log("Disable AUDIO when Recording");

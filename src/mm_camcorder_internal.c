@@ -616,6 +616,18 @@ int _mmcamcorder_realize(MMHandleType handle)
 		goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 	}
 
+	/* set camera state to vconf key */
+	if (hcamcorder->type != MM_CAMCORDER_MODE_AUDIO) {
+		int vconf_camera_state = 0;
+
+		/* get current camera state of vconf key */
+		vconf_get_int(VCONFKEY_CAMERA_STATE, &vconf_camera_state);
+		vconf_set_int(VCONFKEY_CAMERA_STATE, VCONFKEY_CAMERA_STATE_OPEN);
+
+		_mmcam_dbg_log("VCONFKEY_CAMERA_STATE prev %d -> cur %d",
+		               vconf_camera_state, VCONFKEY_CAMERA_STATE_OPEN);
+	}
+
 	/* Set async state */
 	ret = _mmcamcorder_set_async_state(handle, state_TO);
 	if (ret < 0) {
@@ -748,18 +760,6 @@ int _mmcamcorder_realize(MMHandleType handle)
 
 	_mmcamcorder_set_state(handle, state_TO);
 
-	/* set camera state to vconf key */
-	if (hcamcorder->type != MM_CAMCORDER_MODE_AUDIO) {
-		int vconf_camera_state = 0;
-
-		/* get current camera state of vconf key */
-		vconf_get_int(VCONFKEY_CAMERA_STATE, &vconf_camera_state);
-		vconf_set_int(VCONFKEY_CAMERA_STATE, VCONFKEY_CAMERA_STATE_OPEN);
-
-		_mmcam_dbg_log("VCONFKEY_CAMERA_STATE prev %d -> cur %d",
-		               vconf_camera_state, VCONFKEY_CAMERA_STATE_OPEN);
-	}
-
 	_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
 
 	return MM_ERROR_NONE;
@@ -774,6 +774,18 @@ _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK:
 _ERR_CAMCORDER_CMD_PRECON:
 	_mmcam_dbg_err("Realize fail (type %d, state %d, ret %x)",
 	               hcamcorder->type, state, ret);
+
+	/* set camera state to vconf key */
+	if (hcamcorder->type != MM_CAMCORDER_MODE_AUDIO) {
+		int vconf_camera_state = 0;
+
+		/* get current camera state of vconf key */
+		vconf_get_int(VCONFKEY_CAMERA_STATE, &vconf_camera_state);
+		vconf_set_int(VCONFKEY_CAMERA_STATE, VCONFKEY_CAMERA_STATE_NULL);
+
+		_mmcam_dbg_log("VCONFKEY_CAMERA_STATE prev %d -> cur %d",
+		               vconf_camera_state, VCONFKEY_CAMERA_STATE_NULL);
+	}
 
 	return ret;
 }
