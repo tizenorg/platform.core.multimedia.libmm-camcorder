@@ -40,6 +40,8 @@
 #include <mm_session_private.h>
 #include <audio-session-manager.h>
 
+#include <pmapi.h>
+
 /*---------------------------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal						|
 ---------------------------------------------------------------------------------------*/
@@ -626,6 +628,10 @@ int _mmcamcorder_realize(MMHandleType handle)
 
 		_mmcam_dbg_log("VCONFKEY_CAMERA_STATE prev %d -> cur %d",
 		               vconf_camera_state, VCONFKEY_CAMERA_STATE_OPEN);
+
+		/* LOCK PM control */
+		pm_lock_state(LCD_NORMAL, GOTO_STATE_NOW | HOLD_KEY_BLOCK, 0);
+		_mmcam_dbg_log("LOCK PM State");
 	}
 
 	/* Set async state */
@@ -894,6 +900,10 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 
 		_mmcam_dbg_log("VCONFKEY_CAMERA_STATE prev %d -> cur %d",
 		               vconf_camera_state, VCONFKEY_CAMERA_STATE_NULL);
+
+		/* UNLOCK PM State */
+		pm_unlock_state(LCD_NORMAL, PM_RESET_TIMER);
+		_mmcam_dbg_log("UNLOCK PM State");
 	}
 
 	_MMCAMCORDER_UNLOCK_CMD(hcamcorder);

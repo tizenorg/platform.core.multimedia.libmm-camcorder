@@ -89,6 +89,10 @@ PKG_CHECK_MODULES(VCONF, vconf)
 AC_SUBST(VCONF_CFLAGS)
 AC_SUBST(VCONF_LIBS)
 
+PKG_CHECK_MODULES(PMAPI, pmapi)
+AC_SUBST(PMAPI_CFLAGS)
+AC_SUBST(PMAPI_LIBS)
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([fcntl.h memory.h stdlib.h string.h sys/time.h unistd.h])

@@ -1,7 +1,7 @@
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
 Version:    0.6.13
-Release:    0
+Release:    1
 Group:      libs
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
@@ -22,6 +22,7 @@ BuildRequires:  pkgconfig(audio-session-mgr)
 BuildRequires:  pkgconfig(camsrcjpegenc)
 BuildRequires:  pkgconfig(libpulse)
 BuildRequires:  pkgconfig(vconf)
+BuildRequires:  pkgconfig(pmapi)
 BuildRequires:  gst-plugins-base-devel
 
 %description
