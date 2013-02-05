@@ -49,7 +49,6 @@ export CFLAGS+=" -DGST_EXT_TIME_ANALYSIS"
 make %{?jobs:-j%jobs}
 
 %install
-rm -rf %{buildroot}
 mkdir -p %{buildroot}/usr/share/license
 cp LICENSE.APLv2 %{buildroot}/usr/share/license/%{name}
 %make_install
