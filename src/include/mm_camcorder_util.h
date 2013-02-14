@@ -144,6 +144,16 @@ do { \
         ((gchar)(((fourcc)>>16)&0xff)), \
         ((gchar)(((fourcc)>>24)&0xff))
 
+#define MMCAM_SEND_MESSAGE(handle, msg_id, msg_code) \
+{\
+	_MMCamcorderMsgItem msg;\
+	msg.id = msg_id;\
+	msg.param.code = msg_code;\
+	_mmcam_dbg_log("msg id : %x, code : %x", msg_id, msg_code);\
+	_mmcamcroder_send_message((MMHandleType)handle, &msg);\
+}
+
+
 /*=======================================================================================
 | ENUM DEFINITIONS									|
 ========================================================================================*/
@@ -188,6 +198,59 @@ typedef struct {
 	MMMessageParamType param;	/**< message parameter */
 } _MMCamcorderMsgItem;
 
+/**
+ * Structure of zero copy image buffer
+ */
+#define SCMN_IMGB_MAX_PLANE         (4)
+
+/* image buffer definition ***************************************************
+
+    +------------------------------------------+ ---
+    |                                          |  ^
+    |     a[], p[]                             |  |
+    |     +---------------------------+ ---    |  |
+    |     |                           |  ^     |  |
+    |     |<---------- w[] ---------->|  |     |  |
+    |     |                           |  |     |  |
+    |     |                           |        |
+    |     |                           |  h[]   |  e[]
+    |     |                           |        |
+    |     |                           |  |     |  |
+    |     |                           |  |     |  |
+    |     |                           |  v     |  |
+    |     +---------------------------+ ---    |  |
+    |                                          |  v
+    +------------------------------------------+ ---
+
+    |<----------------- s[] ------------------>|
+*/
+
+typedef struct
+{
+	/* width of each image plane */
+	int w[SCMN_IMGB_MAX_PLANE];
+	/* height of each image plane */
+	int h[SCMN_IMGB_MAX_PLANE];
+	/* stride of each image plane */
+	int s[SCMN_IMGB_MAX_PLANE];
+	/* elevation of each image plane */
+	int e[SCMN_IMGB_MAX_PLANE];
+	/* user space address of each image plane */
+	void *a[SCMN_IMGB_MAX_PLANE];
+	/* physical address of each image plane, if needs */
+	void *p[SCMN_IMGB_MAX_PLANE];
+	/* color space type of image */
+	int cs;
+	/* left postion, if needs */
+	int x;
+	/* top position, if needs */
+	int y;
+	/* to align memory */
+	int __dummy2;
+	/* arbitrary data */
+	int data[16];
+} SCMN_IMGB;
+
 /*=======================================================================================
 | CONSTANT DEFINITIONS									|
 ========================================================================================*/
@@ -221,16 +284,20 @@ unsigned int _mmcamcorder_get_fourcc(int pixtype, int codectype, int use_zero_co
 gboolean _mmcamcorder_encode_jpeg(void *src_data, unsigned int src_width, unsigned int src_height,
                                   int src_format, unsigned int src_length, unsigned int jpeg_quality,
                                   void **result_data, unsigned int *result_length);
+/* resize */
+gboolean _mmcamcorder_resize_frame(unsigned char *src_data, int src_width, int src_height, int src_length, int src_format,
+                                   unsigned char **dst_data, int *dst_width, int *dst_height, int *dst_length);
 
 /* Recording */
 /* find top level tag only, do not use this function for finding sub level tags.
    tag_fourcc is Four-character-code (FOURCC) */
-gint _mmcamcorder_find_tag(FILE *f, guint32 tag_fourcc);
+gint _mmcamcorder_find_tag(FILE *f, guint32 tag_fourcc, gboolean do_rewind);
 gint32 _mmcamcorder_double_to_fix(gdouble d_number);
 gboolean _mmcamcorder_update_size(FILE *f, gint64 prev_pos, gint64 curr_pos);
 gboolean _mmcamcorder_write_loci(FILE *f, _MMCamcorderLocationInfo info);
 gboolean _mmcamcorder_write_udta(FILE *f, _MMCamcorderLocationInfo info);
-gulong _mmcamcorder_get_container_size(const guchar *size);
+guint64 _mmcamcorder_get_container_size(const guchar *size);
+gboolean _mmcamcorder_update_composition_matrix(FILE *f, int orientation);
 
 /* File system */
 int _mmcamcorder_get_freespace(const gchar *path, guint64 *free_space);

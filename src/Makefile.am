@@ -42,8 +42,11 @@ libmmfcamcorder_la_CFLAGS = -I$(srcdir)/include \
 			     $(MM_COMMON_CFLAGS) \
 			     $(MMSESSION_CFLAGS) \
 			     $(MMSOUND_CFLAGS) \
+			     $(AVSYSTEM_CFLAGS) \
 			     $(SNDFILE_CFLAGS) \
 			     $(CAMSRCJPEGENC_CFLAGS) \
+			     $(VCONF_CFLAGS) \
+			     $(MMUTIL_IMGP_CFLAGS) \
 			     $(AUDIOSESSIONMGR_CFLAGS)
 
 libmmfcamcorder_la_LIBADD = \
@@ -56,8 +59,11 @@ libmmfcamcorder_la_LIBADD = \
 			    $(EXIF_LIBS) \
 			    $(MMSESSION_LIBS) \
 			    $(MMSOUND_LIBS) \
+			    $(AVSYSTEM_LIBS) \
 			    $(SNDFILE_LIBS) \
 			    $(CAMSRCJPEGENC_LIBS) \
+			    $(VCONF_LIBS) \
+			    $(MMUTIL_IMGP_LIBS) \
 			    $(AUDIOSESSIONMGR_LIBS)
 
 libmmfcamcorder_la_CFLAGS += $(MMLOGSVR_CFLAGS) -DMMF_LOG_OWNER=0x010 -DMMF_DEBUG_PREFIX=\"MMF-CAMCORDER\" -D_INTERNAL_SESSION_MANAGER_

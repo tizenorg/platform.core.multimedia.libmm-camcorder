@@ -45,6 +45,7 @@ typedef struct {
 	gboolean b_commiting;		/**< Is it commiting now? */
 	gboolean bMuxing;		/**< whether muxing */
 	guint64 filesize;		/**< current recorded file size */
+	guint64 max_size;		/**< max recording size */
 	guint64 max_time;		/**< max recording time */
 	int fileformat;			/**< recording file format */
 } _MMCamcorderAudioInfo;

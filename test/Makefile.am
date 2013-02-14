@@ -9,6 +9,7 @@ mm_camcorder_testsuite_CFLAGS = -I$(srcdir)/../src/include \
 			     $(MMTA_CFLAGS)\
 			     $(MM_SOUND_CFLAGS)
 
+
 ############################################
 #mm_camcorder_testsuite_CFLAGS += -DAPPSRC_TEST
 ############################################

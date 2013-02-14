@@ -46,7 +46,7 @@ extern "C" {
 /**
 * Enumerations for AMR bitrate
 */
-typedef enum MMCamcorderAMRBitRate {
+typedef enum _MMCamcorderAMRBitRate {
 	MM_CAMCORDER_MR475,	/**< MR475 : 4.75 kbit/s */
 	MM_CAMCORDER_MR515,	/**< MR515 : 5.15 kbit/s */
 	MM_CAMCORDER_MR59,	/**< MR59 : 5.90 kbit/s */
@@ -57,6 +57,16 @@ typedef enum MMCamcorderAMRBitRate {
 	MM_CAMCORDER_MR122,	/**< MR122 : 12.20 kbit/s */
 	MM_CAMCORDER_MRDTX	/**< MRDTX */
 } MMCamcorderAMRBitRate;
+
+/**
+* Encodebin profile
+*/
+typedef enum _MMCamcorderEncodebinProfile {
+        MM_CAMCORDER_ENCBIN_PROFILE_VIDEO = 0,  /**< Video recording profile */
+        MM_CAMCORDER_ENCBIN_PROFILE_AUDIO,      /**< Audio recording profile */
+        MM_CAMCORDER_ENCBIN_PROFILE_IMAGE,      /**< Image capture profile */
+        MM_CAMCORDER_ENCBIN_PROFILE_NUM
+} MMCamcorderEncodebinProfile;
 
 /*=======================================================================================
 | STRUCTURE DEFINITIONS									|
@@ -130,11 +140,12 @@ int _mmcamcorder_create_videosink_bin(MMHandleType handle);
  * This function creates outputsink bin.
  *
  * @param[in]	handle		Handle of camcorder context.
+ * @param[in]	profile		profile of encodesinkbin.
  * @return	This function returns MM_ERROR_NONE on success, or the other values on error.
  * @remarks
  * @see		__mmcamcorder_create_preview_pipeline()
  */
-int _mmcamcorder_create_encodesink_bin(MMHandleType handle);
+int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebinProfile profile);
 
 /**
  * This function creates bin of still shot sink.
@@ -165,8 +176,6 @@ int _mmcamcorder_create_preview_pipeline(MMHandleType handle);
 
 /* plug-in related */
 void _mmcamcorder_negosig_handler(GstElement *videosrc, MMHandleType handle);
-bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate);
-bool _mmcamcorder_set_videosrc_rotation(MMHandleType handle, int videosrc_rotate);
 
 /* etc */
 int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element *VideosinkElement);
@@ -176,6 +185,12 @@ int _mmcamcorder_get_eos_message(MMHandleType handle);
 void _mmcamcorder_remove_element_handle(MMHandleType handle, int first_elem, int last_elem);
 int _mmcamcorder_check_audiocodec_fileformat_compatibility(MMHandleType handle);
 int _mmcamcorder_check_videocodec_fileformat_compatibility(MMHandleType handle);
+bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate);
+bool _mmcamcorder_set_display_flip(MMHandleType handle, int display_flip);
+bool _mmcamcorder_set_videosrc_rotation(MMHandleType handle, int videosrc_rotate);
+bool _mmcamcorder_set_videosrc_flip(MMHandleType handle, int viderosrc_flip);
+bool _mmcamcorder_set_videosrc_anti_shake(MMHandleType handle, int anti_shake);
+bool _mmcamcorder_set_videosrc_stabilization(MMHandleType handle, int stabilization);
 
 #ifdef __cplusplus
 }
