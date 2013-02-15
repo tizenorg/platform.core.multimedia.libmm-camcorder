@@ -40,7 +40,7 @@ gboolean	audiocodec_fileformat_compatibility_table[MM_AUDIO_CODEC_NUM][MM_FILE_F
 /*G723.1*/    { 0,  0,  0,       0,  0,  0,  0, 0,   0,  0,  0,  0,   0, 0,  0,  0,  0,   0,  0,  0,      0,  0,  0,  0,  },
 /*MP3*/       { 0,  0,  0,       0,  0,  0,  0, 0,   0,  0,  0,  0,   0, 0,  0,  0,  0,   0,  0,  0,      0,  0,  0,  0,  },
 /*OGG*/       { 0,  0,  0,       0,  0,  0,  0, 0,   0,  0,  0,  0,   0, 0,  0,  0,  0,   0,  0,  0,      0,  0,  0,  0,  },
-/*AAC*/       { 1,  0,  1,       1,  1,  0,  0, 0,   0,  0,  0,  0,   0, 0,  0,  0,  0,   0,  0,  0,      0,  0,  0,  0,  },
+/*AAC*/       { 1,  0,  1,       1,  1,  0,  0, 0,   0,  0,  1,  0,   0, 0,  0,  0,  0,   0,  0,  0,      0,  0,  0,  0,  },
 /*WMA*/       { 0,  0,  0,       0,  0,  0,  0, 0,   0,  0,  0,  0,   0, 0,  0,  0,  0,   0,  0,  0,      0,  0,  0,  0,  },
 /*MMF*/       { 0,  0,  0,       0,  0,  0,  0, 0,   0,  0,  0,  0,   0, 0,  0,  0,  0,   0,  0,  0,      0,  0,  0,  0,  },
 /*ADPCM*/     { 0,  0,  0,       0,  0,  0,  0, 0,   0,  0,  0,  0,   0, 0,  0,  0,  0,   0,  0,  0,      0,  0,  0,  0,  },
@@ -121,7 +121,6 @@ gboolean	videocodec_fileformat_compatibility_table[MM_VIDEO_CODEC_NUM][MM_FILE_F
 -----------------------------------------------------------------------*/
 #define USE_AUDIO_CLOCK_TUNE
 #define _MMCAMCORDER_WAIT_EOS_TIME	5.0		//sec
-#define _DPRAM_RAW_PCM_LOCATION		"/dev/rawPCM0"
 
 /*-----------------------------------------------------------------------
 |    LOCAL FUNCTION PROTOTYPES:						|
@@ -140,8 +139,6 @@ gboolean	videocodec_fileformat_compatibility_table[MM_VIDEO_CODEC_NUM][MM_FILE_F
  * @see		__mmcamcorder_create_preview_pipeline()
  */
 static gboolean __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstBuffer *buffer, gpointer u_data);
-static gboolean __mmcamcorder_video_dataprobe_vsink(GstPad *pad, GstBuffer *buffer, gpointer u_data);
-static gboolean __mmcamcorder_video_dataprobe_vsink_drop_by_time(GstPad *pad, GstBuffer *buffer, gpointer u_data);
 
 static int __mmcamcorder_get_amrnb_bitrate_mode(int bitrate);
 
@@ -155,14 +152,16 @@ int _mmcamcorder_create_videosrc_bin(MMHandleType handle)
 {
 	int err = MM_ERROR_NONE;
 	int rotate = 0;
+	int flip = 0;
 	int fps = 0;
-	int slow_fps = 0;
 	int hold_af = 0;
 	int UseVideoscale = 0;
-	int PictureFormat = 0;
 	int codectype = 0;
 	int capture_width = 0;
 	int capture_height = 0;
+	int capture_jpg_quality = 100;
+	int video_stabilization = 0;
+	int anti_shake = 0;
 	char *videosrc_name = NULL;
 	char *err_name = NULL;
 
@@ -203,13 +202,16 @@ int _mmcamcorder_create_videosrc_bin(MMHandleType handle)
 	}
 
 	err = mm_camcorder_get_attributes(handle, &err_name,
-	                                  MMCAM_CAMERA_FORMAT, &PictureFormat,
+	                                  MMCAM_CAMERA_FORMAT, &sc->info_image->preview_format,
 	                                  MMCAM_CAMERA_FPS, &fps,
-	                                  "camera-slow-motion-fps", &slow_fps,
 	                                  MMCAM_CAMERA_ROTATION, &rotate,
+	                                  MMCAM_CAMERA_FLIP, &flip,
+	                                  MMCAM_CAMERA_VIDEO_STABILIZATION, &video_stabilization,
+	                                  MMCAM_CAMERA_ANTI_HANDSHAKE, &anti_shake,
 	                                  MMCAM_CAPTURE_WIDTH, &capture_width,
 	                                  MMCAM_CAPTURE_HEIGHT, &capture_height,
 	                                  MMCAM_IMAGE_ENCODER, &codectype,
+	                                  MMCAM_IMAGE_ENCODER_QUALITY, &capture_jpg_quality,
 	                                  "camera-hold-af-after-capturing", &hold_af,
 	                                  NULL);
 	if (err != MM_ERROR_NONE) {
@@ -219,7 +221,7 @@ int _mmcamcorder_create_videosrc_bin(MMHandleType handle)
 	}
 
 	/* Get fourcc from picture format */
-	sc->fourcc = _mmcamcorder_get_fourcc(PictureFormat, codectype, hcamcorder->use_zero_copy_format);
+	sc->fourcc = _mmcamcorder_get_fourcc(sc->info_image->preview_format, codectype, hcamcorder->use_zero_copy_format);
 
 	/* Get videosrc element and its name from configure */
 	_mmcamcorder_conf_get_element(hcamcorder->conf_main,
@@ -240,69 +242,86 @@ int _mmcamcorder_create_videosrc_bin(MMHandleType handle)
 	__ta__("                videosrc_capsfilter",
 	_MMCAMCORDER_ELEMENT_MAKE(sc, _MMCAMCORDER_VIDEOSRC_FILT, "capsfilter", "videosrc_filter", element_list, err);
 	);
+	__ta__("                videosrc_queue",
+	_MMCAMCORDER_ELEMENT_MAKE(sc, _MMCAMCORDER_VIDEOSRC_QUE, "queue", "videosrc_queue", element_list, err);
+	);
 
-	sc->is_slow = FALSE;
+	/* init high-speed-fps */
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "high-speed-fps", 0);
+
+	/* set capture size, quality and flip setting which were set before mm_camcorder_realize */
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-width", capture_width);
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-height", capture_height);
+	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "capture-jpg-quality", capture_jpg_quality);
 
-	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO) {
-		_mmcamcorder_conf_get_value_int(hcamcorder->conf_main,
-		                                CONFIGURE_CATEGORY_MAIN_VIDEO_INPUT,
-		                                "UseVideoscale",
-		                                &UseVideoscale);
-		if (UseVideoscale) {
-			int set_width = 0;
-			int set_height = 0;
-			int scale_width = 0;
-			int scale_height = 0;
-			int scale_method = 0;
-			char *videoscale_name = NULL;
-			type_element *VideoscaleElement = NULL;
+	/* set camera flip */
+	_mmcamcorder_set_videosrc_flip(handle, flip);
 
-			_mmcamcorder_conf_get_element(hcamcorder->conf_main,
-			                              CONFIGURE_CATEGORY_MAIN_VIDEO_INPUT,
-			                              "VideoscaleElement",
-			                              &VideoscaleElement);
-			_mmcamcorder_conf_get_value_element_name(VideoscaleElement, &videoscale_name);
-			__ta__("                videosrc_scale",
-			_MMCAMCORDER_ELEMENT_MAKE(sc, _MMCAMCORDER_VIDEOSRC_SCALE, videoscale_name, "videosrc_scale", element_list, err);
-			);
-			__ta__("                videoscale_capsfilter",
-			_MMCAMCORDER_ELEMENT_MAKE(sc, _MMCAMCORDER_VIDEOSRC_VSFLT, "capsfilter", "videosrc_scalefilter", element_list, err);
-			);
+	/* set flush cache as FALSE */
+	if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ITLV_JPEG_UYVY) {
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "flush-cache", FALSE);
+	}
 
-			_mmcamcorder_conf_get_value_element_int(VideoscaleElement, "width", &scale_width);
-			_mmcamcorder_conf_get_value_element_int(VideoscaleElement, "height", &scale_height);
-			_mmcamcorder_conf_get_value_element_int(VideoscaleElement, "method", &scale_method);
+	/* set video stabilization mode */
+	_mmcamcorder_set_videosrc_stabilization(handle, video_stabilization);
 
-			if (rotate == MM_VIDEO_INPUT_ROTATION_90 ||
-			    rotate == MM_VIDEO_INPUT_ROTATION_270) {
-				set_width = scale_height;
-				set_height = scale_width;
-			} else {
-				set_width = scale_width;
-				set_height = scale_height;
-			}
+	/* set anti handshake mode */
+	_mmcamcorder_set_videosrc_anti_shake(handle, anti_shake);
 
-			_mmcam_dbg_log("VideoSRC Scale[%dx%d], Method[%d]", set_width, set_height, scale_method);
+	_mmcamcorder_conf_get_value_int(hcamcorder->conf_main,
+	                                CONFIGURE_CATEGORY_MAIN_VIDEO_INPUT,
+	                                "UseVideoscale",
+	                                &UseVideoscale);
+	if (UseVideoscale) {
+		int set_width = 0;
+		int set_height = 0;
+		int scale_width = 0;
+		int scale_height = 0;
+		int scale_method = 0;
+		char *videoscale_name = NULL;
+		type_element *VideoscaleElement = NULL;
 
-			caps = gst_caps_new_simple("video/x-raw-yuv",
-			                           "format", GST_TYPE_FOURCC, sc->fourcc,
-			                           "width", G_TYPE_INT, set_width,
-			                           "height", G_TYPE_INT, set_height,
-			                           NULL);
-			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_VSFLT].gst, "caps", caps);
-			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SCALE].gst, "method", scale_method);
+		_mmcamcorder_conf_get_element(hcamcorder->conf_main,
+		                              CONFIGURE_CATEGORY_MAIN_VIDEO_INPUT,
+		                              "VideoscaleElement",
+		                              &VideoscaleElement);
+		_mmcamcorder_conf_get_value_element_name(VideoscaleElement, &videoscale_name);
+		__ta__("                videosrc_scale",
+		_MMCAMCORDER_ELEMENT_MAKE(sc, _MMCAMCORDER_VIDEOSRC_SCALE, videoscale_name, "videosrc_scale", element_list, err);
+		);
+		__ta__("                videoscale_capsfilter",
+		_MMCAMCORDER_ELEMENT_MAKE(sc, _MMCAMCORDER_VIDEOSRC_VSFLT, "capsfilter", "videosrc_scalefilter", element_list, err);
+		);
 
-			gst_caps_unref(caps);
-			caps = NULL;
+		_mmcamcorder_conf_get_value_element_int(VideoscaleElement, "width", &scale_width);
+		_mmcamcorder_conf_get_value_element_int(VideoscaleElement, "height", &scale_height);
+		_mmcamcorder_conf_get_value_element_int(VideoscaleElement, "method", &scale_method);
+
+		if (rotate == MM_VIDEO_INPUT_ROTATION_90 ||
+			rotate == MM_VIDEO_INPUT_ROTATION_270) {
+			set_width = scale_height;
+			set_height = scale_width;
+		} else {
+			set_width = scale_width;
+			set_height = scale_height;
 		}
 
-		if (slow_fps > 0) {
-			sc->is_slow = TRUE;
-			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "high-speed-fps", fps);
-		}
+		_mmcam_dbg_log("VideoSRC Scale[%dx%d], Method[%d]", set_width, set_height, scale_method);
+
+		caps = gst_caps_new_simple("video/x-raw-yuv",
+		                           "format", GST_TYPE_FOURCC, sc->fourcc,
+		                           "width", G_TYPE_INT, set_width,
+		                           "height", G_TYPE_INT, set_height,
+		                           NULL);
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_VSFLT].gst, "caps", caps);
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SCALE].gst, "method", scale_method);
+
+		gst_caps_unref(caps);
+		caps = NULL;
+	}
+
+	if (sc->is_modified_rate) {
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "high-speed-fps", fps);
 	}
 
 	__ta__("                tee",
@@ -603,7 +622,7 @@ int _mmcamcorder_create_videosink_bin(MMHandleType handle)
 	int camera_width = 0;
 	int camera_height = 0;
 	int rotate = 0;
-	int camera_format = MM_PIXEL_FORMAT_NV12;
+	int flip = 0;
 	int UseVideoscale = 0, EnableConvertedSC = 0;
 	int scale_method = 0;
 	char* videosink_name = NULL;
@@ -631,10 +650,10 @@ int _mmcamcorder_create_videosink_bin(MMHandleType handle)
 	err = mm_camcorder_get_attributes(handle, &err_name,
 	                                  MMCAM_CAMERA_WIDTH, &camera_width,
 	                                  MMCAM_CAMERA_HEIGHT, &camera_height,
-	                                  MMCAM_CAMERA_FORMAT, &camera_format,
 	                                  MMCAM_DISPLAY_RECT_WIDTH, &rect_width,
 	                                  MMCAM_DISPLAY_RECT_HEIGHT, &rect_height,
 	                                  MMCAM_DISPLAY_ROTATION, &rotate,
+	                                  MMCAM_DISPLAY_FLIP, &flip,
 	                                  "enable-converted-stream-callback", &EnableConvertedSC,
 	                                  NULL);
 	if (err != MM_ERROR_NONE) {
@@ -668,15 +687,26 @@ int _mmcamcorder_create_videosink_bin(MMHandleType handle)
 	if (EnableConvertedSC ||
 	    !strcmp(videosink_name, "evasimagesink") ||
 	    !strcmp(videosink_name, "ximagesink")) {
-		if (camera_format == MM_PIXEL_FORMAT_NV12 ||
-		    camera_format == MM_PIXEL_FORMAT_NV12T) {
+		GstElementFactory *factory = gst_element_factory_find("fimcconvert");
+
+		if ((sc->fourcc == GST_MAKE_FOURCC('S','N','2','1') ||
+		     sc->fourcc == GST_MAKE_FOURCC('S','N','1','2') ||
+		     sc->fourcc == GST_MAKE_FOURCC('S','T','1','2') ||
+		     sc->fourcc == GST_MAKE_FOURCC('S','4','2','0')) &&
+		    factory) {
 			int set_rotate = 0;
+			int set_flip = 0;
+
+			gst_object_unref(factory);
+			factory = NULL;
 
 			__ta__("                videosink_fimcconvert",
 			_MMCAMCORDER_ELEMENT_MAKE(sc, _MMCAMCORDER_VIDEOSINK_CLS, "fimcconvert", NULL, element_list, err);
 			);
 
-			if (rotate < MM_DISPLAY_ROTATION_FLIP_HORZ) {
+			/* set rotate */
+			if (rotate > MM_VIDEO_INPUT_ROTATION_NONE &&
+			    rotate < MM_VIDEO_INPUT_ROTATION_NUM) {
 				set_rotate = rotate * 90;
 			} else {
 				set_rotate = 0;
@@ -695,11 +725,35 @@ int _mmcamcorder_create_videosink_bin(MMHandleType handle)
 				}
 			}
 
-			_mmcam_dbg_log("Fimcconvert set values - %dx%d, rotate: %d", rect_width, rect_height, set_rotate);
+			/* set flip */
+			switch (flip) {
+			case MM_FLIP_HORIZONTAL:
+				set_flip = FIMCCONVERT_FLIP_HORIZONTAL;
+				break;
+			case MM_FLIP_VERTICAL:
+				set_flip = FIMCCONVERT_FLIP_VERTICAL;
+				break;
+			case MM_FLIP_BOTH: /* both flip has same effect with 180 rotation */
+				set_rotate = (set_rotate + 180) % 360;
+			case MM_FLIP_NONE:
+			default:
+				set_flip = FIMCCONVERT_FLIP_NONE;
+				break;
+			}
+
+			_mmcam_dbg_log("Fimcconvert set values - %dx%d, rotate: %d, flip: %d",
+			               rect_width, rect_height, set_rotate, set_flip);
+
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_CLS].gst, "src-width", rect_width);
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_CLS].gst, "src-height", rect_height);
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_CLS].gst, "rotate", set_rotate);
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_CLS].gst, "flip", set_flip);
 		} else {
+			if (factory) {
+				gst_object_unref(factory);
+				factory = NULL;
+			}
+
 			__ta__("                videosink_ffmpegcolorspace",
 			_MMCAMCORDER_ELEMENT_MAKE(sc, _MMCAMCORDER_VIDEOSINK_CLS, "ffmpegcolorspace", NULL, element_list, err);
 			);
@@ -752,9 +806,8 @@ int _mmcamcorder_create_videosink_bin(MMHandleType handle)
 	_MMCAMCORDER_ELEMENT_MAKE(sc, _MMCAMCORDER_VIDEOSINK_SINK, videosink_name, NULL, element_list, err);
 	);
 
-	if (!strcmp(videosink_name, "xvimagesink") ||
-            !strcmp(videosink_name, "ximagesink") ||
-            !strcmp(videosink_name, "evasimagesink")) {
+	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "ximagesink") ||
+            !strcmp(videosink_name, "evasimagesink") || !strcmp(videosink_name, "evaspixmapsink")) {
 		if (_mmcamcorder_videosink_window_set(handle, sc->VideosinkElement) != MM_ERROR_NONE) {
 			_mmcam_dbg_err("_mmcamcorder_videosink_window_set error");
 			err = MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
@@ -816,12 +869,11 @@ pipeline_creation_error:
 }
 
 
-int _mmcamcorder_create_encodesink_bin(MMHandleType handle)
+int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebinProfile profile)
 {
 	int err = MM_ERROR_NONE;
 	int result = 0;
 	int channel = 0;
-	int profile = 0;
 	int audio_enc = 0;
 	int v_bitrate = 0;
 	int a_bitrate = 0;
@@ -879,33 +931,27 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle)
 	);
 
 	/* check element availability */
-	err = mm_camcorder_get_attributes(handle, &err_name,
-	                                  MMCAM_MODE, &profile,
-	                                  MMCAM_AUDIO_ENCODER, &audio_enc,
-	                                  MMCAM_AUDIO_CHANNEL, &channel,
-	                                  MMCAM_VIDEO_ENCODER_BITRATE, &v_bitrate,
-	                                  MMCAM_AUDIO_ENCODER_BITRATE, &a_bitrate,
-	                                  NULL);
-	if (err != MM_ERROR_NONE) {
-		_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, err);
-		SAFE_FREE (err_name);
-		return err;
-	}
+	mm_camcorder_get_attributes(handle, &err_name,
+	                            MMCAM_AUDIO_ENCODER, &audio_enc,
+	                            MMCAM_AUDIO_CHANNEL, &channel,
+	                            MMCAM_VIDEO_ENCODER_BITRATE, &v_bitrate,
+	                            MMCAM_AUDIO_ENCODER_BITRATE, &a_bitrate,
+	                            NULL);
 
 	_mmcam_dbg_log("Profile[%d]", profile);
 
 	/* Set information */
-	if (profile == MM_CAMCORDER_MODE_VIDEO) {
+	if (profile == MM_CAMCORDER_ENCBIN_PROFILE_VIDEO) {
 		str_profile = "VideoProfile";
 		str_aac = "VideoAutoAudioConvert";
 		str_aar = "VideoAutoAudioResample";
 		str_acs = "VideoAutoColorSpace";
-	} else if (profile == MM_CAMCORDER_MODE_AUDIO) {
+	} else if (profile == MM_CAMCORDER_ENCBIN_PROFILE_AUDIO) {
 		str_profile = "AudioProfile";
 		str_aac = "AudioAutoAudioConvert";
 		str_aar = "AudioAutoAudioResample";
 		str_acs = "AudioAutoColorSpace";
-	} else if (profile == MM_CAMCORDER_MODE_IMAGE) {
+	} else if (profile == MM_CAMCORDER_ENCBIN_PROFILE_IMAGE) {
 		str_profile = "ImageProfile";
 		str_aac = "ImageAutoAudioConvert";
 		str_aar = "ImageAutoAudioResample";
@@ -927,7 +973,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle)
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "use-video-toggle", FALSE);
 
 	/* Codec */
-	if (profile == MM_CAMCORDER_MODE_VIDEO) {
+	if (profile == MM_CAMCORDER_ENCBIN_PROFILE_VIDEO) {
 		int use_venc_queue = 0;
 
 		VideoencElement = _mmcamcorder_get_type_element(handle, MM_CAM_VIDEO_ENCODER);
@@ -950,59 +996,54 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle)
 		if (use_venc_queue) {
 			_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_VENC_QUE, "use-venc-queue", err);
 		}
+	}
 
-		if (!strcmp(gst_element_venc_name, "ari_h263enc")) {
-			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "auto-colorspace", TRUE);
+	if (sc->audio_disable == FALSE &&
+	    profile != MM_CAMCORDER_ENCBIN_PROFILE_IMAGE) {
+		int use_aenc_queue =0;
+
+		AudioencElement = _mmcamcorder_get_type_element(handle, MM_CAM_AUDIO_ENCODER);
+		if (!AudioencElement) {
+			_mmcam_dbg_err("Fail to get type element");
+			err = MM_ERROR_CAMCORDER_RESOURCE_CREATION;
+			goto pipeline_creation_error;
+		}
+
+		_mmcamcorder_conf_get_value_element_name(AudioencElement, &gst_element_aenc_name);
+
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "aenc-name", gst_element_aenc_name);
+		_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_AENC, "audio-encode", err);
+
+		if (audio_enc == MM_AUDIO_CODEC_AMR && channel == 2) {
+			caps = gst_caps_new_simple("audio/x-raw-int",
+			                           "channels", G_TYPE_INT, 1,
+			                           NULL);
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "auto-audio-convert", TRUE);
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "acaps", caps);
+			gst_caps_unref (caps);
+			caps = NULL;
+		}
+
+		if (audio_enc == MM_AUDIO_CODEC_OGG) {
+			caps = gst_caps_new_simple("audio/x-raw-int",
+			                           NULL);
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "auto-audio-convert", TRUE);
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "acaps", caps);
+			gst_caps_unref (caps);
+			caps = NULL;
+			_mmcam_dbg_log("***** MM_AUDIO_CODEC_OGG : setting audio/x-raw-int ");
+		}
+
+		_mmcamcorder_conf_get_value_int(hcamcorder->conf_main,
+		                                CONFIGURE_CATEGORY_MAIN_RECORD,
+		                                "UseAudioEncoderQueue",
+		                                &use_aenc_queue);
+		if (use_aenc_queue) {
+			_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_AENC_QUE, "use-aenc-queue", err);
 		}
 	}
 
-	if (sc->is_slow == FALSE) {
-		if (profile == MM_CAMCORDER_MODE_AUDIO || profile == MM_CAMCORDER_MODE_VIDEO) {
-			int use_aenc_queue =0;
-
-			AudioencElement = _mmcamcorder_get_type_element(handle, MM_CAM_AUDIO_ENCODER);
-			if (!AudioencElement) {
-				_mmcam_dbg_err("Fail to get type element");
-				err = MM_ERROR_CAMCORDER_RESOURCE_CREATION;
-				goto pipeline_creation_error;
-			}
-
-			_mmcamcorder_conf_get_value_element_name(AudioencElement, &gst_element_aenc_name);
-
-			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "aenc-name", gst_element_aenc_name);
-			_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_AENC, "audio-encode", err);
-
-			if (audio_enc == MM_AUDIO_CODEC_AMR && channel == 2) {
-				caps = gst_caps_new_simple("audio/x-raw-int",
-				                           "channels", G_TYPE_INT, 1,
-				                           NULL);
-				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "auto-audio-convert", TRUE);
-				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "acaps", caps);
-				gst_caps_unref (caps);
-				caps = NULL;
-			}
-
-			if (audio_enc == MM_AUDIO_CODEC_OGG) {
-				caps = gst_caps_new_simple("audio/x-raw-int",
-				                           NULL);
-				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "auto-audio-convert", TRUE);
-				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "acaps", caps);
-				gst_caps_unref (caps);
-				caps = NULL;
-				_mmcam_dbg_log("***** MM_AUDIO_CODEC_OGG : setting audio/x-raw-int ");
-			}
-
-			_mmcamcorder_conf_get_value_int(hcamcorder->conf_main,
-			                                CONFIGURE_CATEGORY_MAIN_RECORD,
-			                                "UseAudioEncoderQueue",
-			                                &use_aenc_queue);
-			if (use_aenc_queue) {
-				_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_AENC_QUE, "use-aenc-queue", err);
-			}
-		}
-	}
-
-	if (profile == MM_CAMCORDER_MODE_IMAGE) {
+	if (profile == MM_CAMCORDER_ENCBIN_PROFILE_IMAGE) {
 		ImageencElement = _mmcamcorder_get_type_element(handle, MM_CAM_IMAGE_ENCODER);
 		if (!ImageencElement) {
 			_mmcam_dbg_err("Fail to get type element");
@@ -1017,7 +1058,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle)
 	}
 
 	/* Mux */
-	if (profile == MM_CAMCORDER_MODE_AUDIO || profile == MM_CAMCORDER_MODE_VIDEO) {
+	if (profile != MM_CAMCORDER_ENCBIN_PROFILE_IMAGE) {
 		MuxElement = _mmcamcorder_get_type_element(handle, MM_CAM_FILE_FORMAT);
 		if (!MuxElement) {
 			_mmcam_dbg_err("Fail to get type element");
@@ -1036,7 +1077,8 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle)
 	}
 
 	/* Sink */
-	if (profile == MM_CAMCORDER_MODE_AUDIO || profile == MM_CAMCORDER_MODE_VIDEO) {
+	if (profile != MM_CAMCORDER_ENCBIN_PROFILE_IMAGE) {
+		/* for recording */
 		_mmcamcorder_conf_get_element(hcamcorder->conf_main,
 		                              CONFIGURE_CATEGORY_MAIN_RECORD,
 		                              "RecordsinkElement",
@@ -1055,7 +1097,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle)
 		);
 	}
 
-	if (profile == MM_CAMCORDER_MODE_VIDEO) {
+	if (profile == MM_CAMCORDER_ENCBIN_PROFILE_VIDEO) {
 		/* video encoder attribute setting */
 		if (v_bitrate > 0) {
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_VENC].gst, "bitrate", v_bitrate);
@@ -1066,35 +1108,29 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle)
 		_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_ENCSINK_VENC].gst, VideoencElement);
 	}
 
-	if (sc->is_slow == FALSE) {
-		if (profile == MM_CAMCORDER_MODE_AUDIO || profile == MM_CAMCORDER_MODE_VIDEO) {
-			/* audio encoder attribute setting */
-			if (a_bitrate > 0) {
-				switch (audio_enc) {
-				case MM_AUDIO_CODEC_AMR:
-					result = __mmcamcorder_get_amrnb_bitrate_mode(a_bitrate);
-
-					_mmcam_dbg_log("Set AMR encoder[%s] mode [%d]", gst_element_aenc_name, result);
-
-					if(!strcmp(gst_element_aenc_name, "ari_amrnbenc")) {
-						MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_AENC].gst, "mode", result);
-					} else {
-						MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_AENC].gst, "band-mode", result);
-					}
-					break;
-				case MM_AUDIO_CODEC_AAC:
-					_mmcam_dbg_log("Set AAC encoder[%s] bitrate [%d]", gst_element_aenc_name, a_bitrate);
-					MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_AENC].gst, "bitrate", a_bitrate);
-					break;
-				default:
-					_mmcam_dbg_log("Audio codec is not AMR or AAC... you need to implement setting function for audio encoder bit-rate");
-					break;
-				}
-			} else {
-				_mmcam_dbg_warn("Setting bitrate is too small, so skip setting. Use DEFAULT value.");
+	if (sc->audio_disable == FALSE &&
+	    profile != MM_CAMCORDER_ENCBIN_PROFILE_IMAGE) {
+		/* audio encoder attribute setting */
+		if (a_bitrate > 0) {
+			switch (audio_enc) {
+			case MM_AUDIO_CODEC_AMR:
+				result = __mmcamcorder_get_amrnb_bitrate_mode(a_bitrate);
+				_mmcam_dbg_log("Set AMR encoder[%s] mode [%d]", gst_element_aenc_name, result);
+				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_AENC].gst, "band-mode", result);
+				break;
+			case MM_AUDIO_CODEC_AAC:
+				_mmcam_dbg_log("Set AAC encoder[%s] bitrate [%d]", gst_element_aenc_name, a_bitrate);
+				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_AENC].gst, "bitrate", a_bitrate);
+				break;
+			default:
+				_mmcam_dbg_log("Audio codec is not AMR or AAC... you need to implement setting function for audio encoder bit-rate");
+				break;
 			}
-			_mmcamcorder_conf_set_value_element_property( sc->element[_MMCAMCORDER_ENCSINK_AENC].gst, AudioencElement );
+		} else {
+			_mmcam_dbg_warn("Setting bitrate is too small, so skip setting. Use DEFAULT value.");
 		}
+
+		_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_ENCSINK_AENC].gst, AudioencElement);
 	}
 
 	_mmcam_dbg_log("Element creation complete");
@@ -1108,7 +1144,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle)
 
 	_mmcam_dbg_log("Element add complete");
 
-	if (profile == MM_CAMCORDER_MODE_VIDEO) {
+	if (profile == MM_CAMCORDER_ENCBIN_PROFILE_VIDEO) {
 		pad = gst_element_get_request_pad(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "video");
 		if (gst_element_add_pad(sc->element[_MMCAMCORDER_ENCSINK_BIN].gst, gst_ghost_pad_new("video_sink0", pad)) < 0) {
 			gst_object_unref(pad);
@@ -1120,7 +1156,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle)
 		gst_object_unref(pad);
 		pad = NULL;
 
-		if (sc->is_slow == FALSE) {
+		if (sc->audio_disable == FALSE) {
 			pad = gst_element_get_request_pad(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "audio");
 			if (gst_element_add_pad(sc->element[_MMCAMCORDER_ENCSINK_BIN].gst, gst_ghost_pad_new("audio_sink0", pad)) < 0) {
 				gst_object_unref(pad);
@@ -1132,7 +1168,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle)
 			gst_object_unref(pad);
 			pad = NULL;
 		}
-	} else if (profile == MM_CAMCORDER_MODE_AUDIO) {
+	} else if (profile == MM_CAMCORDER_ENCBIN_PROFILE_AUDIO) {
 		pad = gst_element_get_request_pad(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "audio");
 		if (gst_element_add_pad(sc->element[_MMCAMCORDER_ENCSINK_BIN].gst, gst_ghost_pad_new("audio_sink0", pad)) < 0) {
 			gst_object_unref(pad);
@@ -1396,27 +1432,20 @@ int _mmcamcorder_create_preview_pipeline(MMHandleType handle)
 	_MM_GST_PAD_LINK_UNREF(srcpad, sinkpad, err, pipeline_creation_error);
 
 	/* Set data probe function */
-	srcpad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "src");
+	srcpad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "src");
 	MMCAMCORDER_ADD_BUFFER_PROBE(srcpad, _MMCAMCORDER_HANDLER_PREVIEW,
 	                             __mmcamcorder_video_dataprobe_preview, hcamcorder);
 	gst_object_unref(srcpad);
 	srcpad = NULL;
 
-	if (hcamcorder->type == MM_CAMCORDER_MODE_IMAGE) {
-		sinkpad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "sink");
-		MMCAMCORDER_ADD_BUFFER_PROBE(sinkpad, _MMCAMCORDER_HANDLER_PREVIEW,
-		                             __mmcamcorder_video_dataprobe_vsink, hcamcorder);
-	} else if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO) {
-		sinkpad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "sink");
-		MMCAMCORDER_ADD_BUFFER_PROBE(sinkpad, _MMCAMCORDER_HANDLER_PREVIEW,
-		                             __mmcamcorder_video_dataprobe_vsink_drop_by_time, hcamcorder);
-	}
-	gst_object_unref(sinkpad);
-	sinkpad = NULL;
+	bus = gst_pipeline_get_bus(GST_PIPELINE(sc->element[_MMCAMCORDER_MAIN_PIPE].gst));
 
 	/* Register message callback */
-	bus = gst_pipeline_get_bus(GST_PIPELINE(sc->element[_MMCAMCORDER_MAIN_PIPE].gst));
-	hcamcorder->pipeline_cb_event_id = gst_bus_add_watch(bus, _mmcamcorder_pipeline_cb_message, hcamcorder);
+	hcamcorder->pipeline_cb_event_id = gst_bus_add_watch(bus, _mmcamcorder_pipeline_cb_message, (gpointer)hcamcorder);
+
+	/* set sync handler */
+	gst_bus_set_sync_handler(bus, _mmcamcorder_pipeline_bus_sync_callback, (gpointer)hcamcorder);
+
 	gst_object_unref(bus);
 	bus = NULL;
 
@@ -1455,9 +1484,9 @@ void _mmcamcorder_negosig_handler(GstElement *videosrc, MMHandleType handle)
 		sc->cam_stability_count = _MMCAMCORDER_CAMSTABLE_COUNT;
 	}
 
-	if (hcamcorder->type == MM_CAMCORDER_MODE_IMAGE) {
+	if (hcamcorder->type != MM_CAMCORDER_MODE_AUDIO) {
 		_MMCamcorderImageInfo *info = NULL;
-		info = sc->info;
+		info = sc->info_image;
 		if (info->resolution_change == TRUE) {
 			_mmcam_dbg_log("open toggle of stillshot sink.");
 			MMCAMCORDER_G_OBJECT_SET( sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "block", FALSE);
@@ -1478,12 +1507,13 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 	int visible = 0;
 	int rotation = MM_DISPLAY_ROTATION_NONE;
 	int rotation_degree = 0;
-	int display_device = MM_DISPLAY_DEVICE_MAINLCD;
-	int display_mode = 0;
+	int flip = MM_FLIP_NONE;
+	int display_mode = MM_DISPLAY_MODE_DEFAULT;
 	int display_geometry_method = MM_DISPLAY_METHOD_LETTER_BOX;
 	int origin_size = 0;
 	int zoom_attr = 0;
 	int zoom_level = 0;
+	int do_scaling = FALSE;
 	int *overlay = NULL;
 	gulong xid;
 	char *err_name = NULL;
@@ -1513,41 +1543,42 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 	                                  MMCAM_DISPLAY_RECT_WIDTH, &retwidth,
 	                                  MMCAM_DISPLAY_RECT_HEIGHT, &retheight,
 	                                  MMCAM_DISPLAY_ROTATION, &rotation,
+	                                  MMCAM_DISPLAY_FLIP, &flip,
 	                                  MMCAM_DISPLAY_VISIBLE, &visible,
 	                                  MMCAM_DISPLAY_HANDLE, (void**)&overlay, &size,
-	                                  MMCAM_DISPLAY_DEVICE, &display_device,
+	                                  MMCAM_DISPLAY_MODE, &display_mode,
 	                                  MMCAM_DISPLAY_GEOMETRY_METHOD, &display_geometry_method,
 	                                  MMCAM_DISPLAY_SCALE, &zoom_attr,
+	                                  MMCAM_DISPLAY_EVAS_DO_SCALING, &do_scaling,
 	                                  NULL);
 	);
-	if (err != MM_ERROR_NONE) {
-		_mmcam_dbg_warn("Get display attrs fail. (%s:%x)", err_name, err);
-		SAFE_FREE(err_name);
-		return err;
-	}
 
 	_mmcam_dbg_log("(overlay=%p, size=%d)", overlay, size);
 
 	_mmcamcorder_conf_get_value_element_name(VideosinkElement, &videosink_name);
 
-	/* Set xid */
-	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "ximagesink")) {
+	/* Set display handle */
+	if (!strcmp(videosink_name, "xvimagesink") ||
+	    !strcmp(videosink_name, "ximagesink")) {
 		if (overlay) {
 			xid = *overlay;
 			_mmcam_dbg_log("xid = %lu )", xid);
 			gst_x_overlay_set_xwindow_id(GST_X_OVERLAY(vsink), xid);
 		} else {
-			_mmcam_dbg_warn( "Set xid as 0.. but, it's not recommended." );
+			_mmcam_dbg_warn("Handle is NULL. Set xid as 0.. but, it's not recommended.");
 			gst_x_overlay_set_xwindow_id(GST_X_OVERLAY(vsink), 0);
 		}
 
 		_mmcam_dbg_log("%s set: display_geometry_method[%d],origin-size[%d],visible[%d],rotate[enum:%d]",
 		               videosink_name, display_geometry_method, origin_size, visible, rotation);
-	} else if (!strcmp(videosink_name, "evasimagesink")) {
+	} else if (!strcmp(videosink_name, "evasimagesink") ||
+	           !strcmp(videosink_name, "evaspixmapsink")) {
+		_mmcam_dbg_log("videosink : %s, handle : %p", videosink_name, overlay);
 		if (overlay) {
-			MMCAMCORDER_G_OBJECT_SET( vsink, "evas-object", overlay );
+			MMCAMCORDER_G_OBJECT_SET(vsink, "evas-object", overlay);
+			MMCAMCORDER_G_OBJECT_SET(vsink, "origin-size", !do_scaling);
 		} else {
-			_mmcam_dbg_err("Evas Object pointer is NULL");
+			_mmcam_dbg_err("display handle(eavs object) is NULL");
 			return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
 		}
 	} else {
@@ -1555,24 +1586,36 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 	}
 
 	/* Set attribute */
-	if (!strcmp(videosink_name, "xvimagesink")) {
-		switch (rotation) {
-		case MM_DISPLAY_ROTATION_NONE :
-			rotation_degree = 0;
-			break;
-		case MM_DISPLAY_ROTATION_90 :
-			rotation_degree = 1;
-			break;
-		case MM_DISPLAY_ROTATION_180 :
-			rotation_degree = 2;
-			break;
-		case MM_DISPLAY_ROTATION_270 :
-			rotation_degree = 3;
-			break;
-		default:
-			_mmcam_dbg_warn("Unsupported rotation value. set as default(0).");
-			rotation_degree = 0;
-			break;
+	if (!strcmp(videosink_name, "xvimagesink") ||
+	    !strcmp(videosink_name, "evaspixmapsink")) {
+
+		if (!strcmp(videosink_name, "xvimagesink")) {
+			/* set rotation */
+			switch (rotation) {
+			case MM_DISPLAY_ROTATION_NONE :
+				rotation_degree = 0;
+				break;
+			case MM_DISPLAY_ROTATION_90 :
+				rotation_degree = 1;
+				break;
+			case MM_DISPLAY_ROTATION_180 :
+				rotation_degree = 2;
+				break;
+			case MM_DISPLAY_ROTATION_270 :
+				rotation_degree = 3;
+				break;
+			default:
+				_mmcam_dbg_warn("Unsupported rotation value. set as default(0).");
+				rotation_degree = 0;
+				break;
+			}
+			MMCAMCORDER_G_OBJECT_SET(vsink, "rotate", rotation_degree);
+
+			/* set flip */
+			MMCAMCORDER_G_OBJECT_SET(vsink, "flip", flip);
+
+			_mmcam_dbg_log("set videosink[%s] rotate %d, flip %d",
+			               videosink_name, rotation_degree, flip);
 		}
 
 		switch (zoom_attr) {
@@ -1591,25 +1634,9 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 			break;
 		}
 
-		switch (display_device) {
-		case MM_DISPLAY_DEVICE_TVOUT:
-			display_mode = 2;
-			break;
-		case MM_DISPLAY_DEVICE_MAINLCD_AND_TVOUT:
-			display_mode = 1;
-			break;
-		case MM_DISPLAY_DEVICE_MAINLCD:
-		case MM_DISPLAY_DEVICE_SUBLCD:
-		case MM_DISPLAY_DEVICE_MAINLCD_AND_SUBLCD:
-		default:
-			display_mode = 3;
-			break;
-		}
-
 		MMCAMCORDER_G_OBJECT_SET(vsink, "display-geometry-method", display_geometry_method);
 		MMCAMCORDER_G_OBJECT_SET(vsink, "display-mode", display_mode);
 		MMCAMCORDER_G_OBJECT_SET(vsink, "visible", visible);
-		MMCAMCORDER_G_OBJECT_SET(vsink, "rotate", rotation_degree);
 		MMCAMCORDER_G_OBJECT_SET(vsink, "zoom", zoom_level);
 
 		if (display_geometry_method == MM_DISPLAY_METHOD_CUSTOM_ROI) {
@@ -1704,6 +1731,8 @@ static gboolean __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstBuffer *bu
 	_MMCamcorderSubContext *sc = NULL;
 	_MMCamcorderKPIMeasure *kpi = NULL;
 
+	mmf_return_val_if_fail(buffer, FALSE);
+	mmf_return_val_if_fail(GST_BUFFER_DATA(buffer), FALSE);
 	mmf_return_val_if_fail(hcamcorder, TRUE);
 
 	sc = MMF_CAMCORDER_SUBCONTEXT(u_data);
@@ -1760,21 +1789,7 @@ static gboolean __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstBuffer *bu
 		}
 	}
 
-	return TRUE;
-}
-
-
-static gboolean __mmcamcorder_video_dataprobe_vsink(GstPad *pad, GstBuffer *buffer, gpointer u_data)
-{
-	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
-
-	mmf_return_val_if_fail(hcamcorder, FALSE);
-
-	if (buffer == NULL || GST_BUFFER_DATA(buffer) == NULL) {
-		_mmcam_dbg_err("Null buffer!!");
-		return FALSE;
-	}
-
+	/* video stream callback */
 	if (hcamcorder->vstream_cb && buffer) {
 		GstCaps *caps = NULL;
 		GstStructure *structure = NULL;
@@ -1794,6 +1809,9 @@ static gboolean __mmcamcorder_video_dataprobe_vsink(GstPad *pad, GstBuffer *buff
 			return TRUE;
 		}
 
+		/* clear stream data structure */
+		memset(&stream, 0x0, sizeof(MMCamcorderVideoStreamDataType));
+
 		structure = gst_caps_get_structure( caps, 0 );
 		gst_structure_get_int(structure, "width", &(stream.width));
 		gst_structure_get_int(structure, "height", &(stream.height));
@@ -1812,10 +1830,95 @@ static gboolean __mmcamcorder_video_dataprobe_vsink(GstPad *pad, GstBuffer *buff
 			return TRUE;
 		}
 
-		stream.data = (void *)GST_BUFFER_DATA(buffer);
-		stream.length = GST_BUFFER_SIZE(buffer);
+		/* set size and timestamp */
+		stream.length_total = GST_BUFFER_SIZE(buffer);
 		stream.timestamp = (unsigned int)(GST_BUFFER_TIMESTAMP(buffer)/1000000); /* nano sec -> mili sec */
 
+		/* set data pointers */
+		if (stream.format == MM_PIXEL_FORMAT_NV12 || stream.format == MM_PIXEL_FORMAT_I420) {
+			if (hcamcorder->use_zero_copy_format && GST_BUFFER_MALLOCDATA(buffer)) {
+				SCMN_IMGB *scmn_imgb = (SCMN_IMGB *)GST_BUFFER_MALLOCDATA(buffer);
+
+				if (stream.format == MM_PIXEL_FORMAT_NV12) {
+					stream.data_type = MM_CAM_STREAM_DATA_YUV420SP;
+					stream.num_planes = 2;
+					stream.data.yuv420sp.y = scmn_imgb->a[0];
+					stream.data.yuv420sp.length_y = stream.width * stream.height;
+					stream.data.yuv420sp.uv = scmn_imgb->a[1];
+					stream.data.yuv420sp.length_uv = stream.data.yuv420sp.length_y >> 1;
+
+					_mmcam_dbg_log("SN12[num_planes:%d] [Y]p:0x%x,size:%d [UV]p:0x%x,size:%d",
+					               stream.num_planes,
+					               stream.data.yuv420sp.y, stream.data.yuv420sp.length_y,
+					               stream.data.yuv420sp.uv, stream.data.yuv420sp.length_uv);
+				} else {
+					stream.data_type = MM_CAM_STREAM_DATA_YUV420P;
+					stream.num_planes = 3;
+					stream.data.yuv420p.y = scmn_imgb->a[0];
+					stream.data.yuv420p.length_y = stream.width * stream.height;
+					stream.data.yuv420p.u = scmn_imgb->a[1];
+					stream.data.yuv420p.length_u = stream.data.yuv420p.length_y >> 2;
+					stream.data.yuv420p.v = scmn_imgb->a[2];
+					stream.data.yuv420p.length_v = stream.data.yuv420p.length_u;
+
+					_mmcam_dbg_log("S420[num_planes:%d] [Y]p:0x%x,size:%d [U]p:0x%x,size:%d [V]p:0x%x,size:%d",
+					                stream.num_planes,
+					                stream.data.yuv420p.y, stream.data.yuv420p.length_y,
+					                stream.data.yuv420p.u, stream.data.yuv420p.length_u,
+					                stream.data.yuv420p.v, stream.data.yuv420p.length_v);
+				}
+			} else {
+				if (stream.format == MM_PIXEL_FORMAT_NV12) {
+					stream.data_type = MM_CAM_STREAM_DATA_YUV420SP;
+					stream.num_planes = 2;
+					stream.data.yuv420sp.y = GST_BUFFER_DATA(buffer);
+					stream.data.yuv420sp.length_y = stream.width * stream.height;
+					stream.data.yuv420sp.uv = stream.data.yuv420sp.y + stream.data.yuv420sp.length_y;
+					stream.data.yuv420sp.length_uv = stream.data.yuv420sp.length_y >> 1;
+
+					_mmcam_dbg_log("NV12[num_planes:%d] [Y]p:0x%x,size:%d [UV]p:0x%x,size:%d",
+					               stream.num_planes,
+					               stream.data.yuv420sp.y, stream.data.yuv420sp.length_y,
+					               stream.data.yuv420sp.uv, stream.data.yuv420sp.length_uv);
+				} else {
+					stream.data_type = MM_CAM_STREAM_DATA_YUV420P;
+					stream.num_planes = 3;
+					stream.data.yuv420p.y = GST_BUFFER_DATA(buffer);
+					stream.data.yuv420p.length_y = stream.width * stream.height;
+					stream.data.yuv420p.u = stream.data.yuv420p.y + stream.data.yuv420p.length_y;
+					stream.data.yuv420p.length_u = stream.data.yuv420p.length_y >> 2;
+					stream.data.yuv420p.v = stream.data.yuv420p.u + stream.data.yuv420p.length_u;
+					stream.data.yuv420p.length_v = stream.data.yuv420p.length_u;
+
+					_mmcam_dbg_log("I420[num_planes:%d] [Y]p:0x%x,size:%d [U]p:0x%x,size:%d [V]p:0x%x,size:%d",
+					                stream.num_planes,
+					                stream.data.yuv420p.y, stream.data.yuv420p.length_y,
+					                stream.data.yuv420p.u, stream.data.yuv420p.length_u,
+					                stream.data.yuv420p.v, stream.data.yuv420p.length_v);
+				}
+			}
+		} else {
+			if (stream.format == MM_PIXEL_FORMAT_YUYV ||
+			    stream.format == MM_PIXEL_FORMAT_UYVY ||
+			    stream.format == MM_PIXEL_FORMAT_422P ||
+			    stream.format == MM_PIXEL_FORMAT_ITLV_JPEG_UYVY) {
+				stream.data_type = MM_CAM_STREAM_DATA_YUV422;
+				stream.data.yuv422.yuv = GST_BUFFER_DATA(buffer);
+				stream.data.yuv422.length_yuv = stream.length_total;
+			} else {
+				stream.data_type = MM_CAM_STREAM_DATA_YUV420;
+				stream.data.yuv420.yuv = GST_BUFFER_DATA(buffer);
+				stream.data.yuv420.length_yuv = stream.length_total;
+			}
+
+			stream.num_planes = 1;
+
+			_mmcam_dbg_log("%c%c%c%c[num_planes:%d] [0]p:0x%x,size:%d",
+			               fourcc, fourcc>>8, fourcc>>16, fourcc>>24,
+			               stream.num_planes, stream.data.yuv420.yuv, stream.data.yuv420.length_yuv);
+		}
+
+		/* call application callback */
 		_MMCAMCORDER_LOCK_VSTREAM_CALLBACK(hcamcorder);
 		if (hcamcorder->vstream_cb) {
 			hcamcorder->vstream_cb(&stream, hcamcorder->vstream_cb_param);
@@ -1823,49 +1926,12 @@ static gboolean __mmcamcorder_video_dataprobe_vsink(GstPad *pad, GstBuffer *buff
 		_MMCAMCORDER_UNLOCK_VSTREAM_CALLBACK(hcamcorder);
 	}
 
+	/* Do force flush cache */
+	if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ITLV_JPEG_UYVY) {
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "force-flush-cache", FALSE);
+	}
+
 	return TRUE;
-}
-
-
-static gboolean __mmcamcorder_video_dataprobe_vsink_drop_by_time(GstPad *pad, GstBuffer *buffer, gpointer u_data)
-{
-	static GstClockTime next_time = 0;
-	static GstClockTime current_time = 0;
-	GstClockTime interval = 30 * GST_MSECOND; //30ms(about 33 fps)
-
-	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
-	_MMCamcorderSubContext *sc = NULL;
-
-	mmf_return_val_if_fail(hcamcorder, TRUE);
-
-	sc = MMF_CAMCORDER_SUBCONTEXT(u_data);
-	mmf_return_val_if_fail(sc, TRUE);
-
-/*
-	_mmcam_dbg_log("VIDEO SRC time stamp : [%" GST_TIME_FORMAT "]", GST_TIME_ARGS(GST_BUFFER_TIMESTAMP(buffer)));
-*/
-
-	/* Call video stream callback */
-	if (__mmcamcorder_video_dataprobe_vsink(pad, buffer, u_data) == FALSE) {
-		_mmcam_dbg_warn( "__mmcamcorder_video_dataprobe_vsink failed." );
-		return FALSE;
-	}
-
-	if (sc->is_slow) {
-		if (GST_BUFFER_TIMESTAMP(buffer) < current_time) {
-			next_time = 0;
-		}
-		current_time = GST_BUFFER_TIMESTAMP(buffer);
-
-		if (current_time >= next_time) {
-			next_time = current_time + interval;
-			return TRUE;
-		} else {
-			return FALSE;
-		}
-	} else {
-		return TRUE;
-	}
 }
 
 
@@ -2075,17 +2141,45 @@ bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate)
 		/* Get videosink name */
 		_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
 		if (!strcmp(videosink_name, "xvimagesink")) {
-			if (display_rotate < MM_DISPLAY_ROTATION_NONE ||
-			    display_rotate > MM_DISPLAY_ROTATION_270) {
-				display_rotate = 0;
-				_mmcam_dbg_log( "Rotate: Out of range. set as default(0)...");
-			}
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst,
 			                         "rotate", display_rotate);
 			_mmcam_dbg_log("Set display-rotate [%d] done.", display_rotate);
 			return TRUE;
 		} else {
 			_mmcam_dbg_warn("videosink[%s] does not support DISPLAY_ROTATION.", videosink_name);
+			return FALSE;
+		}
+	} else {
+		_mmcam_dbg_err("Videosink element is null");
+		return FALSE;
+	}
+}
+
+
+bool _mmcamcorder_set_display_flip(MMHandleType handle, int display_flip)
+{
+	char* videosink_name = NULL;
+
+	mmf_camcorder_t *hcamcorder = NULL;
+	_MMCamcorderSubContext *sc = NULL;
+
+	hcamcorder = MMF_CAMCORDER(handle);
+	mmf_return_val_if_fail(hcamcorder, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	mmf_return_val_if_fail(sc, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
+	mmf_return_val_if_fail(sc->element, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
+
+	if (sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst) {
+		/* Get videosink name */
+		_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+		if (!strcmp(videosink_name, "xvimagesink")) {
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst,
+			                         "flip", display_flip);
+			_mmcam_dbg_log("Set display flip [%d] done.", display_flip);
+			return TRUE;
+		} else {
+			_mmcam_dbg_warn("videosink[%s] does not support DISPLAY_FLIP", videosink_name);
 			return FALSE;
 		}
 	} else {
@@ -2103,8 +2197,6 @@ bool _mmcamcorder_set_videosrc_rotation(MMHandleType handle, int videosrc_rotate
 	int set_height = 0;
 	int set_rotate = 0;
 	int fps = 0;
-	int slow_fps = 0;
-	int set_fps = 0;
 	gboolean do_set_caps = FALSE;
 
 	GstCaps *caps = NULL;
@@ -2134,7 +2226,6 @@ bool _mmcamcorder_set_videosrc_rotation(MMHandleType handle, int videosrc_rotate
 	                            MMCAM_CAMERA_WIDTH, &width,
 	                            MMCAM_CAMERA_HEIGHT, &height,
 	                            MMCAM_CAMERA_FPS, &fps,
-	                            "camera-slow-motion-fps", &slow_fps,
 	                            NULL);
 
 	_mmcamcorder_conf_get_value_int_array(hcamcorder->conf_ctrl,
@@ -2146,48 +2237,53 @@ bool _mmcamcorder_set_videosrc_rotation(MMHandleType handle, int videosrc_rotate
 		return FALSE;
 	}
 
-	/* Define width, height, rotate and flip in caps */
-	if (input_index->default_value == MM_VIDEO_DEVICE_CAMERA1) {
-		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "vflip", 1);
-	} else {
-		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "vflip", 0);
-	}
-	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "hflip", 0);
+	/* Interleaved format does not support rotation */
+	if (sc->info_image->preview_format != MM_PIXEL_FORMAT_ITLV_JPEG_UYVY) {
+		/* store videosrc rotation */
+		sc->videosrc_rotate = videosrc_rotate;
 
-	/* This will be applied when rotate is 0, 90, 180, 270 if rear camera.
-	This will be applied when rotate is 0, 180 if front camera. */
-	set_rotate = videosrc_rotate * 90;
+		/* Define width, height and rotate in caps */
 
-	if (videosrc_rotate == MM_VIDEO_INPUT_ROTATION_90 ||
-	    videosrc_rotate == MM_VIDEO_INPUT_ROTATION_270) {
-		set_width = height;
-		set_height = width;
+		/* This will be applied when rotate is 0, 90, 180, 270 if rear camera.
+		This will be applied when rotate is 0, 180 if front camera. */
+		set_rotate = videosrc_rotate * 90;
 
-		if (input_index->default_value == MM_VIDEO_DEVICE_CAMERA1) {
-			if (videosrc_rotate == MM_VIDEO_INPUT_ROTATION_90) {
-				set_rotate = 270;
-			} else {
-				set_rotate = 90;
+		if (videosrc_rotate == MM_VIDEO_INPUT_ROTATION_90 ||
+		    videosrc_rotate == MM_VIDEO_INPUT_ROTATION_270) {
+			set_width = height;
+			set_height = width;
+			if (input_index->default_value == MM_VIDEO_DEVICE_CAMERA1) {
+				if (videosrc_rotate == MM_VIDEO_INPUT_ROTATION_90) {
+					set_rotate = 270;
+				} else {
+					set_rotate = 90;
+				}
 			}
+		} else {
+			set_width = width;
+			set_height = height;
 		}
 	} else {
+		sc->videosrc_rotate = MM_VIDEO_INPUT_ROTATION_NONE;
+		set_rotate = 0;
 		set_width = width;
 		set_height = height;
 
-		if (videosrc_rotate == MM_VIDEO_INPUT_ROTATION_FLIP_HORZ) {
-			set_rotate = 0;
-			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "hflip", 1);
-		} else if (videosrc_rotate == MM_VIDEO_INPUT_ROTATION_FLIP_VERT) {
-			set_rotate = 0;
-			if (input_index->default_value == MM_VIDEO_DEVICE_CAMERA1) {
-				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "vflip", 0);
-			} else {
-				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "vflip", 1);
-			}
-		}
+		_mmcam_dbg_warn("ITLV format doe snot support INPUT ROTATE. Ignore ROTATE[%d]",
+		                videosrc_rotate);
 	}
 
-	set_fps = sc->is_slow ? slow_fps : fps;
+	/* correct size because ITLV does not support QCIF */
+	if (input_index->default_value == MM_VIDEO_DEVICE_CAMERA0 &&
+	    sc->fourcc == GST_MAKE_FOURCC('I','T','L','V')) {
+		if ((set_width == 176 && set_height == 144) ||
+		    (set_width == 144 && set_height == 176)) {
+			set_width = set_width << 1;
+			set_height = set_height << 1;
+			_mmcam_dbg_log("ITLV format is not supported QCIF, so we set CIF(%dx%d)",
+			               set_width, set_height);
+		}
+	}
 
 	MMCAMCORDER_G_OBJECT_GET(sc->element[_MMCAMCORDER_VIDEOSRC_FILT].gst, "caps", &caps);
 	if (caps) {
@@ -2205,7 +2301,7 @@ bool _mmcamcorder_set_videosrc_rotation(MMHandleType handle, int videosrc_rotate
 			gst_structure_get_int(structure, "fps", &caps_fps);
 			gst_structure_get_int(structure, "rotate", &caps_rotate);
 			if (set_width == caps_width && set_height == caps_height &&
-			    set_rotate == caps_rotate && set_fps == caps_fps) {
+			    set_rotate == caps_rotate && fps == caps_fps) {
 				_mmcam_dbg_log("No need to replace caps.");
 			} else {
 				_mmcam_dbg_log("something is different. set new one...");
@@ -2228,7 +2324,7 @@ bool _mmcamcorder_set_videosrc_rotation(MMHandleType handle, int videosrc_rotate
 		                           "format", GST_TYPE_FOURCC, sc->fourcc,
 		                           "width", G_TYPE_INT, set_width,
 		                           "height", G_TYPE_INT, set_height,
-		                           "framerate", GST_TYPE_FRACTION, set_fps, 1,
+		                           "framerate", GST_TYPE_FRACTION, fps, 1,
 		                           "rotate", G_TYPE_INT, set_rotate,
 		                           NULL);
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_FILT].gst, "caps", caps);
@@ -2236,8 +2332,158 @@ bool _mmcamcorder_set_videosrc_rotation(MMHandleType handle, int videosrc_rotate
 		caps = NULL;
 		_mmcam_dbg_log("vidoesrc new caps set. format[%c%c%c%c],width[%d],height[%d],fps[%d],rotate[%d]",
 		               (sc->fourcc), (sc->fourcc)>>8, (sc->fourcc)>>16, (sc->fourcc)>>24,
-		               set_width, set_height, set_fps, set_rotate);
+		               set_width, set_height, fps, set_rotate);
 	}
 
 	return TRUE;
 }
+
+
+bool _mmcamcorder_set_videosrc_flip(MMHandleType handle, int videosrc_flip)
+{
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+	_MMCamcorderSubContext *sc = NULL;
+	type_int_array *input_index = NULL;
+
+	mmf_return_val_if_fail(hcamcorder, FALSE);
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	mmf_return_val_if_fail(sc, TRUE);
+
+	_mmcam_dbg_log("Set FLIP %d", videosrc_flip);
+
+	if (sc->element && sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst) {
+		int hflip = 0;
+		int vflip = 0;
+
+		/* Interleaved format does not support FLIP */
+		if (sc->info_image->preview_format != MM_PIXEL_FORMAT_ITLV_JPEG_UYVY) {
+			_mmcamcorder_conf_get_value_int_array(hcamcorder->conf_ctrl,
+			                                      CONFIGURE_CATEGORY_CTRL_CAMERA,
+			                                      "InputIndex",
+			                                      &input_index );
+
+			hflip = (videosrc_flip & MM_FLIP_HORIZONTAL) == MM_FLIP_HORIZONTAL;
+			vflip = (videosrc_flip & MM_FLIP_VERTICAL) == MM_FLIP_VERTICAL;
+
+			_mmcam_dbg_log("videosrc flip H:%d, V:%d", hflip, vflip);
+
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "hflip", hflip);
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "vflip", vflip);
+		} else {
+			_mmcam_dbg_warn("ITLV format does not support FLIP. Ignore FLIP[%d]",
+			                videosrc_flip);
+		}
+	} else {
+		_mmcam_dbg_warn("element is NULL");
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+
+bool _mmcamcorder_set_videosrc_anti_shake(MMHandleType handle, int anti_shake)
+{
+	GstCameraControl *control = NULL;
+	_MMCamcorderSubContext *sc = NULL;
+	GstElement *v_src = NULL;
+
+	int set_value = 0;
+
+	mmf_return_val_if_fail(handle, FALSE);
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	mmf_return_val_if_fail(sc, TRUE);
+
+	v_src = sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst;
+
+	if (!v_src) {
+		_mmcam_dbg_warn("videosrc element is NULL");
+		return FALSE;
+	}
+
+	set_value = _mmcamcorder_convert_msl_to_sensor(handle, MM_CAM_CAMERA_ANTI_HANDSHAKE, anti_shake);
+
+	/* set anti-shake with camera control */
+	if (!GST_IS_CAMERA_CONTROL(v_src)) {
+		_mmcam_dbg_warn("Can't cast Video source into camera control.");
+		return FALSE;
+	}
+
+	control = GST_CAMERA_CONTROL(v_src);
+	if (gst_camera_control_set_ahs(control, set_value)) {
+		_mmcam_dbg_log("Succeed in operating anti-handshake. value[%d]", set_value);
+		return TRUE;
+	} else {
+		_mmcam_dbg_warn("Failed to operate anti-handshake. value[%d]", set_value);
+	}
+
+	return FALSE;
+}
+
+
+bool _mmcamcorder_set_videosrc_stabilization(MMHandleType handle, int stabilization)
+{
+	_MMCamcorderSubContext *sc = NULL;
+	GstElement *v_src = NULL;
+
+	mmf_return_val_if_fail(handle, FALSE);
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	mmf_return_val_if_fail(sc, TRUE);
+
+	v_src = sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst;
+
+	if (!v_src) {
+		_mmcam_dbg_warn("videosrc element is NULL");
+		return FALSE;
+	}
+
+	/* check property of videosrc element - support VDIS */
+	if(g_object_class_find_property(G_OBJECT_GET_CLASS(G_OBJECT(v_src)), "enable-vdis-mode")) {
+		int camera_format =MM_PIXEL_FORMAT_INVALID;
+		int camera_width = 0;
+		int camera_height = 0;
+
+		if (stabilization == MM_CAMCORDER_VIDEO_STABILIZATION_ON) {
+			_mmcam_dbg_log("ENABLE video stabilization");
+
+			/* VDIS mode only supports NV12 and [720p or 1080p] */
+			mm_camcorder_get_attributes(handle, NULL,
+			                            MMCAM_CAMERA_FORMAT, &camera_format,
+			                            MMCAM_CAMERA_WIDTH, &camera_width,
+			                            MMCAM_CAMERA_HEIGHT, &camera_height,
+			                            NULL);
+			if (camera_format == MM_PIXEL_FORMAT_NV12 &&
+			    camera_width >= 1280 &&
+			    camera_height >= 720) {
+				_mmcam_dbg_log("preview format %d, size %dx%d, ENABLE video stabilization",
+				               camera_format, camera_width, camera_height, stabilization);
+				/* set vdis mode */
+				g_object_set(G_OBJECT(v_src),
+				             "enable-vdis-mode", TRUE,
+				             NULL);
+			} else {
+				_mmcam_dbg_warn("invalid preview format %d or size %dx%d",
+				                camera_format, camera_width, camera_height);
+				return FALSE;
+			}
+		} else {
+			/* set vdis mode */
+			g_object_set(G_OBJECT(v_src),
+			             "enable-vdis-mode", FALSE,
+			             NULL);
+
+			_mmcam_dbg_log("DISABLE video stabilization");
+		}
+	} else if (stabilization == MM_CAMCORDER_VIDEO_STABILIZATION_ON) {
+		_mmcam_dbg_err("no property for video stabilization, so can not set ON");
+		return FALSE;
+	} else {
+		_mmcam_dbg_warn("no property for video stabilization");
+	}
+
+	return TRUE;
+}
+
