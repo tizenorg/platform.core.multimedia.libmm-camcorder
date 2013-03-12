@@ -1,42 +1,41 @@
 Name:       libmm-camcorder
-Summary:    camcorder library
-Version:    0.5.5
-Release:    1
+Summary:    Camera and recorder library
+Version:    0.7.7
+Release:    0
 Group:      libs
-License:    Samsung
-URL:        N/A
+License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
+Requires(post): /usr/bin/vconftool
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(mm-common)
 BuildRequires:  pkgconfig(mm-sound)
+BuildRequires:  pkgconfig(avsystem)
 BuildRequires:  pkgconfig(libexif)
 BuildRequires:  pkgconfig(mmutil-imgp)
-BuildRequires:  pkgconfig(elementary)
-BuildRequires:  pkgconfig(appcore-efl)
-BuildRequires:  pkgconfig(vconf)
 BuildRequires:  pkgconfig(mm-log)
 BuildRequires:  pkgconfig(gstreamer-plugins-base-0.10)
 BuildRequires:  pkgconfig(mm-ta)
+BuildRequires:  pkgconfig(sndfile)
 BuildRequires:  pkgconfig(mm-session)
 BuildRequires:  pkgconfig(audio-session-mgr)
-BuildRequires:  pkgconfig(gstreamer-floatcast-0.10)
-BuildRequires:  pkgconfig(gstreamer-check-0.10)
 BuildRequires:  pkgconfig(camsrcjpegenc)
+BuildRequires:  pkgconfig(libpulse)
+BuildRequires:  pkgconfig(vconf)
 BuildRequires:  gst-plugins-base-devel
 
 %description
-camcorder library.
+Camera and recorder library.
 
 
 %package devel
-Summary:    camcorder development library
+Summary:    Camera and recorder development library
 Group:      libdevel
 Version:    %{version}
 Requires:   %{name} = %{version}-%{release}
 
 %description devel 
-camcorder development library.
+Camera and recorder development library.
 
 
 %prep
@@ -44,27 +43,36 @@ camcorder development library.
 
 
 %build
+export CFLAGS+=" -DGST_EXT_TIME_ANALYSIS"
 ./autogen.sh
 %configure --disable-static
 make %{?jobs:-j%jobs}
 
 %install
 rm -rf %{buildroot}
+mkdir -p %{buildroot}/usr/share/license
+cp LICENSE.APLv2 %{buildroot}/usr/share/license/%{name}
 %make_install
 
 
-%post -p /sbin/ldconfig
+%post
+/sbin/ldconfig
+
+vconftool set -t int memory/camera/state 0 -i -u 5000
+vconftool set -t int file/camera/shutter_sound_policy 0 -u 5000
 
 %postun -p /sbin/ldconfig
 
 %files
+%manifest libmm-camcorder.manifest
 %defattr(-,root,root,-)
 %{_bindir}/*
 %{_libdir}/*.so.*
-%{_datadir}/edje/*
 /usr/share/sounds/mm-camcorder/*
+%{_datadir}/license/%{name}
 
 %files devel
+%manifest libmm-camcorder.manifest
 %defattr(-,root,root,-)
 %{_includedir}/mmf/mm_camcorder.h
 %{_libdir}/pkgconfig/mm-camcorder.pc
