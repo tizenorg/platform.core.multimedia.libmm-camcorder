@@ -1,8 +1,0 @@
-libmm-camcorder (0.5.38-0) unstable; urgency=low
-
-  * Initial release
-  * Git: pkgs/l/libmm-camcorder
-  * Tag: libmm-camcorder_0.5.38-0
-
- -- Jeongmo Yang <jm80.yang@samsung.com>  Wed, 08 Feb 2012 20:37:45 +0900
-
