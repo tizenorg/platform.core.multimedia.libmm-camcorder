@@ -449,7 +449,7 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "flush-cache", TRUE);
 			}
 
-			ret = _mmcamcorder_gst_set_state(handle, pipeline, GST_STATE_PAUSED);
+			ret = _mmcamcorder_gst_set_state(handle, pipeline, GST_STATE_READY);
 			if (ret != MM_ERROR_NONE) {
 				goto _ERR_CAMCORDER_VIDEO_COMMAND;
 			}
