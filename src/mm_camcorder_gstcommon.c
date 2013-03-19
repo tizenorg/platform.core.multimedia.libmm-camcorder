@@ -120,7 +120,8 @@ gboolean	videocodec_fileformat_compatibility_table[MM_VIDEO_CODEC_NUM][MM_FILE_F
 |    LOCAL VARIABLE DEFINITIONS for internal				|
 -----------------------------------------------------------------------*/
 #define USE_AUDIO_CLOCK_TUNE
-#define _MMCAMCORDER_WAIT_EOS_TIME	5.0		//sec
+#define _MMCAMCORDER_WAIT_EOS_TIME              5.0     /* sec */
+#define _MMCAMCORDER_CONVERT_OUTPUT_BUFFER_NUM  6
 
 /*-----------------------------------------------------------------------
 |    LOCAL FUNCTION PROTOTYPES:						|
@@ -988,6 +989,33 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "venc-name", gst_element_venc_name);
 		_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_VENC, "video-encode", err);
+
+		/* set color convert plugin */
+		if (hcamcorder->use_zero_copy_format &&
+		    sc->fourcc != GST_MAKE_FOURCC('S','N','1','2')) {
+			int dst_buffer_num = _MMCAMCORDER_CONVERT_OUTPUT_BUFFER_NUM;
+
+			/* set fimcconvert as colorspace element */
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "vconv-name", "fimcconvert");
+			_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_VCONV, "video-convert", err);
+
+			caps = gst_caps_new_simple("video/x-raw-yuv",
+			                           "format", GST_TYPE_FOURCC, GST_MAKE_FOURCC('S','N','1','2'),
+			                           NULL);
+			if (caps) {
+				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "vcaps", caps);
+				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_VCONV].gst, "dst-buffer-num", dst_buffer_num);
+				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "auto-colorspace", TRUE);
+
+				gst_caps_unref (caps);
+				caps = NULL;
+			} else {
+				err = MM_ERROR_CAMCORDER_RESOURCE_CREATION;
+				goto pipeline_creation_error;
+			}
+
+			_mmcam_dbg_log("fimcconvert dst-buffer-num %d", dst_buffer_num);
+		}
 
 		_mmcamcorder_conf_get_value_int(hcamcorder->conf_main,
 		                                CONFIGURE_CATEGORY_MAIN_RECORD,
