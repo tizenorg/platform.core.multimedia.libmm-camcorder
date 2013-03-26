@@ -733,7 +733,8 @@ _mmcamcroder_send_message(MMHandleType handle, _MMCamcorderMsgItem *data)
 	hcamcorder->msg_data = g_list_append(hcamcorder->msg_data, item);
 //	_mmcam_dbg_log("item[%p]", item);
 
-	g_idle_add(_mmcamcroder_msg_callback, item);
+	/* Use DEFAULT priority */
+	g_idle_add_full(G_PRIORITY_DEFAULT, _mmcamcroder_msg_callback, item, NULL);
 
 	_MMCAMCORDER_UNLOCK(handle);
 
