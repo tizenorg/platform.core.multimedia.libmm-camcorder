@@ -285,23 +285,23 @@ gboolean _mmcamcorder_update_composition_matrix(FILE *f, int orientation)
 	guint32 d = 0x00010000;
 
 	switch (orientation) {
-	case MM_CAMCORDER_TAG_ORT_0R_VR_0C_VT:/* 90 degree */
+	case MM_CAMCORDER_TAG_VIDEO_ORT_90:/* 90 degree */
 		a = 0;
 		b = 0x00010000;
 		c = 0xffff0000;
 		d = 0;
 		break;
-	case MM_CAMCORDER_TAG_ORT_0R_VB_0C_VR:/* 180 degree */
+	case MM_CAMCORDER_TAG_VIDEO_ORT_180:/* 180 degree */
 		a = 0xffff0000;
 		d = 0xffff0000;
 		break;
-	case MM_CAMCORDER_TAG_ORT_0R_VL_0C_VB:/* 270 degree */
+	case MM_CAMCORDER_TAG_VIDEO_ORT_270:/* 270 degree */
 		a = 0;
 		b = 0xffff0000;
 		c = 0x00010000;
 		d = 0;
 		break;
-	case MM_CAMCORDER_TAG_ORT_0R_VT_0C_VL:/* 0 degree */
+	case MM_CAMCORDER_TAG_VIDEO_ORT_NONE:/* 0 degree */
 	default:
 		break;
 	}

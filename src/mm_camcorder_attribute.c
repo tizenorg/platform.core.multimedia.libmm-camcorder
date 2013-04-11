@@ -1460,6 +1460,18 @@ mm_cam_attr_construct_info cam_attrs_const_info[] ={
 		0,
 		0,
 		_mmcamcorder_commit_camera_video_stabilization,
+	},
+	//118
+	{
+		MM_CAM_TAG_VIDEO_ORIENTATION,
+		"tag-video-orientation",
+		MMF_VALUE_TYPE_INT,
+		MM_ATTRS_FLAG_RW,
+		{(void*)MM_CAMCORDER_TAG_VIDEO_ORT_NONE},
+		MM_ATTRS_VALID_TYPE_INT_RANGE,
+		MM_CAMCORDER_TAG_VIDEO_ORT_NONE,
+		MM_CAMCORDER_TAG_VIDEO_ORT_270,
+		NULL,
 	}
 };
 

@@ -541,6 +541,10 @@
 		<td>Orientation of captured image</td>
 	</tr>
 	<tr>
+		<td>#MMCAM_TAG_VIDEO_ORIENTATION</td>
+		<td>Orientation of encoded video</td>
+	</tr>
+	<tr>
 		<td>#MMCAM_TAG_SOFTWARE</td>
 		<td>software name and version</td>
 	</tr>
@@ -1101,6 +1105,12 @@ extern "C" {
 #define MMCAM_TAG_ORIENTATION                   "tag-orientation"
 
 /**
+ * Orientation of captured video
+ * @see		MMCamcorderTagVideoOrientation
+ */
+#define MMCAM_TAG_VIDEO_ORIENTATION            "tag-video-orientation"
+
+/**
  * software name and version
  */
 #define MMCAM_TAG_SOFTWARE                      "tag-software"
@@ -1474,6 +1484,17 @@ enum MMCamcorderTagOrientation {
 	MM_CAMCORDER_TAG_ORT_0R_VR_0C_VB,	/**< The 0th row is the visual right-hand side of the image, and the 0th column is the visual bottom.*/
 	MM_CAMCORDER_TAG_ORT_0R_VL_0C_VB,	/**< The 0th row is the visual left-hand side of the image, and the 0th column is the visual bottom.*/
 };
+
+/**
+ * An enumeration for captured video orientation values of tag .
+ */
+enum MMCamcorderTagVideoOrientation {
+	MM_CAMCORDER_TAG_VIDEO_ORT_NONE =0,	/**< No Orientation.*/
+	MM_CAMCORDER_TAG_VIDEO_ORT_90,		/**< 90 degree */
+	MM_CAMCORDER_TAG_VIDEO_ORT_180,	/**< 180 degree */
+	MM_CAMCORDER_TAG_VIDEO_ORT_270,	/**< 270 degree */
+};
+
 
 
 /**

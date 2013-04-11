@@ -1475,7 +1475,7 @@ static gboolean __mmcamcorder_add_locationinfo_mp4(MMHandleType handle)
 	                            MMCAM_TAG_LATITUDE, &latitude,
 	                            MMCAM_TAG_LONGITUDE, &longitude,
 	                            MMCAM_TAG_ALTITUDE, &altitude,
-	                            MMCAM_TAG_ORIENTATION, &orientation,
+	                            MMCAM_TAG_VIDEO_ORIENTATION, &orientation,
 	                            NULL);
 	if (err_name) {
 		_mmcam_dbg_warn("Get tag attrs fail. (%s:%x)", err_name, err);
