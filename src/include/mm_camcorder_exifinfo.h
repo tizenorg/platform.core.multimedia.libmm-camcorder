@@ -29,7 +29,7 @@
 #include <libexif/exif-tag.h>
 #include <libexif/exif-format.h>
 #include <libexif/exif-data.h>
-#include <libexif/mnote-samsung-tag.h>
+#include <libexif/samsung/mnote-samsung-tag.h>
 
 #ifdef __cplusplus
 extern "C" {

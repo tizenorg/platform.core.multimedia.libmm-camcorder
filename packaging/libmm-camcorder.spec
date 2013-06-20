@@ -2,7 +2,7 @@ Name:       libmm-camcorder
 Summary:    Camera and recorder library
 Version:    0.7.11
 Release:    0
-Group:      libs
+Group:      Multimedia/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Requires(post): /usr/bin/vconftool
@@ -22,7 +22,6 @@ BuildRequires:  pkgconfig(audio-session-mgr)
 BuildRequires:  pkgconfig(camsrcjpegenc)
 BuildRequires:  pkgconfig(libpulse)
 BuildRequires:  pkgconfig(vconf)
-BuildRequires:  gst-plugins-base-devel
 
 %description
 Camera and recorder library.
