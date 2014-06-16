@@ -32,8 +32,8 @@
 #include "mm_camcorder_internal.h"
 #include <mm_types.h>
 
-#include <gst/interfaces/colorbalance.h>
-#include <gst/interfaces/cameracontrol.h>
+#include <gst/video/colorbalance.h>
+#include <gst/video/cameracontrol.h>
 #include <asm/types.h>
 
 #include <mm_session.h>
@@ -2379,7 +2379,7 @@ _MMCamcorderSubContext *_mmcamcorder_alloc_subcontext(int type)
 		sc->element[i].gst = NULL;
 	}
 
-	sc->fourcc = 0x80000000;
+	memset(sc->format_name, '\0', sizeof(sc->format_name));
 	sc->cam_stability_count = 0;
 	sc->drop_vframe = 0;
 	sc->pass_first_vframe = 0;
@@ -2532,7 +2532,7 @@ gboolean _mmcamcorder_pipeline_cb_message(GstBus *bus, GstMessage *message, gpoi
 			if (sc->element[_MMCAMCORDER_MAIN_PIPE].gst) {
 				pipeline = sc->element[_MMCAMCORDER_MAIN_PIPE].gst;
 				if (message->src == (GstObject*)pipeline) {
-					vnewstate = (GValue*)gst_structure_get_value(message->structure, "new-state");
+                    vnewstate = (GValue*)gst_structure_get_value(gst_message_get_structure(message), "new-state");
 					newstate = (GstState)vnewstate->data[0].v_int;
 					_mmcam_dbg_log("GST_MESSAGE_STATE_CHANGED[%s]",gst_element_state_get_name(newstate));
 				}
@@ -2571,30 +2571,30 @@ gboolean _mmcamcorder_pipeline_cb_message(GstBus *bus, GstMessage *message, gpoi
 	case GST_MESSAGE_ELEMENT:
 		_mmcam_dbg_log("GST_MESSAGE_ELEMENT");
 
-		if (gst_structure_has_name(message->structure, "avsysvideosrc-AF") ||
-		    gst_structure_has_name(message->structure, "camerasrc-AF")) {
+        if (gst_structure_has_name(gst_message_get_structure(message), "avsysvideosrc-AF") ||
+            gst_structure_has_name(gst_message_get_structure(message), "camerasrc-AF")) {
 			int focus_state = 0;
 
-			gst_structure_get_int(message->structure, "focus-state", &focus_state);
+            gst_structure_get_int(gst_message_get_structure(message), "focus-state", &focus_state);
 			_mmcam_dbg_log("Focus State:%d", focus_state);
 
 			msg.id = MM_MESSAGE_CAMCORDER_FOCUS_CHANGED;
 			msg.param.code = focus_state;
 			_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
-		} else if (gst_structure_has_name(message->structure, "camerasrc-HDR")) {
+        } else if (gst_structure_has_name(gst_message_get_structure(message), "camerasrc-HDR")) {
 			int progress = 0;
 			int status = 0;
 
-			gst_structure_get_int(message->structure, "progress", &progress);
-			gst_structure_get_int(message->structure, "status", &status);
+            gst_structure_get_int(gst_message_get_structure(message), "progress", &progress);
+            gst_structure_get_int(gst_message_get_structure(message), "status", &status);
 			_mmcam_dbg_log("HDR progress %d percent, status %d", progress, status);
 
 			msg.id = MM_MESSAGE_CAMCORDER_HDR_PROGRESS;
 			msg.param.code = progress;
 			_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
-		} else if (gst_structure_has_name(message->structure, "camerasrc-FD")) {
+        } else if (gst_structure_has_name(gst_message_get_structure(message), "camerasrc-FD")) {
 			int i = 0;
-			const GValue *g_value = gst_structure_get_value(message->structure, "face-info");;
+            const GValue *g_value = gst_structure_get_value(gst_message_get_structure(message), "face-info");;
 			GstCameraControlFaceDetectInfo *fd_info = NULL;
 			MMCamFaceDetectInfo *cam_fd_info = NULL;
 
@@ -2711,8 +2711,6 @@ GstBusSyncReply _mmcamcorder_pipeline_bus_sync_callback(GstBus *bus, GstMessage 
 
 	sc = MMF_CAMCORDER_SUBCONTEXT(hcamcorder);
 	mmf_return_val_if_fail(sc, GST_BUS_PASS);
-
-	sc->error_code = MM_ERROR_NONE;
 
 	if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_ERROR) {
 		/* parse error message */
@@ -3015,6 +3013,12 @@ int _mmcamcorder_create_pipeline(MMHandleType handle, int type)
 	}
 #endif
 	_mmcam_dbg_log("ret[%x]", ret);
+
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("error : destroy pipeline");
+		_mmcamcorder_destroy_pipeline(handle, hcamcorder->type);
+	}
+
 	return ret;
 }
 

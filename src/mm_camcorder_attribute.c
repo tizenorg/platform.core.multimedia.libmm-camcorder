@@ -25,9 +25,9 @@
 =======================================================================================*/
 #include "mm_camcorder_internal.h"
 
-#include <gst/interfaces/colorbalance.h>
-#include <gst/interfaces/cameracontrol.h>
-#include <gst/interfaces/xoverlay.h>
+#include <gst/video/colorbalance.h>
+#include <gst/video/cameracontrol.h>
+#include <gst/video/videooverlay.h>
 
 /*-----------------------------------------------------------------------
 |    MACRO DEFINITIONS:							|
@@ -3214,7 +3214,7 @@ bool _mmcamcorder_commit_display_handle(MMHandleType handle, int attr_idx, const
 
 		if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "ximagesink")) {
 			_mmcam_dbg_log("Commit : Set XID[%x]", *(int*)(p_handle));
-			gst_x_overlay_set_xwindow_id(GST_X_OVERLAY(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst), *(int*)(p_handle));
+            gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst), *(int*)(p_handle));
 		} else if (!strcmp(videosink_name, "evasimagesink") ||
 		           !strcmp(videosink_name, "evaspixmapsink")) {
 			_mmcam_dbg_log("Commit : Set evas object [%p]", p_handle);
@@ -4060,8 +4060,8 @@ static bool __mmcamcorder_set_camera_resolution(MMHandleType handle, int width, 
 		}
 	}
 
-	caps = gst_caps_new_simple("video/x-raw-yuv",
-	                           "format", GST_TYPE_FOURCC, sc->fourcc,
+	caps = gst_caps_new_simple("video/x-raw",
+                               "format", G_TYPE_STRING, sc->format_name,
 	                           "width", G_TYPE_INT, width,
 	                           "height", G_TYPE_INT, height,
 	                           "framerate", GST_TYPE_FRACTION, fps, 1,

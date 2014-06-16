@@ -144,7 +144,7 @@ int _mmcamcorder_set_resize_property(MMHandleType handle, int capture_width, int
 /* Function for capture */
 int __mmcamcorder_set_exif_basic_info(MMHandleType handle, int image_width, int image_height);
 void __mmcamcorder_init_stillshot_info(MMHandleType handle);
-void __mmcamcorder_get_capture_data_from_buffer(MMCamcorderCaptureDataType *capture_data, int pixtype, GstBuffer *buffer);
+void __mmcamcorder_get_capture_data_from_buffer(MMCamcorderCaptureDataType *capture_data, int pixtype, GstSample *sample);
 void __mmcamcorder_release_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest);
 int __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCaptureDataType *original, MMCamcorderCaptureDataType *thumbnail);
 int __mmcamcorder_set_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest, MMCamcorderCaptureDataType *thumbnail);

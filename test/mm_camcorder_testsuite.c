@@ -43,7 +43,7 @@ when		who						what, where, why
 #include "../src/include/mm_camcorder.h"
 #include "../src/include/mm_camcorder_internal.h"
 #include "../src/include/mm_camcorder_util.h"
-#include <gst/interfaces/colorbalance.h>
+#include <gst/video/colorbalance.h>
 #include <mm_ta.h>
 
 /*-----------------------------------------------------------------------

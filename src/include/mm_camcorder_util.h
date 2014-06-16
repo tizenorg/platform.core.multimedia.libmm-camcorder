@@ -52,7 +52,7 @@ do { \
 	} else { \
 		item->object = G_OBJECT(x_pad); \
 		item->category = x_category; \
-		item->handler_id = gst_pad_add_buffer_probe(x_pad, G_CALLBACK(x_callback), x_hcamcorder); \
+        item->handler_id = gst_pad_add_probe(x_pad, GST_PAD_PROBE_TYPE_BUFFER, x_callback, x_hcamcorder, NULL); \
 		x_hcamcorder->buffer_probes = g_list_append(x_hcamcorder->buffer_probes, item); \
 		_mmcam_dbg_log("Adding buffer probe on [%s:%s] - [ID : %lu], [Category : %x] ", GST_DEBUG_PAD_NAME(item->object), item->handler_id, item->category); \
 	} \
@@ -70,7 +70,7 @@ do { \
 	} else { \
 		item->object =G_OBJECT(x_pad); \
 		item->category = x_category; \
-		item->handler_id = gst_pad_add_event_probe(x_pad, G_CALLBACK(x_callback), x_hcamcorder); \
+        item->handler_id = gst_pad_add_probe(x_pad, GST_PAD_PROBE_TYPE_EVENT_BOTH, x_callback, x_hcamcorder, NULL); \
 		x_hcamcorder->event_probes = g_list_append(x_hcamcorder->event_probes, item); \
 		_mmcam_dbg_log("Adding event probe on [%s:%s] - [ID : %lu], [Category : %x] ", GST_DEBUG_PAD_NAME(item->object), item->handler_id, item->category); \
 	} \
@@ -87,7 +87,7 @@ do { \
 	} else { \
 		item->object =G_OBJECT(x_pad); \
 		item->category = x_category; \
-		item->handler_id = gst_pad_add_data_probe(x_pad, G_CALLBACK(x_callback), x_hcamcorder); \
+        item->handler_id = gst_pad_add_probe(x_pad, GST_PAD_PROBE_TYPE_DATA_BOTH, x_callback, x_hcamcorder, NULL); \
 		x_hcamcorder->data_probes = g_list_append(x_hcamcorder->data_probes, item); \
 		_mmcam_dbg_log("Adding data probe on [%s:%s] - [ID : %lu], [Category : %x] ", GST_DEBUG_PAD_NAME(item->object), item->handler_id, item->category); \
 	} \
@@ -276,7 +276,7 @@ gboolean _mmcamcroder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 void _mmcamcroder_remove_message_all(MMHandleType handle);
 
 /* Pixel format */
-int _mmcamcorder_get_pixel_format(GstBuffer *buffer);
+int _mmcamcorder_get_pixel_format(GstCaps *pad);
 int _mmcamcorder_get_pixtype(unsigned int fourcc);
 unsigned int _mmcamcorder_get_fourcc(int pixtype, int codectype, int use_zero_copy_format);
 

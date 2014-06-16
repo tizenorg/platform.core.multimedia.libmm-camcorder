@@ -463,8 +463,6 @@ int mm_exif_mnote_set_add_entry (ExifData *exif, MnoteSamsungTag tag, int index,
 		return MM_ERROR_CAMCORDER_MNOTE_MALLOC;
 	}
 
-	exif_mnote_data_set_byte_order(md, (ExifByteOrder) exif_data_get_data_order(ed));
-
 	switch(tag){
 		case MNOTE_SAMSUNG_TAG_MNOTE_VERSION:
 			if(!exif_data_mnote_set_add_entry(md, MAKER_SAMSUNG, tag, EXIF_FORMAT_UNDEFINED, 4, index)){

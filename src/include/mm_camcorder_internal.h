@@ -38,6 +38,7 @@
 #include <mm_ta.h>
 #include <sndfile.h>
 #include <vconf.h>
+#include <gst/video/video-format.h>
 
 #include "mm_camcorder.h"
 #include "mm_debug.h"
@@ -574,7 +575,7 @@ typedef struct {
 	int pass_first_vframe;                  /**< When this value is bigger than zero, MSL won't drop video frame though "drop_vframe" is bigger then zero. */
 
 	/* INI information */
-	unsigned int fourcc;                    /**< Get fourcc value of camera INI file */
+	gchar format_name[sizeof(GST_VIDEO_FORMATS_ALL)]; /**< Get format value of camera INI file */
 	_MMCamcorderImageInfo *info_image;      /**< extra information for image capture */
 	_MMCamcorderVideoInfo *info_video;      /**< extra information for video recording */
 	_MMCamcorderAudioInfo *info_audio;      /**< extra information for audio recording */

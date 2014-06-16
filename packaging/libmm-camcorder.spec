@@ -1,6 +1,6 @@
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.7.11
+Version:    0.7.16
 Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
@@ -14,7 +14,7 @@ BuildRequires:  pkgconfig(avsystem)
 BuildRequires:  pkgconfig(libexif)
 BuildRequires:  pkgconfig(mmutil-imgp)
 BuildRequires:  pkgconfig(mm-log)
-BuildRequires:  pkgconfig(gstreamer-plugins-base-0.10)
+BuildRequires:  pkgconfig(gstreamer-plugins-base-1.0)
 BuildRequires:  pkgconfig(mm-ta)
 BuildRequires:  pkgconfig(sndfile)
 BuildRequires:  pkgconfig(mm-session)
