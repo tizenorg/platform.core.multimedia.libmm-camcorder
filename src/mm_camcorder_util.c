@@ -24,8 +24,10 @@
 =======================================================================================*/
 #include <stdio.h>
 #include <stdarg.h>
+#include <sys/stat.h>
 #include <camsrcjpegenc.h>
 #include <sys/vfs.h> /* struct statfs */
+#include <gst/video/video-info.h>
 
 #include "mm_camcorder_internal.h"
 #include "mm_camcorder_util.h"
@@ -388,7 +390,7 @@ void _mmcamcorder_remove_buffer_probe(MMHandleType handle, _MMCamcorderHandlerCa
 			{
 				_mmcam_dbg_log("Remove buffer probe on [%s:%s] - [ID : %lu], [Category : %x]", 
 						GST_DEBUG_PAD_NAME(item->object), item->handler_id,  item->category);
-				gst_pad_remove_buffer_probe(GST_PAD(item->object), item->handler_id);
+                gst_pad_remove_probe(GST_PAD(item->object), item->handler_id);
 			}
 			else
 			{
@@ -446,7 +448,7 @@ void _mmcamcorder_remove_event_probe(MMHandleType handle, _MMCamcorderHandlerCat
 			{
 				_mmcam_dbg_log("Remove event probe on [%s:%s] - [ID : %lu], [Category : %x]", 
 						GST_DEBUG_PAD_NAME(item->object), item->handler_id,  item->category);
-				gst_pad_remove_event_probe(GST_PAD(item->object), item->handler_id);
+                gst_pad_remove_probe(GST_PAD(item->object), item->handler_id);
 			}
 			else
 			{
@@ -504,7 +506,7 @@ void _mmcamcorder_remove_data_probe(MMHandleType handle, _MMCamcorderHandlerCate
 			{
 				_mmcam_dbg_log("Remove data probe on [%s:%s] - [ID : %lu], [Category : %x]", 
 						GST_DEBUG_PAD_NAME(item->object), item->handler_id,  item->category);
-				gst_pad_remove_data_probe(GST_PAD(item->object), item->handler_id);
+                gst_pad_remove_probe(GST_PAD(item->object), item->handler_id);
 			}
 			else
 			{
@@ -832,18 +834,16 @@ _mmcamcorder_err_trace_write( char *str_filename, char *func_name, int line_num,
 	fclose( f );
 }
 
-int
-_mmcamcorder_get_pixel_format(GstBuffer *buffer)
+int _mmcamcorder_get_pixel_format(GstCaps *caps)
 {
-	GstCaps *caps = NULL;
 	const GstStructure *structure;
 	const char *media_type;
+	GstVideoInfo media_info;
 	MMPixelFormatType type = 0;
 	unsigned int fourcc = 0;
 	
-	mmf_return_val_if_fail( buffer != NULL, MM_PIXEL_FORMAT_INVALID );
+    mmf_return_val_if_fail( caps != NULL, MM_PIXEL_FORMAT_INVALID );
 
-	caps = gst_buffer_get_caps (buffer);
 	structure = gst_caps_get_structure (caps, 0);
 	media_type = gst_structure_get_name (structure);
 
@@ -852,10 +852,12 @@ _mmcamcorder_get_pixel_format(GstBuffer *buffer)
 		_mmcam_dbg_log("It is jpeg.");
 		type = MM_PIXEL_FORMAT_ENCODED;
 	}
-	else if (!strcmp (media_type, "video/x-raw-yuv"))
+	else if (!strcmp (media_type, "video/x-raw")
+	        && gst_video_info_from_caps(&media_info, caps)
+	        && GST_VIDEO_INFO_IS_YUV(&media_info))
 	{
 		_mmcam_dbg_log("It is yuv.");
-		gst_structure_get_fourcc (structure, "format", &fourcc);
+		fourcc = gst_video_format_to_fourcc(GST_VIDEO_INFO_FORMAT(&media_info));
 		type = _mmcamcorder_get_pixtype(fourcc);
 	}
 	else
@@ -865,9 +867,6 @@ _mmcamcorder_get_pixel_format(GstBuffer *buffer)
 	}
 	
 	_mmcam_dbg_log( "Type [%d]", type );
-
-	gst_caps_unref( caps );
-	caps = NULL;
 
 	return type;
 }
@@ -1127,7 +1126,7 @@ gboolean _mmcamcorder_resize_frame(unsigned char *src_data, int src_width, int s
 
 	/* get length of resized image */
 	__ta__("        mm_util_get_image_size 2",
-	mm_ret = mm_util_get_image_size(input_format, *dst_width, *dst_height, dst_length);
+    mm_ret = mm_util_get_image_size(input_format, *dst_width, *dst_height, (unsigned int*)dst_length);
 	);
 	if (mm_ret != MM_ERROR_NONE) {
 		GST_ERROR("mm_util_get_image_size failed 0x%x", ret);
@@ -1144,7 +1143,7 @@ gboolean _mmcamcorder_resize_frame(unsigned char *src_data, int src_width, int s
 
 	__ta__("        mm_util_resize_image",
 	mm_ret = mm_util_resize_image(src_data, src_width, src_height, input_format,
-	                              dst_tmp_data, dst_width, dst_height);
+                                  dst_tmp_data, (unsigned int*)dst_width, (unsigned int*)dst_height);
 	);
 	if (mm_ret != MM_ERROR_NONE) {
 		GST_ERROR("mm_util_resize_image failed 0x%x", ret);

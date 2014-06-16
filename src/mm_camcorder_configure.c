@@ -177,7 +177,7 @@ static type_element _recordsink_element_default = {
  */
 static type_element _h263_element_default = {
 	"H263",
-	"ffenc_h263",
+	"avenc_h263",
 	NULL,
 	0,
 	NULL,
@@ -213,7 +213,7 @@ static type_element _h26l_element_default = {
  */
 static type_element _mpeg4_element_default = {
 	"MPEG4",
-	"ffenc_mpeg4",
+	"avenc_mpeg4",
 	NULL,
 	0,
 	NULL,
@@ -225,7 +225,7 @@ static type_element _mpeg4_element_default = {
  */
 static type_element _mpeg1_element_default = {
 	"MPEG1",
-	"ffenc_mpeg1video",
+	"avenc_mpeg1video",
 	NULL,
 	0,
 	NULL,
@@ -309,7 +309,7 @@ static type_element _mmf_element_default = {
  */
 static type_element _adpcm_element_default = {
 	"ADPCM",
-	"ffenc_adpcm_ima_qt",
+	"avenc_adpcm_ima_qt",
 	NULL,
 	0,
 	NULL,
@@ -510,7 +510,7 @@ static type_element _xpm_element_default = {
  */
 static type_element _3gp_element_default = {
 	"3GP",
-	"ffmux_3gp",
+	"avmux_3gp",
 	NULL,
 	0,
 	NULL,
@@ -522,7 +522,7 @@ static type_element _3gp_element_default = {
  */
 static type_element _amrmux_element_default = {
 	"AMR",
-	"ffmux_amr",
+	"avmux_amr",
 	NULL,
 	0,
 	NULL,
@@ -534,7 +534,7 @@ static type_element _amrmux_element_default = {
  */
 static type_element _mp4_element_default = {
 	"MP4",
-	"ffmux_mp4",
+	"avmux_mp4",
 	NULL,
 	0,
 	NULL,
@@ -642,7 +642,7 @@ static type_element _mid_element_default = {
  */
 static type_element _mmfmux_element_default = {
 	"MMF",
-	"ffmux_mmf",
+	"avmux_mmf",
 	NULL,
 	0,
 	NULL,

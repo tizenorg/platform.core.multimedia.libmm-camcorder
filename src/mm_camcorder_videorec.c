@@ -22,7 +22,7 @@
 /*=======================================================================================
 |  INCLUDE FILES									|
 =======================================================================================*/
-#include <gst/interfaces/cameracontrol.h>
+#include <gst/video/cameracontrol.h>
 #include "mm_camcorder_internal.h"
 #include "mm_camcorder_videorec.h"
 
@@ -45,14 +45,14 @@
 |    LOCAL FUNCTION PROTOTYPES:								|
 ---------------------------------------------------------------------------------------*/
 /* STATIC INTERNAL FUNCTION */
-static gboolean __mmcamcorder_audio_dataprobe_check(GstPad *pad, GstBuffer *buffer, gpointer u_data);
-static gboolean __mmcamcorder_video_dataprobe_record(GstPad *pad, GstBuffer *buffer, gpointer u_data);
-static gboolean __mmcamcorder_audioque_dataprobe(GstPad *pad, GstBuffer *buffer, gpointer u_data);
-static gboolean __mmcamcorder_video_dataprobe_audio_disable(GstPad *pad, GstBuffer *buffer, gpointer u_data);
-static gboolean __mmcamcorder_audio_dataprobe_audio_mute(GstPad *pad, GstBuffer *buffer, gpointer u_data);
+static GstPadProbeReturn __mmcamcorder_audio_dataprobe_check(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
+static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
+static GstPadProbeReturn __mmcamcorder_audioque_dataprobe(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
+static GstPadProbeReturn __mmcamcorder_video_dataprobe_audio_disable(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
+static GstPadProbeReturn __mmcamcorder_audio_dataprobe_audio_mute(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
 static gboolean __mmcamcorder_add_locationinfo(MMHandleType handle, int fileformat);
 static gboolean __mmcamcorder_add_locationinfo_mp4(MMHandleType handle);
-static gboolean __mmcamcorder_eventprobe_monitor(GstPad *pad, GstEvent *event, gpointer u_data);
+static GstPadProbeReturn __mmcamcorder_eventprobe_monitor(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
 
 /*=======================================================================================
 |  FUNCTION DEFINITIONS									|
@@ -436,9 +436,9 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 		if (_mmcamcorder_get_state((MMHandleType)hcamcorder) != MM_CAMCORDER_STATE_PAUSED) {
 			guint imax_size = 0;
 			guint imax_time = 0;
-
-			/* Play record start sound */
-			_mmcamcorder_sound_solo_play(handle, _MMCAMCORDER_FILEPATH_REC_START_SND, TRUE);
+			int ret_free_space = 0;
+			char *dir_name = NULL;
+			guint64 free_space = 0;
 
 			/* Recording */
 			_mmcam_dbg_log("Record Start");
@@ -449,10 +449,17 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "flush-cache", TRUE);
 			}
 
+			/* flush queue */
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", TRUE);
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", TRUE);
+
 			ret = _mmcamcorder_gst_set_state(handle, pipeline, GST_STATE_READY);
 			if (ret != MM_ERROR_NONE) {
 				goto _ERR_CAMCORDER_VIDEO_COMMAND;
 			}
+
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", FALSE);
 
 			_mmcamcorder_conf_get_value_int(hcamcorder->conf_main,
 			                                CONFIGURE_CATEGORY_MAIN_RECORD,
@@ -481,6 +488,29 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 				SAFE_FREE (err_name);
 				goto _ERR_CAMCORDER_VIDEO_COMMAND;
 			}
+
+			dir_name = g_path_get_dirname(temp_filename);
+			if (dir_name) {
+				ret_free_space = _mmcamcorder_get_freespace(dir_name, &free_space);
+
+				_mmcam_dbg_warn("current space for recording - %s : [%" G_GUINT64_FORMAT "]",
+				                dir_name, free_space);
+
+				g_free(dir_name);
+				dir_name = NULL;
+			} else {
+				_mmcam_dbg_err("failed to get directory name");
+				ret_free_space = -1;
+			}
+
+			if ((ret_free_space == -1) || free_space <= (_MMCAMCORDER_MINIMUM_SPACE<<1)) {
+				_mmcam_dbg_err("OUT of STORAGE [ret_free_space:%d or free space [%" G_GUINT64_FORMAT "] is smaller than [%d]",
+				               ret_free_space, free_space, (_MMCAMCORDER_MINIMUM_SPACE<<1));
+				return MM_ERROR_OUT_OF_STORAGE;
+			}
+
+			/* Play record start sound */
+			_mmcamcorder_sound_solo_play(handle, _MMCAMCORDER_FILEPATH_REC_START_SND, TRUE);
 
 			/* set max size */
 			if (imax_size <= 0) {
@@ -646,13 +676,18 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 			return MM_ERROR_CAMCORDER_CMD_IS_RUNNING;
 		}
 
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", TRUE);
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", TRUE);
+
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "hold-af-after-capturing", FALSE);
 
 		__ta__("        _MMCamcorder_CMD_CANCEL:GST_STATE_READY",
 		ret =_mmcamcorder_gst_set_state(handle, pipeline, GST_STATE_READY);
 		);
+
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", FALSE);
+
 		if (ret != MM_ERROR_NONE) {
 			goto _ERR_CAMCORDER_VIDEO_COMMAND;
 		}
@@ -754,7 +789,7 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 
 			video = gst_element_get_static_pad(sc->element[_MMCAMCORDER_ENCSINK_VENC].gst, "src");
 			gst_pad_push_event (video, gst_event_new_flush_start());
-			gst_pad_push_event (video, gst_event_new_flush_stop());
+            gst_pad_push_event (video, gst_event_new_flush_stop(TRUE));
 			ret = gst_pad_push_event (video, gst_event_new_eos());
 			_mmcam_dbg_err("Sending EOS video encoder src pad  : %d", ret);
 			gst_object_unref(video);
@@ -762,7 +797,7 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 			if (sc->audio_disable == FALSE) {
 				audio = gst_element_get_static_pad(sc->element[_MMCAMCORDER_ENCSINK_AENC].gst, "src");
 				gst_pad_push_event (audio, gst_event_new_flush_start());
-				gst_pad_push_event (audio, gst_event_new_flush_stop());
+                gst_pad_push_event (audio, gst_event_new_flush_stop(TRUE));
 				ret = gst_element_send_event(sc->element[_MMCAMCORDER_AUDIOSRC_SRC].gst, gst_event_new_eos());
 				_mmcam_dbg_err("Sending EOS audio encoder src pad  : %d", ret);
 				gst_object_unref(audio);
@@ -857,6 +892,7 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
 
 	/* remove blocking part */
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "block", FALSE);
+	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", TRUE);
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", TRUE);
 
 	mm_camcorder_get_attributes(handle, NULL,
@@ -872,6 +908,7 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
 	}
 
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
+	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", FALSE);
 
 	__ta__("        _MMCamcorder_CMD_COMMIT:__mmcamcorder_remove_recorder_pipeline",
 	ret = _mmcamcorder_remove_recorder_pipeline((MMHandleType)hcamcorder);
@@ -910,13 +947,13 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
 	_mmcam_dbg_log("Flush EOS event");
 	pad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "sink");
 	gst_pad_push_event(pad, gst_event_new_flush_start());
-	gst_pad_push_event(pad, gst_event_new_flush_stop());
+    gst_pad_push_event(pad, gst_event_new_flush_stop(TRUE));
 	gst_object_unref(pad);
 	pad = NULL;
 
 	pad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "src");
 	gst_pad_push_event(pad, gst_event_new_flush_start());
-	gst_pad_push_event(pad, gst_event_new_flush_stop());
+    gst_pad_push_event(pad, gst_event_new_flush_stop(TRUE));
 	gst_object_unref(pad);
 	pad = NULL;
 
@@ -989,8 +1026,9 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
  * @remarks
  * @see
  */
-static gboolean __mmcamcorder_eventprobe_monitor(GstPad *pad, GstEvent *event, gpointer u_data)
+static GstPadProbeReturn __mmcamcorder_eventprobe_monitor(GstPad *pad, GstPadProbeInfo *info, gpointer u_data)
 {
+    GstEvent *event = GST_PAD_PROBE_INFO_EVENT(info);
 	switch (GST_EVENT_TYPE(event)) {
 	case GST_EVENT_UNKNOWN:
 	/* upstream events */
@@ -999,7 +1037,7 @@ static gboolean __mmcamcorder_eventprobe_monitor(GstPad *pad, GstEvent *event, g
 	case GST_EVENT_NAVIGATION:
 	case GST_EVENT_LATENCY:
 	/* downstream serialized events */
-	case GST_EVENT_NEWSEGMENT :
+    case GST_EVENT_SEGMENT :
 	case GST_EVENT_TAG:
 	case GST_EVENT_BUFFERSIZE:
 		_mmcam_dbg_log("[%s:%s] gots %s", GST_DEBUG_PAD_NAME(pad), GST_EVENT_TYPE_NAME(event));
@@ -1017,44 +1055,51 @@ static gboolean __mmcamcorder_eventprobe_monitor(GstPad *pad, GstEvent *event, g
 		break;
 	}
 
-	return TRUE;
+    return GST_PAD_PROBE_OK;
 }
 
 
-static gboolean __mmcamcorder_audio_dataprobe_check(GstPad *pad, GstBuffer *buffer, gpointer u_data)
+static GstPadProbeReturn __mmcamcorder_audio_dataprobe_check(GstPad *pad, GstPadProbeInfo *info, gpointer u_data)
 {
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER(info);
+    GstMapInfo mapinfo;
+    guint64 size;
+    gst_buffer_map(buffer, &mapinfo, GST_MAP_READ);
+    size = mapinfo.size;
+    gst_buffer_unmap(buffer, &mapinfo);
+
 	_MMCamcorderSubContext *sc = NULL;
-	_MMCamcorderVideoInfo *info = NULL;
+    _MMCamcorderVideoInfo *videoinfo = NULL;
 
 	mmf_return_val_if_fail(hcamcorder, TRUE);
 	mmf_return_val_if_fail(buffer, FALSE);
 	sc = MMF_CAMCORDER_SUBCONTEXT(hcamcorder);
 
 	mmf_return_val_if_fail(sc && sc->info_video, TRUE);
-	info = sc->info_video;
+    videoinfo = sc->info_video;
 
 	/*_mmcam_dbg_err("[%" GST_TIME_FORMAT "]", GST_TIME_ARGS(GST_BUFFER_TIMESTAMP(buffer)));*/
 
-	if (info->audio_frame_count == 0) {
-		info->filesize += (guint64)GST_BUFFER_SIZE(buffer);
-		info->audio_frame_count++;
-		return TRUE;
+    if (videoinfo->audio_frame_count == 0) {
+        videoinfo->filesize += size;
+        videoinfo->audio_frame_count++;
+        return GST_PAD_PROBE_OK;
 	}
 
 	if (sc->ferror_send || sc->isMaxsizePausing) {
 		_mmcam_dbg_warn("Recording is paused, drop frames");
-		return FALSE;
+        return GST_PAD_PROBE_DROP;
 	}
 
-	info->filesize += (guint64)GST_BUFFER_SIZE(buffer);
-	info->audio_frame_count++;
+    videoinfo->filesize += size;
+    videoinfo->audio_frame_count++;
 
-	return TRUE;
+    return GST_PAD_PROBE_OK;
 }
 
 
-static gboolean __mmcamcorder_video_dataprobe_record(GstPad *pad, GstBuffer *buffer, gpointer u_data)
+static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPadProbeInfo *info, gpointer u_data)
 {
 	static int count = 0;
 	gint ret = 0;
@@ -1065,37 +1110,40 @@ static gboolean __mmcamcorder_video_dataprobe_record(GstPad *pad, GstBuffer *buf
 	guint64 trailer_size = 0;
 	guint64 queued_buffer = 0;
 	char *filename = NULL;
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER(info);
+    GstMapInfo mapinfo;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
 	_MMCamcorderMsgItem msg;
 	_MMCamcorderSubContext *sc = NULL;
-	_MMCamcorderVideoInfo *info = NULL;
+    _MMCamcorderVideoInfo *videoinfo = NULL;
 
 	mmf_return_val_if_fail(hcamcorder, TRUE);
 	mmf_return_val_if_fail(buffer, FALSE);
 
 	sc = MMF_CAMCORDER_SUBCONTEXT(hcamcorder);
 	mmf_return_val_if_fail(sc && sc->info_video, TRUE);
-	info = sc->info_video;
+    videoinfo = sc->info_video;
 
 	/*_mmcam_dbg_log("[%" GST_TIME_FORMAT "]", GST_TIME_ARGS(GST_BUFFER_TIMESTAMP(buffer)));*/
 	if (sc->ferror_send) {
 		_mmcam_dbg_warn("file write error, drop frames");
-		return FALSE;
+        return GST_PAD_PROBE_DROP;
 	}
 
-	info->video_frame_count++;
-	if (info->video_frame_count <= (guint64)_MMCAMCORDER_MINIMUM_FRAME) {
+    gst_buffer_map(buffer, &mapinfo, GST_MAP_READ);
+    buffer_size = mapinfo.size;
+    gst_buffer_unmap(buffer, &mapinfo);
+    videoinfo->video_frame_count++;
+    if (videoinfo->video_frame_count <= (guint64)_MMCAMCORDER_MINIMUM_FRAME) {
 		/* _mmcam_dbg_log("Pass minimum frame: info->video_frame_count: %" G_GUINT64_FORMAT " ",
 		                info->video_frame_count); */
-		info->filesize += (guint64)GST_BUFFER_SIZE(buffer);
-		return TRUE;
+        videoinfo->filesize += buffer_size;
+        return GST_PAD_PROBE_OK;
 	}
 
-	buffer_size = GST_BUFFER_SIZE(buffer);
-
 	/* get trailer size */
-	if (info->fileformat == MM_FILE_FORMAT_3GP || info->fileformat == MM_FILE_FORMAT_MP4) {
+    if (videoinfo->fileformat == MM_FILE_FORMAT_3GP || videoinfo->fileformat == MM_FILE_FORMAT_MP4) {
 		MMCAMCORDER_G_OBJECT_GET(sc->element[_MMCAMCORDER_ENCSINK_MUX].gst, "expected-trailer-size", &trailer_size);
 	} else {
 		trailer_size = 0;
@@ -1104,7 +1152,7 @@ static gboolean __mmcamcorder_video_dataprobe_record(GstPad *pad, GstBuffer *buf
 	/* to minimizing free space check overhead */
 	count = count % _MMCAMCORDER_FREE_SPACE_CHECK_INTERVAL;
 	if (count++ == 0) {
-		filename = info->filename;
+        filename = videoinfo->filename;
 		ret = _mmcamcorder_get_freespace(filename, &free_space);
 
 		/*_mmcam_dbg_log("check free space for recording");*/
@@ -1126,7 +1174,7 @@ static gboolean __mmcamcorder_video_dataprobe_record(GstPad *pad, GstBuffer *buf
 				sc->ferror_count++;
 			}
 
-			return FALSE; /* skip this buffer */
+            return GST_PAD_PROBE_REMOVE; /* skip this buffer */
 			break;
 		default: /* succeeded to get free space */
 			/* check free space for recording */
@@ -1155,21 +1203,21 @@ static gboolean __mmcamcorder_video_dataprobe_record(GstPad *pad, GstBuffer *buf
 					_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
 				}
 
-				return FALSE;
+                return GST_PAD_PROBE_DROP;
 			}
 			break;
 		}
 	}
 
 	/* check max size of recorded file */
-	if (info->max_size > 0 &&
-	    info->max_size < info->filesize + buffer_size + trailer_size + _MMCAMCORDER_MMS_MARGIN_SPACE) {
+    if (videoinfo->max_size > 0 &&
+        videoinfo->max_size < videoinfo->filesize + buffer_size + trailer_size + _MMCAMCORDER_MMS_MARGIN_SPACE) {
 		GstState pipeline_state = GST_STATE_VOID_PENDING;
 		GstElement *pipeline = sc->element[_MMCAMCORDER_MAIN_PIPE].gst;
 		_mmcam_dbg_warn("Max size!!! Recording is paused.");
 		_mmcam_dbg_warn("Max size : [%" G_GUINT64_FORMAT "], current file size : [%" G_GUINT64_FORMAT "]," \
 		                " buffer size : [%" G_GUINT64_FORMAT "], trailer size : [%" G_GUINT64_FORMAT "]",
-		                info->max_size, info->filesize, buffer_size, trailer_size);
+                        videoinfo->max_size, videoinfo->filesize, buffer_size, trailer_size);
 
 		if (!sc->isMaxsizePausing) {
 			gst_element_get_state(pipeline, &pipeline_state, NULL, -1) ;
@@ -1182,18 +1230,18 @@ static gboolean __mmcamcorder_video_dataprobe_record(GstPad *pad, GstBuffer *buf
 			_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
 		}
 
-		return FALSE;
+        return GST_PAD_PROBE_DROP;
 	}
 
-	info->filesize += (guint64)buffer_size;
+    videoinfo->filesize += buffer_size;
 
-	_mmcam_dbg_log("filesize %lld Byte, ", info->filesize);
+    _mmcam_dbg_log("filesize %lld Byte, ", videoinfo->filesize);
 
-	return TRUE;
+    return GST_PAD_PROBE_OK;
 }
 
 
-static gboolean __mmcamcorder_video_dataprobe_audio_disable(GstPad *pad, GstBuffer *buffer, gpointer u_data)
+static GstPadProbeReturn __mmcamcorder_video_dataprobe_audio_disable(GstPad *pad, GstPadProbeInfo *info, gpointer u_data)
 {
 	guint64 trailer_size = 0;
 	guint64 rec_pipe_time = 0;
@@ -1204,7 +1252,9 @@ static gboolean __mmcamcorder_video_dataprobe_audio_disable(GstPad *pad, GstBuff
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
 	_MMCamcorderMsgItem msg;
 	_MMCamcorderSubContext *sc = NULL;
-	_MMCamcorderVideoInfo *info = NULL;
+    _MMCamcorderVideoInfo *videoinfo = NULL;
+
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER(info);
 
 	mmf_return_val_if_fail(buffer, FALSE);
 	mmf_return_val_if_fail(hcamcorder, TRUE);
@@ -1213,22 +1263,22 @@ static gboolean __mmcamcorder_video_dataprobe_audio_disable(GstPad *pad, GstBuff
 	mmf_return_val_if_fail(sc, TRUE);
 	mmf_return_val_if_fail(sc->info_video, TRUE);
 
-	info = sc->info_video;
+    videoinfo = sc->info_video;
 
 	b_time = GST_BUFFER_TIMESTAMP(buffer);
 
 	rec_pipe_time = GST_TIME_AS_MSECONDS(b_time);
 
-	if (info->fileformat == MM_FILE_FORMAT_3GP || info->fileformat == MM_FILE_FORMAT_MP4) {
+    if (videoinfo->fileformat == MM_FILE_FORMAT_3GP || videoinfo->fileformat == MM_FILE_FORMAT_MP4) {
 		MMCAMCORDER_G_OBJECT_GET(sc->element[_MMCAMCORDER_ENCSINK_MUX].gst, "expected-trailer-size", &trailer_size);
 	} else {
 		trailer_size = 0;
 	}
 
 	/* check max time */
-	if (info->max_time > 0 && rec_pipe_time > info->max_time) {
+    if (videoinfo->max_time > 0 && rec_pipe_time > videoinfo->max_time) {
 		_mmcam_dbg_warn("Current time : [%" G_GUINT64_FORMAT "], Maximum time : [%" G_GUINT64_FORMAT "]", \
-		                rec_pipe_time, info->max_time);
+                        rec_pipe_time, videoinfo->max_time);
 
 		if (!sc->isMaxtimePausing) {
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "block", TRUE);
@@ -1237,7 +1287,7 @@ static gboolean __mmcamcorder_video_dataprobe_audio_disable(GstPad *pad, GstBuff
 
 			msg.id = MM_MESSAGE_CAMCORDER_RECORDING_STATUS;
 			msg.param.recording_status.elapsed = (unsigned long long)rec_pipe_time;
-			msg.param.recording_status.filesize = (unsigned long long)((info->filesize + trailer_size) >> 10);
+            msg.param.recording_status.filesize = (unsigned long long)((videoinfo->filesize + trailer_size) >> 10);
 			msg.param.recording_status.remained_time = 0;
 			_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
 
@@ -1245,37 +1295,36 @@ static gboolean __mmcamcorder_video_dataprobe_audio_disable(GstPad *pad, GstBuff
 			_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
 		}
 
-		return FALSE;
+        return GST_PAD_PROBE_DROP;
 	}
 
 	/* calculate remained time can be recorded */
-	if (info->max_time > 0 && info->max_time < (remained_time + rec_pipe_time)) {
-		remained_time = info->max_time - rec_pipe_time;
-	} else if (info->max_size > 0) {
-		long double max_size = (long double)info->max_size;
-		long double current_size = (long double)(info->filesize + trailer_size);
+    if (videoinfo->max_time > 0 && videoinfo->max_time < (remained_time + rec_pipe_time)) {
+        remained_time = videoinfo->max_time - rec_pipe_time;
+    } else if (videoinfo->max_size > 0) {
+        long double max_size = (long double)videoinfo->max_size;
+        long double current_size = (long double)(videoinfo->filesize + trailer_size);
 
 		remained_time = (unsigned int)((long double)rec_pipe_time * (max_size/current_size)) - rec_pipe_time;
 	}
 
 	msg.id = MM_MESSAGE_CAMCORDER_RECORDING_STATUS;
 	msg.param.recording_status.elapsed = (unsigned long long)rec_pipe_time;
-	msg.param.recording_status.filesize = (unsigned long long)((info->filesize + trailer_size) >> 10);
+    msg.param.recording_status.filesize = (unsigned long long)((videoinfo->filesize + trailer_size) >> 10);
 	msg.param.recording_status.remained_time = remained_time;
 	_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
 
 	_mmcam_dbg_log("time [%" GST_TIME_FORMAT "], size [%d]",
 	               GST_TIME_ARGS(rec_pipe_time), msg.param.recording_status.filesize);
 
-	if (info->record_timestamp_ratio != _MMCAMCORDER_DEFAULT_RECORDING_MOTION_RATE) {
-		GST_BUFFER_TIMESTAMP(buffer) = b_time * (info->record_timestamp_ratio);
+    if (videoinfo->record_timestamp_ratio != _MMCAMCORDER_DEFAULT_RECORDING_MOTION_RATE) {
+        GST_BUFFER_TIMESTAMP(buffer) = b_time * (videoinfo->record_timestamp_ratio);
 	}
 
-	return TRUE;
+    return GST_PAD_PROBE_OK;
 }
 
-
-static gboolean __mmcamcorder_audioque_dataprobe(GstPad *pad, GstBuffer *buffer, gpointer u_data)
+static GstPadProbeReturn __mmcamcorder_audioque_dataprobe(GstPad *pad, GstPadProbeInfo *info, gpointer u_data)
 {
 	_MMCamcorderMsgItem msg;
 	guint64 trailer_size = 0;
@@ -1283,8 +1332,9 @@ static gboolean __mmcamcorder_audioque_dataprobe(GstPad *pad, GstBuffer *buffer,
 	_MMCamcorderSubContext *sc = NULL;
 	GstElement *pipeline = NULL;
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
-	_MMCamcorderVideoInfo *info = NULL;
+    _MMCamcorderVideoInfo *videoinfo = NULL;
 	unsigned int remained_time = 0;
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER(info);
 
 	mmf_return_val_if_fail(buffer, FALSE);
 	mmf_return_val_if_fail(hcamcorder, TRUE);
@@ -1294,35 +1344,35 @@ static gboolean __mmcamcorder_audioque_dataprobe(GstPad *pad, GstBuffer *buffer,
 	mmf_return_val_if_fail(sc->info_video, TRUE);
 	mmf_return_val_if_fail(sc->element, TRUE);
 
-	info = sc->info_video;
+    videoinfo = sc->info_video;
 	pipeline = sc->element[_MMCAMCORDER_MAIN_PIPE].gst;
 
 	if (!GST_CLOCK_TIME_IS_VALID(GST_BUFFER_TIMESTAMP(buffer))) {
 		_mmcam_dbg_err( "Buffer timestamp is invalid, check it");
-		return TRUE;
+        return GST_PAD_PROBE_OK;
 	}
 
 	rec_pipe_time = GST_TIME_AS_MSECONDS(GST_BUFFER_TIMESTAMP(buffer));
 
-	if (info->fileformat == MM_FILE_FORMAT_3GP || info->fileformat == MM_FILE_FORMAT_MP4) {
+    if (videoinfo->fileformat == MM_FILE_FORMAT_3GP || videoinfo->fileformat == MM_FILE_FORMAT_MP4) {
 		MMCAMCORDER_G_OBJECT_GET(sc->element[_MMCAMCORDER_ENCSINK_MUX].gst, "expected-trailer-size", &trailer_size);
 	} else {
 		trailer_size = 0;
 	}
 
 	/* calculate remained time can be recorded */
-	if (info->max_time > 0 && info->max_time < (remained_time + rec_pipe_time)) {
-		remained_time = info->max_time - rec_pipe_time;
-	} else if (info->max_size > 0) {
-		long double max_size = (long double)info->max_size;
-		long double current_size = (long double)(info->filesize + trailer_size);
+    if (videoinfo->max_time > 0 && videoinfo->max_time < (remained_time + rec_pipe_time)) {
+        remained_time = videoinfo->max_time - rec_pipe_time;
+    } else if (videoinfo->max_size > 0) {
+        long double max_size = (long double)videoinfo->max_size;
+        long double current_size = (long double)(videoinfo->filesize + trailer_size);
 
 		remained_time = (unsigned long long)((long double)rec_pipe_time * (max_size/current_size)) - rec_pipe_time;
 	}
 
-	if (info->max_time > 0 && rec_pipe_time > info->max_time) {
+    if (videoinfo->max_time > 0 && rec_pipe_time > videoinfo->max_time) {
 		_mmcam_dbg_warn("Current time : [%" G_GUINT64_FORMAT "], Maximum time : [%" G_GUINT64_FORMAT "]", \
-		                rec_pipe_time, info->max_time);
+                        rec_pipe_time, videoinfo->max_time);
 
 		if (!sc->isMaxtimePausing) {
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "block", TRUE);
@@ -1331,7 +1381,7 @@ static gboolean __mmcamcorder_audioque_dataprobe(GstPad *pad, GstBuffer *buffer,
 
 			msg.id = MM_MESSAGE_CAMCORDER_RECORDING_STATUS;
 			msg.param.recording_status.elapsed = (unsigned long long)rec_pipe_time;
-			msg.param.recording_status.filesize = (unsigned long long)((info->filesize + trailer_size) >> 10);
+            msg.param.recording_status.filesize = (unsigned long long)((videoinfo->filesize + trailer_size) >> 10);
 			msg.param.recording_status.remained_time = 0;
 			_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
 
@@ -1339,23 +1389,23 @@ static gboolean __mmcamcorder_audioque_dataprobe(GstPad *pad, GstBuffer *buffer,
 			_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
 		}
 
-		return FALSE;
+        return GST_PAD_PROBE_DROP;
 	}
 
 	msg.id = MM_MESSAGE_CAMCORDER_RECORDING_STATUS;
 	msg.param.recording_status.elapsed = (unsigned long long)rec_pipe_time;
-	msg.param.recording_status.filesize = (unsigned long long)((info->filesize + trailer_size) >> 10);
+    msg.param.recording_status.filesize = (unsigned long long)((videoinfo->filesize + trailer_size) >> 10);
 	msg.param.recording_status.remained_time = remained_time;
 	_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
 
 	_mmcam_dbg_log("audio data probe :: time [%" GST_TIME_FORMAT "], size [%lld KB]",
 	               GST_TIME_ARGS(rec_pipe_time), msg.param.recording_status.filesize);
 
-	return TRUE;
+    return GST_PAD_PROBE_OK;
 }
 
 
-static gboolean __mmcamcorder_audio_dataprobe_audio_mute(GstPad *pad, GstBuffer *buffer, gpointer u_data)
+static GstPadProbeReturn __mmcamcorder_audio_dataprobe_audio_mute(GstPad *pad, GstPadProbeInfo *info, gpointer u_data)
 {
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
 	double volume = 0.0;
@@ -1363,6 +1413,8 @@ static gboolean __mmcamcorder_audio_dataprobe_audio_mute(GstPad *pad, GstBuffer 
 	int channel = 0;
 	int err = MM_ERROR_UNKNOWN;
 	char *err_name = NULL;
+    GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER(info);
+    GstMapInfo mapinfo = GST_MAP_INFO_INIT;
 
 	mmf_return_val_if_fail(buffer, FALSE);
 	mmf_return_val_if_fail(hcamcorder, FALSE);
@@ -1381,25 +1433,29 @@ static gboolean __mmcamcorder_audio_dataprobe_audio_mute(GstPad *pad, GstBuffer 
 
 	/* Set audio stream NULL */
 	if (volume == 0.0) {
-		memset(GST_BUFFER_DATA(buffer), 0, GST_BUFFER_SIZE(buffer));
+        gst_buffer_map(buffer, &mapinfo, GST_MAP_WRITE);
+        memset(mapinfo.data, 0, mapinfo.size);
+        gst_buffer_unmap(buffer, &mapinfo);
 	}
 
 	/* CALL audio stream callback */
-	if (hcamcorder->astream_cb && buffer && GST_BUFFER_DATA(buffer)) {
+    gst_buffer_map(buffer, &mapinfo, GST_MAP_READ);
+    if (hcamcorder->astream_cb && buffer && mapinfo.data && mapinfo.size > 0) {
 		MMCamcorderAudioStreamDataType stream;
 
 		if (_mmcamcorder_get_state((MMHandleType)hcamcorder) < MM_CAMCORDER_STATE_PREPARE) {
 			_mmcam_dbg_warn("Not ready for stream callback");
-			return TRUE;
+            gst_buffer_unmap(buffer, &mapinfo);
+            return GST_PAD_PROBE_OK;
 		}
 
 		/*_mmcam_dbg_log("Call video steramCb, data[%p], Width[%d],Height[%d], Format[%d]",
 		               GST_BUFFER_DATA(buffer), width, height, format);*/
 
-		stream.data = (void *)GST_BUFFER_DATA(buffer);
+        stream.data = (void *)mapinfo.data;
 		stream.format = format;
 		stream.channel = channel;
-		stream.length = GST_BUFFER_SIZE(buffer);
+        stream.length = mapinfo.size;
 		stream.timestamp = (unsigned int)(GST_BUFFER_TIMESTAMP(buffer)/1000000); /* nano -> milli second */
 
 		_MMCAMCORDER_LOCK_ASTREAM_CALLBACK(hcamcorder);
@@ -1410,8 +1466,9 @@ static gboolean __mmcamcorder_audio_dataprobe_audio_mute(GstPad *pad, GstBuffer 
 
 		_MMCAMCORDER_UNLOCK_ASTREAM_CALLBACK(hcamcorder);
 	}
+    gst_buffer_unmap(buffer, &mapinfo);
 
-	return TRUE;
+    return GST_PAD_PROBE_OK;
 }
 
 
