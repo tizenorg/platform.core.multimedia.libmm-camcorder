@@ -1538,6 +1538,8 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 		/* attribute order check. This should be same. */
 		if (idx != cam_attrs_const_info[idx].attrid) {
 			_mmcam_dbg_err("Please check attributes order. Is the idx same with enum val?");
+			free(attrs_const_info);
+	        attrs_const_info = NULL;
 			return 0;
 		}
 
