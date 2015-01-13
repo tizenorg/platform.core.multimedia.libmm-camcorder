@@ -96,7 +96,7 @@ typedef struct {
 /*=======================================================================================
 | GLOBAL FUNCTION PROTOTYPES								|
 ========================================================================================*/
-/* create bin */
+/* create pipeline */
 /**
  * This function creates bin of video source.
  * Basically, main pipeline of camcorder is composed of several bin(a bundle
@@ -108,7 +108,7 @@ typedef struct {
  * @remarks
  * @see		__mmcamcorder_create_preview_pipeline()
  */
-int _mmcamcorder_create_videosrc_bin(MMHandleType handle);
+int _mmcamcorder_create_preview_elements(MMHandleType handle);
 
 /**
  * This function creates bin of audio source.
@@ -124,19 +124,6 @@ int _mmcamcorder_create_videosrc_bin(MMHandleType handle);
 int _mmcamcorder_create_audiosrc_bin(MMHandleType handle);
 
 /**
- * This function creates bin of video sink.
- * Basically, main pipeline of camcorder is composed of several bin(a bundle
- *  of elements). Each bin operates its own function. This bin has a roll
- * transferring video data to frame buffer.
- *
- * @param[in]	handle		Handle of camcorder context.
- * @return	This function returns MM_ERROR_NONE on success, or the other values on error.
- * @remarks
- * @see		__mmcamcorder_create_preview_pipeline()
- */
-int _mmcamcorder_create_videosink_bin(MMHandleType handle);
-
-/**
  * This function creates outputsink bin.
  *
  * @param[in]	handle		Handle of camcorder context.
@@ -146,19 +133,6 @@ int _mmcamcorder_create_videosink_bin(MMHandleType handle);
  * @see		__mmcamcorder_create_preview_pipeline()
  */
 int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebinProfile profile);
-
-/**
- * This function creates bin of still shot sink.
- * Basically, main pipeline of camcorder is composed of several bin(a bundle
- *  of elements). Each bin operates its own function. This bin has a roll
- * writting image file with video stream.
- *
- * @param[in]	handle		Handle of camcorder context.
- * @return	This function returns MM_ERROR_NONE on success, or the other values on error.
- * @remarks
- * @see		__mmcamcorder_create_preview_pipeline()
- */
-int _mmcamcorder_create_stillshotsink_bin(MMHandleType handle);
 
 /**
  * This function creates main pipeline of camcorder.
@@ -176,21 +150,24 @@ int _mmcamcorder_create_preview_pipeline(MMHandleType handle);
 
 /* plug-in related */
 void _mmcamcorder_negosig_handler(GstElement *videosrc, MMHandleType handle);
+void _mmcamcorder_ready_to_encode_callback(GstElement *element, guint size, gpointer handle);
 
 /* etc */
 int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element *VideosinkElement);
 int _mmcamcorder_vframe_stablize(MMHandleType handle);
 gboolean _mmcamcorder_get_device_info(MMHandleType handle);
 int _mmcamcorder_get_eos_message(MMHandleType handle);
-void _mmcamcorder_remove_element_handle(MMHandleType handle, int first_elem, int last_elem);
+void _mmcamcorder_remove_element_handle(MMHandleType handle, void *element, int first_elem, int last_elem);
 int _mmcamcorder_check_audiocodec_fileformat_compatibility(MMHandleType handle);
 int _mmcamcorder_check_videocodec_fileformat_compatibility(MMHandleType handle);
 bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate);
 bool _mmcamcorder_set_display_flip(MMHandleType handle, int display_flip);
 bool _mmcamcorder_set_videosrc_rotation(MMHandleType handle, int videosrc_rotate);
+bool _mmcamcorder_set_videosrc_caps(MMHandleType handle, unsigned int fourcc, int width, int height, int fps, int rotate);
 bool _mmcamcorder_set_videosrc_flip(MMHandleType handle, int viderosrc_flip);
 bool _mmcamcorder_set_videosrc_anti_shake(MMHandleType handle, int anti_shake);
 bool _mmcamcorder_set_videosrc_stabilization(MMHandleType handle, int stabilization);
+bool _mmcamcorder_set_camera_resolution(MMHandleType handle, int width, int height);
 
 #ifdef __cplusplus
 }
