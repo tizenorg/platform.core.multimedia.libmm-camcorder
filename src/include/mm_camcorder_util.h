@@ -25,6 +25,9 @@
 /*=======================================================================================
 | INCLUDE FILES										|
 ========================================================================================*/
+#include <camsrcjpegenc.h>
+#include <linux/magic.h>
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,7 +55,7 @@ do { \
 	} else { \
 		item->object = G_OBJECT(x_pad); \
 		item->category = x_category; \
-        item->handler_id = gst_pad_add_probe(x_pad, GST_PAD_PROBE_TYPE_BUFFER, x_callback, x_hcamcorder, NULL); \
+		item->handler_id = gst_pad_add_probe(x_pad, GST_PAD_PROBE_TYPE_BUFFER, x_callback, x_hcamcorder, NULL); \
 		x_hcamcorder->buffer_probes = g_list_append(x_hcamcorder->buffer_probes, item); \
 		_mmcam_dbg_log("Adding buffer probe on [%s:%s] - [ID : %lu], [Category : %x] ", GST_DEBUG_PAD_NAME(item->object), item->handler_id, item->category); \
 	} \
@@ -70,26 +73,9 @@ do { \
 	} else { \
 		item->object =G_OBJECT(x_pad); \
 		item->category = x_category; \
-        item->handler_id = gst_pad_add_probe(x_pad, GST_PAD_PROBE_TYPE_EVENT_BOTH, x_callback, x_hcamcorder, NULL); \
+		item->handler_id = gst_pad_add_probe(x_pad, GST_PAD_PROBE_TYPE_EVENT_BOTH, x_callback, x_hcamcorder, NULL); \
 		x_hcamcorder->event_probes = g_list_append(x_hcamcorder->event_probes, item); \
 		_mmcam_dbg_log("Adding event probe on [%s:%s] - [ID : %lu], [Category : %x] ", GST_DEBUG_PAD_NAME(item->object), item->handler_id, item->category); \
-	} \
-} while (0);
-
-#define MMCAMCORDER_ADD_DATA_PROBE(x_pad, x_category, x_callback, x_hcamcorder) \
-do { \
-	MMCamcorderHandlerItem *item = NULL; \
-	item = (MMCamcorderHandlerItem *) g_malloc(sizeof(MMCamcorderHandlerItem)); \
-	if (!item) { \
-		_mmcam_dbg_err("Cannot connect buffer probe [malloc fail] \n"); \
-	} else if (x_category == 0 || !(x_category & _MMCAMCORDER_HANDLER_CATEGORY_ALL)) { \
-		_mmcam_dbg_err("Invalid handler category : %x \n", x_category); \
-	} else { \
-		item->object =G_OBJECT(x_pad); \
-		item->category = x_category; \
-        item->handler_id = gst_pad_add_probe(x_pad, GST_PAD_PROBE_TYPE_DATA_BOTH, x_callback, x_hcamcorder, NULL); \
-		x_hcamcorder->data_probes = g_list_append(x_hcamcorder->data_probes, item); \
-		_mmcam_dbg_log("Adding data probe on [%s:%s] - [ID : %lu], [Category : %x] ", GST_DEBUG_PAD_NAME(item->object), item->handler_id, item->category); \
 	} \
 } while (0);
 
@@ -196,6 +182,7 @@ typedef struct {
 	MMHandleType handle;		/**< handle */
 	int id;				/**< message id */
 	MMMessageParamType param;	/**< message parameter */
+	pthread_mutex_t lock;		/**< mutex for item */
 } _MMCamcorderMsgItem;
 
 /**
@@ -249,11 +236,23 @@ typedef struct
 	int __dummy2;
 	/* arbitrary data */
 	int data[16];
+	/* dmabuf or ion fd */
+	int fd[SCMN_IMGB_MAX_PLANE];
+	/* flag for buffer share */
+	int buf_share_method;
+	/* Y plane size */
+	int y_size;
+	/* UV plane size */
+	int uv_size;
+	/* Tizen buffer object of each image plane */
+	void *bo[SCMN_IMGB_MAX_PLANE];
 } SCMN_IMGB;
 
 /*=======================================================================================
 | CONSTANT DEFINITIONS									|
 ========================================================================================*/
+#define FAT32_FILE_SYSTEM_MAX_SIZE              (4294967295UL)     /* 4 GigaByte - 1 byte */
+#define NANO_SEC_PER_MILI_SEC                   1000000
 #define _MMCAMCORDER_HANDLER_CATEGORY_ALL \
 	(_MMCAMCORDER_HANDLER_PREVIEW | _MMCAMCORDER_HANDLER_VIDEOREC |_MMCAMCORDER_HANDLER_STILLSHOT | _MMCAMCORDER_HANDLER_AUDIOREC)
 
@@ -262,8 +261,8 @@ typedef struct
 ========================================================================================*/
 /* GStreamer */
 void _mmcamcorder_remove_buffer_probe(MMHandleType handle, _MMCamcorderHandlerCategory category);
+void _mmcamcorder_remove_one_buffer_probe(MMHandleType handle, void *object);
 void _mmcamcorder_remove_event_probe(MMHandleType handle, _MMCamcorderHandlerCategory category);
-void _mmcamcorder_remove_data_probe(MMHandleType handle, _MMCamcorderHandlerCategory category);
 void _mmcamcorder_disconnect_signal(MMHandleType handle, _MMCamcorderHandlerCategory category);
 void _mmcamcorder_remove_all_handlers(MMHandleType handle, _MMCamcorderHandlerCategory category);
 void _mmcamcorder_element_release_noti(gpointer data, GObject *where_the_object_was);
@@ -283,10 +282,12 @@ unsigned int _mmcamcorder_get_fourcc(int pixtype, int codectype, int use_zero_co
 /* JPEG encode */
 gboolean _mmcamcorder_encode_jpeg(void *src_data, unsigned int src_width, unsigned int src_height,
                                   int src_format, unsigned int src_length, unsigned int jpeg_quality,
-                                  void **result_data, unsigned int *result_length);
+                                  void **result_data, unsigned int *result_length, int enc_type);
 /* resize */
-gboolean _mmcamcorder_resize_frame(unsigned char *src_data, int src_width, int src_height, int src_length, int src_format,
-                                   unsigned char **dst_data, int *dst_width, int *dst_height, int *dst_length);
+gboolean _mmcamcorder_resize_frame(unsigned char *src_data, unsigned int src_width, unsigned int src_height, unsigned int src_length, int src_format,
+                                   unsigned char **dst_data, unsigned int *dst_width, unsigned int *dst_height, unsigned int *dst_length);
+gboolean _mmcamcorder_downscale_UYVYorYUYV(unsigned char *src, unsigned int src_width, unsigned int src_height,
+                                           unsigned char **dst, unsigned int dst_width, unsigned int dst_height);
 
 /* Recording */
 /* find top level tag only, do not use this function for finding sub level tags.
@@ -302,9 +303,11 @@ gboolean _mmcamcorder_update_composition_matrix(FILE *f, int orientation);
 /* File system */
 int _mmcamcorder_get_freespace(const gchar *path, guint64 *free_space);
 int _mmcamcorder_get_file_size(const char *filename, guint64 *size);
+int _mmcamcorder_get_file_system_type(const gchar *path, int *file_system_type);
+gboolean _mmcamcorder_check_file_path(const gchar *path);
 
-/* Debug */
-void _mmcamcorder_err_trace_write(char *str_filename, char *func_name, int line_num, char *fmt, ...);
+/* Task */
+void *_mmcamcorder_util_task_thread_func(void *data);
 
 #ifdef __cplusplus
 }

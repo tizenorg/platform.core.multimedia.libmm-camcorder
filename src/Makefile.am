@@ -35,41 +35,37 @@ libmmfcamcorder_la_SOURCES = mm_camcorder.c \
 libmmfcamcorder_la_CFLAGS = -I$(srcdir)/include \
 			     $(GST_CFLAGS) \
 			     $(GST_PLUGIN_BASE_CFLAGS) \
-                             $(GST_VIDEO_CFLAGS) \
+			     $(GST_VIDEO_CFLAGS) \
+			     $(GST_APP_CFLAGS) \
 			     $(MM_LOG_CFLAGS) \
-			     $(MMTA_CFLAGS) \
 			     $(EXIF_CFLAGS) \
 			     $(MM_COMMON_CFLAGS) \
-			     $(MMSESSION_CFLAGS) \
 			     $(MMSOUND_CFLAGS) \
-			     $(AVSYSTEM_CFLAGS) \
 			     $(SNDFILE_CFLAGS) \
 			     $(CAMSRCJPEGENC_CFLAGS) \
 			     $(VCONF_CFLAGS) \
 			     $(MMUTIL_IMGP_CFLAGS) \
-			     $(AUDIOSESSIONMGR_CFLAGS)
+			     $(SYSTEMINFO_CFLAGS)
 
 libmmfcamcorder_la_LIBADD = \
 			    $(GST_LIBS) \
 			    $(GST_PLUGIN_BASE_LIBS) \
-                            $(GST_VIDEO_LIBS) \
+			    $(GST_VIDEO_LIBS) \
+			    $(GST_APP_LIBS) \
 			    $(MM_COMMON_LIBS) \
 			    $(MM_LOG_LIBS) \
-			    $(MMTA_LIBS) \
 			    $(EXIF_LIBS) \
-			    $(MMSESSION_LIBS) \
 			    $(MMSOUND_LIBS) \
-			    $(AVSYSTEM_LIBS) \
 			    $(SNDFILE_LIBS) \
 			    $(CAMSRCJPEGENC_LIBS) \
 			    $(VCONF_LIBS) \
-			    $(MMUTIL_IMGP_LIBS) \
-			    $(AUDIOSESSIONMGR_LIBS)
+			    $(MMUTIL_IMGP_LIBS)
 
-libmmfcamcorder_la_CFLAGS += $(MMLOGSVR_CFLAGS) -DMMF_LOG_OWNER=0x010 -DMMF_DEBUG_PREFIX=\"MMF-CAMCORDER\" -D_INTERNAL_SESSION_MANAGER_
-libmmfcamcorder_la_LIBADD += $(MMLOGSVR_LIBS)
+libmmfcamcorder_la_CFLAGS += -DMMF_LOG_OWNER=0x010 -D_FILE_OFFSET_BITS=64
+libmmfcamcorder_la_CFLAGS += -fdata-sections -ffunction-sections -Wl,--gc-sections
+libmmfcamcorder_la_LIBADD += $(SYSTEMINFO_LIBS)
 
 install-exec-hook:
 					mkdir -p $(DESTDIR)$(prefix)/share/sounds/mm-camcorder && \
-					cp $(srcdir)/../sounds/*.wav $(DESTDIR)$(prefix)/share/sounds/mm-camcorder/
+					cp $(srcdir)/../sounds/* $(DESTDIR)$(prefix)/share/sounds/mm-camcorder/
 
