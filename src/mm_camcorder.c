@@ -25,11 +25,9 @@
 #include <stdio.h>
 #include <string.h>
 
-
 #include <mm_error.h>
-#include <mm_ta.h>
-
 #include <mm_attrs_private.h>
+
 #include "mm_camcorder.h"
 #include "mm_camcorder_internal.h"
 
@@ -49,11 +47,7 @@ int mm_camcorder_create(MMHandleType *camcorder, MMCamPreset *info)
 
 	_mmcam_dbg_err("");
 
-	MMTA_INIT() ;
-
-	__ta__("_mmcamcorder_create",
 	error = _mmcamcorder_create(camcorder, info);
-	);
 
 	_mmcam_dbg_err("END");
 
@@ -69,12 +63,7 @@ int mm_camcorder_destroy(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
-	__ta__("_mmcamcorder_destroy",
 	error = _mmcamcorder_destroy(camcorder);
-	);
-
-	MMTA_ACUM_ITEM_SHOW_RESULT_TO(MMTA_SHOW_FILE);
-	MMTA_RELEASE();
 
 	_mmcam_dbg_err("END!!!");
 
@@ -90,14 +79,11 @@ int mm_camcorder_realize(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
-	if(((mmf_camcorder_t *)camcorder)->sync_state_change) {
-		__ta__("_mmcamcorder_realize",
-		error = _mmcamcorder_realize(camcorder);
-		);
-	} else {
-		/* After sending command, this function just return immediately. */
-		error = _mmcamcorder_append_simple_command(camcorder, _MMCAMCORDER_CMD_REALIZE);
-	}
+	_MMCAMCORDER_LOCK_ASM(camcorder);
+
+	error = _mmcamcorder_realize(camcorder);
+
+	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
 	_mmcam_dbg_err("END");
 
@@ -113,14 +99,11 @@ int mm_camcorder_unrealize(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
-	if(((mmf_camcorder_t *)camcorder)->sync_state_change) {
-		__ta__("_mmcamcorder_unrealize",
-		error = _mmcamcorder_unrealize(camcorder);
-		);
-	} else {
-		/* After sending command, this function just return immediately. */
-		error = _mmcamcorder_append_simple_command(camcorder, _MMCAMCORDER_CMD_UNREALIZE);
-	}
+	_MMCAMCORDER_LOCK_ASM(camcorder);
+
+	error = _mmcamcorder_unrealize(camcorder);
+
+	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
 	_mmcam_dbg_err("END");
 
@@ -136,14 +119,11 @@ int mm_camcorder_start(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
-	if(((mmf_camcorder_t *)camcorder)->sync_state_change) {
-		__ta__("_mmcamcorder_start",
-		error = _mmcamcorder_start(camcorder);
-		);
-	} else {
-		/* After sending command, this function just return immediately. */
-		error = _mmcamcorder_append_simple_command(camcorder, _MMCAMCORDER_CMD_START);
-	}
+	_MMCAMCORDER_LOCK_ASM(camcorder);
+
+	error = _mmcamcorder_start(camcorder);
+
+	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
 	_mmcam_dbg_err("END");
 
@@ -159,14 +139,11 @@ int mm_camcorder_stop(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
-	if(((mmf_camcorder_t *)camcorder)->sync_state_change) {
-		__ta__("_mmcamcorder_stop",
-		error = _mmcamcorder_stop(camcorder);
-		);
-	} else {
-		/* After sending command, this function just return immediately. */
-		error = _mmcamcorder_append_simple_command(camcorder, _MMCAMCORDER_CMD_STOP);
-	}
+	_MMCAMCORDER_LOCK_ASM(camcorder);
+
+	error = _mmcamcorder_stop(camcorder);
+
+	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
 	_mmcam_dbg_err("END");
 
@@ -182,9 +159,11 @@ int mm_camcorder_capture_start(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
-	__ta__("_mmcamcorder_capture_start",
+	_MMCAMCORDER_LOCK_ASM(camcorder);
+
 	error = _mmcamcorder_capture_start(camcorder);
-	);
+
+	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
 	_mmcam_dbg_err("END");
 
@@ -200,9 +179,11 @@ int mm_camcorder_capture_stop(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
-	__ta__("_mmcamcorder_capture_stop",
+	_MMCAMCORDER_LOCK_ASM(camcorder);
+
 	error = _mmcamcorder_capture_stop(camcorder);
-	);
+
+	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
 	_mmcam_dbg_err("END");
 
@@ -218,9 +199,11 @@ int mm_camcorder_record(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
-	__ta__("_mmcamcorder_record",
+	_MMCAMCORDER_LOCK_ASM(camcorder);
+
 	error = _mmcamcorder_record(camcorder);
-	);
+
+	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
 	_mmcam_dbg_err("END");
 
@@ -236,9 +219,11 @@ int mm_camcorder_pause(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
-	__ta__("_mmcamcorder_pause",
+	_MMCAMCORDER_LOCK_ASM(camcorder);
+
 	error = _mmcamcorder_pause(camcorder);
-	);
+
+	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
 	_mmcam_dbg_err("END");
 
@@ -254,16 +239,11 @@ int mm_camcorder_commit(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
-	MMTA_ACUM_ITEM_BEGIN("Real Commit Time", 0);
+	_MMCAMCORDER_LOCK_ASM(camcorder);
 
-	if(((mmf_camcorder_t *)camcorder)->sync_state_change) {
-		__ta__("_mmcamcorder_stop",
-		error = _mmcamcorder_commit(camcorder);
-		);
-	} else {
-		/* After sending command, this function just return immediately. */
-		error = _mmcamcorder_append_simple_command(camcorder, _MMCAMCORDER_CMD_COMMIT);
-	}
+	error = _mmcamcorder_commit(camcorder);
+
+	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
 	_mmcam_dbg_err("END");
 
@@ -279,9 +259,11 @@ int mm_camcorder_cancel(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
-	__ta__("_mmcamcorder_cancel",
+	_MMCAMCORDER_LOCK_ASM(camcorder);
+
 	error = _mmcamcorder_cancel(camcorder);
-	);
+
+	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
 	_mmcam_dbg_err("END");
 
@@ -291,49 +273,33 @@ int mm_camcorder_cancel(MMHandleType camcorder)
 
 int mm_camcorder_set_message_callback(MMHandleType  camcorder, MMMessageCallback callback, void *user_data)
 {
-	int error = MM_ERROR_NONE;
-
 	mmf_return_val_if_fail((void *)camcorder, MM_ERROR_CAMCORDER_INVALID_ARGUMENT);
 
-	error = _mmcamcorder_set_message_callback(camcorder, callback, user_data);
-
-	return error;
+	return _mmcamcorder_set_message_callback(camcorder, callback, user_data);
 }
 
 
 int mm_camcorder_set_video_stream_callback(MMHandleType camcorder, mm_camcorder_video_stream_callback callback, void* user_data)
 {
-	int error = MM_ERROR_NONE;
-
 	mmf_return_val_if_fail((void *)camcorder, MM_ERROR_CAMCORDER_INVALID_ARGUMENT);
 
-	error = _mmcamcorder_set_video_stream_callback(camcorder, callback, user_data);
-
-	return error;
+	return _mmcamcorder_set_video_stream_callback(camcorder, callback, user_data);
 }
 
 
 int mm_camcorder_set_audio_stream_callback(MMHandleType camcorder, mm_camcorder_audio_stream_callback callback, void* user_data)
 {
-	int error = MM_ERROR_NONE;
-
 	mmf_return_val_if_fail((void *)camcorder, MM_ERROR_CAMCORDER_INVALID_ARGUMENT);
 
-	error = _mmcamcorder_set_audio_stream_callback(camcorder, callback, user_data);
-
-	return error;
+	return _mmcamcorder_set_audio_stream_callback(camcorder, callback, user_data);
 }
 
 
 int mm_camcorder_set_video_capture_callback(MMHandleType camcorder, mm_camcorder_video_capture_callback callback, void* user_data)
 {
-	int error = MM_ERROR_NONE;
-
 	mmf_return_val_if_fail((void *)camcorder, MM_ERROR_CAMCORDER_INVALID_ARGUMENT );
 
-	error = _mmcamcorder_set_video_capture_callback(camcorder, callback, user_data);
-
-	return error;
+	return _mmcamcorder_set_video_capture_callback(camcorder, callback, user_data);
 }
 
 
@@ -425,4 +391,3 @@ int mm_camcorder_stop_focusing(MMHandleType camcorder)
 
 	return error;
 }
-

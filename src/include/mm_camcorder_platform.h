@@ -143,7 +143,7 @@ extern "C" {
 #define _MMCAMCORDER_SENSOR_ENUM_NONE 	-255
 
 /* camera information related */
-#define CAMINFO_CONVERT_NUM		40
+#define CAMINFO_CONVERT_NUM		41
 
 
 /*=======================================================================================
@@ -175,6 +175,8 @@ typedef enum {
 	ENUM_CONVERT_EXPOSURE_MODE,
 	ENUM_CONVERT_STROBE_MODE,
 	ENUM_CONVERT_WDR,
+	ENUM_CONVERT_FLIP,
+	ENUM_CONVERT_ROTATION,
 	ENUM_CONVERT_ANTI_HAND_SHAKE,
 	ENUM_CONVERT_VIDEO_STABILIZATION,
 	ENUM_CONVERT_NUM
@@ -190,7 +192,7 @@ typedef struct {
 	int total_enum_num;		/**< total enumeration count */
 	int *enum_arr;			/**< enumeration array */
 	int category;			/**< category */
-	char *keyword;			/**< keyword array */
+	const char *keyword;			/**< keyword array */
 } _MMCamcorderEnumConvert;
 
 
@@ -202,7 +204,7 @@ typedef struct {
 	int category;				/**< category of configuration */
 	int attr_idx;				/**< attribute index */
 	int attr_idx_pair;			/**< attribute index (only for 'pair' type) */
-	char *keyword;
+	const char *keyword;
 	MMCamConvertingType conv_type;
 	_MMCamcorderEnumConvert *enum_convert;	/**< converting value table */
 } _MMCamcorderInfoConverting;

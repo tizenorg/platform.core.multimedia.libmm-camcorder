@@ -1,6 +1,6 @@
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.7.16
+Version:    0.9.0
 Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
@@ -8,20 +8,20 @@ Source0:    %{name}-%{version}.tar.gz
 Requires(post): /usr/bin/vconftool
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
+BuildRequires:  pkgconfig(capi-system-info)
 BuildRequires:  pkgconfig(mm-common)
 BuildRequires:  pkgconfig(mm-sound)
 BuildRequires:  pkgconfig(avsystem)
 BuildRequires:  pkgconfig(libexif)
 BuildRequires:  pkgconfig(mmutil-imgp)
 BuildRequires:  pkgconfig(mm-log)
-BuildRequires:  pkgconfig(gstreamer-plugins-base-1.0)
-BuildRequires:  pkgconfig(mm-ta)
+BuildRequires:  pkgconfig(gstreamer-base-1.0)
 BuildRequires:  pkgconfig(sndfile)
-BuildRequires:  pkgconfig(mm-session)
-BuildRequires:  pkgconfig(audio-session-mgr)
 BuildRequires:  pkgconfig(camsrcjpegenc)
 BuildRequires:  pkgconfig(libpulse)
 BuildRequires:  pkgconfig(vconf)
+BuildRequires:  gst-plugins-base-devel
+BuildRequires:  gstreamer-devel
 
 %description
 Camera and recorder library.
@@ -42,7 +42,6 @@ Camera and recorder development library.
 
 
 %build
-export CFLAGS+=" -DGST_EXT_TIME_ANALYSIS"
 ./autogen.sh
 %configure --disable-static
 make %{?jobs:-j%jobs}
@@ -70,7 +69,6 @@ vconftool set -t int file/camera/shutter_sound_policy 0 -u 5000
 %{_datadir}/license/%{name}
 
 %files devel
-%manifest libmm-camcorder.manifest
 %defattr(-,root,root,-)
 %{_includedir}/mmf/mm_camcorder.h
 %{_libdir}/pkgconfig/mm-camcorder.pc

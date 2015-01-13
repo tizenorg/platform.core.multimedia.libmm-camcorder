@@ -29,7 +29,6 @@
 #include <libexif/exif-tag.h>
 #include <libexif/exif-format.h>
 #include <libexif/exif-data.h>
-#include <libexif/samsung/mnote-samsung-tag.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -99,7 +98,7 @@ int mm_exif_set_exif_to_info(mm_exif_info_t *info, ExifData *exif);
  */
 int mm_exif_set_add_entry(ExifData *exif, ExifIfd ifd, ExifTag tag,
 			  ExifFormat format, unsigned long components,
-			  unsigned char *data);
+			  const char *data);
 
 /**
  * Write thumbnail data into exif info.
@@ -112,25 +111,6 @@ int mm_exif_set_add_entry(ExifData *exif, ExifIfd ifd, ExifTag tag,
  */
 int mm_exif_add_thumbnail_info(mm_exif_info_t *info, void *thumbnail,
 			       int width, int height, int len);
-
-/**
- * create ExifMnoteDataSamsung and set up related function pointers
- * @param[in/out] info exif info.
- * @return return int.
- */
-int mm_exif_mnote_create(ExifData *exif);
-
-/**
- * add one Samsung maker note tag information into exif
- *  @param[in/out] info exif info.
- *  @param[in] Samsung maker note tag .
- *  @param[in] tag index.
- *  @param[in] sub tag index 1.
- *  @param[in] sub tag index 2.
- *  @return return int.
- */
-int mm_exif_mnote_set_add_entry(ExifData *exif, MnoteSamsungTag tag,
-				int index, int subindex1, int subindex2);
 
 /**
  * Write exif info into a jpeg image and then save as a jpeg file.
@@ -154,6 +134,15 @@ int mm_exif_write_exif_jpeg_to_file(char *filename, mm_exif_info_t *info, void *
 int mm_exif_write_exif_jpeg_to_memory(void **mem, unsigned int *length,
 				      mm_exif_info_t *info, void *jpeg,
 				      unsigned int jpeg_len);
+
+/**
+ * Load exif info from a jpeg memory buffer.
+ * @param[out] info exif info.
+ * @param[in] jpeg jpeg image data.
+ * @param[in] length length of jpeg image.
+ * @return return int.
+ */
+int mm_exif_load_exif_info(mm_exif_info_t **info, void *jpeg_data, int jpeg_length);
 
 #ifdef __cplusplus
 }

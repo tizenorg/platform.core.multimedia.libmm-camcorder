@@ -732,15 +732,24 @@ extern "C" {
 #define MMCAM_CAMERA_FPS                        "camera-fps"
 
 /**
- * Width of input video stream.
+ * Width of preview stream.
  */
 #define MMCAM_CAMERA_WIDTH                      "camera-width"
 
 /**
- * Height of input video stream.
- * @see		
+ * Height of preview stream.
  */
 #define MMCAM_CAMERA_HEIGHT                     "camera-height"
+
+/**
+ * Width of video stream.
+ */
+#define MMCAM_VIDEO_WIDTH                       "video-width"
+
+/**
+ * Height of video stream.
+ */
+#define MMCAM_VIDEO_HEIGHT                      "video-height"
 
 /**
  * Digital zoom level.
@@ -1199,25 +1208,19 @@ extern "C" {
 #define MMCAM_CAMERA_FLIP                              "camera-flip"
 
 /**
- * X coordinate of Face zoom.
+ * Support Zero Shutter Lag capture
  */
-#define MMCAM_CAMERA_FACE_ZOOM_X                      "camera-face-zoom-x"
+#define MMCAM_SUPPORT_ZSL_CAPTURE                   "support-zsl-capture"
 
 /**
- * Y coordinate of Face zoom.
- */
-#define MMCAM_CAMERA_FACE_ZOOM_Y                      "camera-face-zoom-y"
+* Support zero copy format
+*/
+#define MMCAM_SUPPORT_ZERO_COPY_FORMAT              "support-zero-copy-format"
 
 /**
- * Zoom level of Face zoom.
- */
-#define MMCAM_CAMERA_FACE_ZOOM_LEVEL                  "camera-face-zoom-level"
-
-/**
- * Mode of Face zoom.
- * @see		MMCamcorderFaceZoomMode
- */
-#define MMCAM_CAMERA_FACE_ZOOM_MODE                   "camera-face-zoom-mode"
+* Support media packet callback
+*/
+#define MMCAM_SUPPORT_MEDIA_PACKET_PREVIEW_CB              "support-media-packet-preview-cb"
 
 
 /*=======================================================================================
@@ -1345,6 +1348,7 @@ enum MMCamcorderSceneModeType {
 	MM_CAMCORDER_SCENE_MODE_SHOW_WINDOW,    /**< Show window */
 	MM_CAMCORDER_SCENE_MODE_CANDLE_LIGHT,   /**< Candle light */
 	MM_CAMCORDER_SCENE_MODE_BACKLIGHT,      /**< Backlight */
+	MM_CAMCORDER_SCENE_MODE_AQUA,           /**< Aqua */
 };
 
 
@@ -1532,19 +1536,12 @@ enum MMCamcorderDetectMode {
 
 
 /**
- * An enumeration for Face zoom mode.
- */
-enum MMCamcorderFaceZoomMode {
-	MM_CAMCORDER_FACE_ZOOM_MODE_OFF = 0,    /**< turn face zoom off */
-	MM_CAMCORDER_FACE_ZOOM_MODE_ON,         /**< turn face zoom on */
-};
-
-/**
  * An enumeration for recommended preview resolution.
  */
 enum MMCamcorderPreviewType {
 	MM_CAMCORDER_PREVIEW_TYPE_NORMAL = 0,   /**< normal ratio like 4:3 */
 	MM_CAMCORDER_PREVIEW_TYPE_WIDE,         /**< wide ratio like 16:9 */
+	MM_CAMCORDER_PREVIEW_TYPE_SQUARE,       /**< square ratio like 1:1 */
 };
 
 
@@ -1676,6 +1673,8 @@ typedef struct {
 /**
  * Structure for video stream data.
  */
+#define BUFFER_MAX_PLANE_NUM 4
+
 typedef struct {
 	union {
 		struct {
@@ -1704,6 +1703,8 @@ typedef struct {
 	int width;                      /**< width of video buffer */
 	int height;                     /**< height of video buffer */
 	unsigned int timestamp;         /**< timestamp of stream buffer (msec)*/
+	void *bo[BUFFER_MAX_PLANE_NUM]; /**< TBM buffer object */
+	void *internal_buffer;          /**< Internal buffer pointer */
 } MMCamcorderVideoStreamDataType;
 
 

@@ -48,14 +48,7 @@ extern "C" {
 /*=======================================================================================
 | ENUM DEFINITIONS									|
 ========================================================================================*/
-/**
- * Enumeration for flip of fimcconvert
- */
-enum {
-	FIMCCONVERT_FLIP_NONE = 0,
-	FIMCCONVERT_FLIP_VERTICAL,
-	FIMCCONVERT_FLIP_HORIZONTAL
-};
+
 
 /*=======================================================================================
 | STRUCTURE DEFINITIONS									|
@@ -107,7 +100,7 @@ typedef struct {
  * @remarks
  * @see		__mmcamcorder_create_preview_pipeline()
  */
-int _mmcamcorder_add_stillshot_pipeline(MMHandleType handle);
+int _mmcamcorder_create_stillshot_pipeline(MMHandleType handle);
 
 /**
  * This function remove still shot bin from main pipeline.
@@ -139,15 +132,16 @@ int _mmcamcorder_connect_capture_signal(MMHandleType handle);
  */
 void _mmcamcorder_destroy_video_capture_pipeline(MMHandleType handle);
 int _mmcamcorder_video_capture_command(MMHandleType handle, int command);
-int _mmcamcorder_set_resize_property(MMHandleType handle, int capture_width, int capture_height);
 
 /* Function for capture */
 int __mmcamcorder_set_exif_basic_info(MMHandleType handle, int image_width, int image_height);
+int __mmcamcorder_update_exif_info(MMHandleType handle,void* imagedata, int imgln);
 void __mmcamcorder_init_stillshot_info(MMHandleType handle);
 void __mmcamcorder_get_capture_data_from_buffer(MMCamcorderCaptureDataType *capture_data, int pixtype, GstSample *sample);
 void __mmcamcorder_release_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest);
 int __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCaptureDataType *original, MMCamcorderCaptureDataType *thumbnail);
 int __mmcamcorder_set_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest, MMCamcorderCaptureDataType *thumbnail);
+gboolean __mmcamcorder_handoff_callback(GstElement *fakesink, GstBuffer *buffer, GstPad *pad, gpointer u_data);
 
 #ifdef __cplusplus
 }
