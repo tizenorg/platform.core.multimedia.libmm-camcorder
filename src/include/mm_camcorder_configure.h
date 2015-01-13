@@ -85,6 +85,12 @@ enum ConfigureCategoryCtrl {
 ========================================================================================*/
 typedef struct _type_int type_int;
 struct _type_int {
+	const char *name;
+	int value;
+};
+
+typedef struct _type_int2 type_int2;
+struct _type_int2 {
 	char *name;
 	int value;
 };
@@ -115,6 +121,12 @@ struct _type_int_pair_array {
 
 typedef struct _type_string type_string;
 struct _type_string {
+	const char *name;
+	const char *value;
+};
+
+typedef struct _type_string2 type_string2;
+struct _type_string2 {
 	char *name;
 	char *value;
 };
@@ -129,23 +141,33 @@ struct _type_string_array {
 
 typedef struct _type_element type_element;
 struct _type_element {
-	char *name;
-	char *element_name;
+	const char *name;
+	const char *element_name;
 	type_int **value_int;
 	int count_int;
 	type_string **value_string;
 	int count_string;
 };
 
-typedef struct _conf_info conf_info;
-struct _conf_info {
+typedef struct _type_element2 type_element2;
+struct _type_element2 {
+	char *name;
+	char *element_name;
+	type_int2 **value_int;
+	int count_int;
+	type_string2 **value_string;
+	int count_string;
+};
+
+typedef struct _conf_detail conf_detail;
+struct _conf_detail {
 	int count;
 	void **detail_info;
 };
 
 typedef struct _conf_info_table conf_info_table;
 struct _conf_info_table {
-	char *name;
+	const char *name;
 	int value_type;
 	union {
 		int value_int;
@@ -157,7 +179,7 @@ struct _conf_info_table {
 typedef struct _camera_conf camera_conf;
 struct _camera_conf {
 	int type;
-	conf_info **info;
+	conf_detail **info;
 };
 
 /*=======================================================================================
@@ -175,7 +197,7 @@ struct _camera_conf {
  * @see		_mmcamcorder_conf_release_info()
  *
  */
-int _mmcamcorder_conf_get_info(int type, char *ConfFile, camera_conf **configure_info);
+int _mmcamcorder_conf_get_info(int type, const char *ConfFile, camera_conf **configure_info);
 
 /**
  * This function releases configure info.
@@ -200,7 +222,7 @@ void _mmcamcorder_conf_release_info(camera_conf **configure_info);
  * @see
  *
  */
-int _mmcamcorder_conf_get_value_int(camera_conf *configure_info, int category, char *name, int *value);
+int _mmcamcorder_conf_get_value_int(camera_conf *configure_info, int category, const char *name, int *value);
 
 /**
  * This function gets integer-range type value from configure info.
@@ -214,7 +236,7 @@ int _mmcamcorder_conf_get_value_int(camera_conf *configure_info, int category, c
  * @see
  *
  */
-int _mmcamcorder_conf_get_value_int_range(camera_conf *configure_info, int category, char *name, type_int_range **value);
+int _mmcamcorder_conf_get_value_int_range(camera_conf *configure_info, int category, const char *name, type_int_range **value);
 
 /**
  * This function gets integer-array type value from configure info.
@@ -228,7 +250,7 @@ int _mmcamcorder_conf_get_value_int_range(camera_conf *configure_info, int categ
  * @see
  *
  */
-int _mmcamcorder_conf_get_value_int_array(camera_conf *configure_info, int category, char *name, type_int_array **value);
+int _mmcamcorder_conf_get_value_int_array(camera_conf *configure_info, int category, const char *name, type_int_array **value);
 
 /**
  * This function gets integer-pair-array type value from configure info.
@@ -242,7 +264,7 @@ int _mmcamcorder_conf_get_value_int_array(camera_conf *configure_info, int categ
  * @see
  *
  */
-int _mmcamcorder_conf_get_value_int_pair_array(camera_conf *configure_info, int category, char *name, type_int_pair_array **value);
+int _mmcamcorder_conf_get_value_int_pair_array(camera_conf *configure_info, int category, const char *name, type_int_pair_array **value);
 
 /**
  * This function gets string type value from configure info.
@@ -256,7 +278,7 @@ int _mmcamcorder_conf_get_value_int_pair_array(camera_conf *configure_info, int 
  * @see
  *
  */
-int _mmcamcorder_conf_get_value_string(camera_conf *configure_info, int category, char *name, char **value);
+int _mmcamcorder_conf_get_value_string(camera_conf *configure_info, int category, const char *name, const char **value);
 
 /**
  * This function gets string-array type value from configure info.
@@ -270,7 +292,7 @@ int _mmcamcorder_conf_get_value_string(camera_conf *configure_info, int category
  * @see
  *
  */
-int _mmcamcorder_conf_get_value_string_array(camera_conf *configure_info, int category, char *name, type_string_array **value);
+int _mmcamcorder_conf_get_value_string_array(camera_conf *configure_info, int category, const char *name, type_string_array **value);
 
 /**
  * This function gets element info from configure info.
@@ -284,7 +306,7 @@ int _mmcamcorder_conf_get_value_string_array(camera_conf *configure_info, int ca
  * @see
  *
  */
-int _mmcamcorder_conf_get_element(camera_conf *configure_info, int category, char *name, type_element **element);
+int _mmcamcorder_conf_get_element(camera_conf *configure_info, int category, const char *name, type_element **element);
 
 /**
  * This function gets element name from element info.
@@ -296,7 +318,7 @@ int _mmcamcorder_conf_get_element(camera_conf *configure_info, int category, cha
  * @see
  *
  */
-int _mmcamcorder_conf_get_value_element_name(type_element *element, char **value);
+int _mmcamcorder_conf_get_value_element_name(type_element *element, const char **value);
 
 /**
  * This function gets integer value of element's named property from element info.
@@ -309,7 +331,7 @@ int _mmcamcorder_conf_get_value_element_name(type_element *element, char **value
  * @see
  *
  */
-int _mmcamcorder_conf_get_value_element_int(type_element *element, char *name, int *value);
+int _mmcamcorder_conf_get_value_element_int(type_element *element, const char *name, int *value);
 
 /**
  * This function gets string value of element's named property from element info.
@@ -322,7 +344,7 @@ int _mmcamcorder_conf_get_value_element_int(type_element *element, char *name, i
  * @see
  *
  */
-int _mmcamcorder_conf_get_value_element_string(type_element *element, char *name, char **value);
+int _mmcamcorder_conf_get_value_element_string(type_element *element, const char *name, const char **value);
 
 /**
  * This function sets all property of element info.
@@ -353,11 +375,11 @@ int _mmcamcorder_get_available_format(MMHandleType handle, int conf_category, in
 /* Internal function */
 void _mmcamcorder_conf_init(int type, camera_conf **configure_info);
 int _mmcamcorder_conf_parse_info(int type, FILE *fd, camera_conf **configure_info);
-int _mmcamcorder_conf_get_value_type(int type, int category, char *name, int *value_type);
-int _mmcamcorder_conf_add_info(int type, conf_info **info, char **buffer_details, int category, int count_details);
-int _mmcamcorder_conf_get_default_value_int(int type, int category, char *name, int *value);
-int _mmcamcorder_conf_get_default_value_string(int type, int category, char *name, char **value);
-int _mmcamcorder_conf_get_default_element(int type, int category, char *name, type_element **element);
+int _mmcamcorder_conf_get_value_type(int type, int category, const char *name, int *value_type);
+int _mmcamcorder_conf_add_info(int type, conf_detail **info, char **buffer_details, int category, int count_details);
+int _mmcamcorder_conf_get_default_value_int(int type, int category, const char *name, int *value);
+int _mmcamcorder_conf_get_default_value_string(int type, int category, const char *name, const char **value);
+int _mmcamcorder_conf_get_default_element(int type, int category, const char *name, type_element **element);
 int _mmcamcorder_conf_get_category_size(int type, int category, int *size);
 
 #ifdef __cplusplus

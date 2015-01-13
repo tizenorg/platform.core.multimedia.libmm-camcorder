@@ -25,6 +25,7 @@
 /*=======================================================================================
 | INCLUDE FILES										|
 ========================================================================================*/
+#include <gst/gst.h>
 #include <mm_types.h>
 #include <stdarg.h>
 
@@ -93,10 +94,9 @@ typedef enum
 	MM_CAM_CAMERA_WDR,
 	MM_CAM_CAMERA_ANTI_HANDSHAKE,
 	MM_CAM_CAMERA_FPS_AUTO,
-	MM_CAM_CAMERA_HOLD_AF_AFTER_CAPTURING,
 	MM_CAM_CAMERA_DELAY_ATTR_SETTING,
-	MM_CAM_AUDIO_ENCODER_BITRATE,			/* 40 */
-	MM_CAM_VIDEO_ENCODER_BITRATE,
+	MM_CAM_AUDIO_ENCODER_BITRATE,
+	MM_CAM_VIDEO_ENCODER_BITRATE,			/* 40 */
 	MM_CAM_IMAGE_ENCODER_QUALITY,
 	MM_CAM_CAPTURE_FORMAT,
 	MM_CAM_CAPTURE_WIDTH,
@@ -105,8 +105,8 @@ typedef enum
 	MM_CAM_CAPTURE_INTERVAL,
 	MM_CAM_CAPTURE_BREAK_CONTINUOUS_SHOT,
 	MM_CAM_DISPLAY_HANDLE,
-	MM_CAM_DISPLAY_DEVICE,				/* 50 */
-	MM_CAM_DISPLAY_SURFACE,
+	MM_CAM_DISPLAY_DEVICE,
+	MM_CAM_DISPLAY_SURFACE,				/* 50 */
 	MM_CAM_DISPLAY_RECT_X,
 	MM_CAM_DISPLAY_RECT_Y,
 	MM_CAM_DISPLAY_RECT_WIDTH,
@@ -115,8 +115,8 @@ typedef enum
 	MM_CAM_DISPLAY_SOURCE_Y,
 	MM_CAM_DISPLAY_SOURCE_WIDTH,
 	MM_CAM_DISPLAY_SOURCE_HEIGHT,
-	MM_CAM_DISPLAY_ROTATION,			/* 60 */
-	MM_CAM_DISPLAY_VISIBLE,
+	MM_CAM_DISPLAY_ROTATION,
+	MM_CAM_DISPLAY_VISIBLE,				/* 60 */
 	MM_CAM_DISPLAY_SCALE,
 	MM_CAM_DISPLAY_GEOMETRY_METHOD,
 	MM_CAM_TARGET_FILENAME,
@@ -125,8 +125,8 @@ typedef enum
 	MM_CAM_TAG_ENABLE,
 	MM_CAM_TAG_IMAGE_DESCRIPTION,
 	MM_CAM_TAG_ORIENTATION,
-	MM_CAM_TAG_SOFTWARE,				/* 70 */
-	MM_CAM_TAG_LATITUDE,
+	MM_CAM_TAG_SOFTWARE,
+	MM_CAM_TAG_LATITUDE,				/* 70 */
 	MM_CAM_TAG_LONGITUDE,
 	MM_CAM_TAG_ALTITUDE,
 	MM_CAM_STROBE_CONTROL,
@@ -135,8 +135,8 @@ typedef enum
 	MM_CAM_DETECT_MODE,
 	MM_CAM_DETECT_NUMBER,
 	MM_CAM_DETECT_FOCUS_SELECT,
-	MM_CAM_DETECT_SELECT_NUMBER,			/* 80 */
-	MM_CAM_DETECT_STATUS,
+	MM_CAM_DETECT_SELECT_NUMBER,
+	MM_CAM_DETECT_STATUS,				/* 80 */
 	MM_CAM_CAPTURE_ZERO_SYSTEMLAG,
 	MM_CAM_CAMERA_AF_TOUCH_X,
 	MM_CAM_CAMERA_AF_TOUCH_Y,
@@ -145,33 +145,32 @@ typedef enum
 	MM_CAM_CAMERA_FOCAL_LENGTH,
 	MM_CAM_RECOMMEND_PREVIEW_FORMAT_FOR_CAPTURE,
 	MM_CAM_RECOMMEND_PREVIEW_FORMAT_FOR_RECORDING,
-	MM_CAM_CAPTURE_THUMBNAIL,			/* 90 */
 	MM_CAM_TAG_GPS_ENABLE,
-	MM_CAM_TAG_GPS_TIME_STAMP,
+	MM_CAM_TAG_GPS_TIME_STAMP,			/* 90 */
 	MM_CAM_TAG_GPS_DATE_STAMP,
 	MM_CAM_TAG_GPS_PROCESSING_METHOD,
 	MM_CAM_CAMERA_ROTATION,
-	MM_CAM_ENABLE_CONVERTED_STREAM_CALLBACK,
 	MM_CAM_CAPTURED_SCREENNAIL,
 	MM_CAM_CAPTURE_SOUND_ENABLE,
 	MM_CAM_RECOMMEND_DISPLAY_ROTATION,
-	MM_CAM_CAMERA_FLIP,				/* 100 */
+	MM_CAM_CAMERA_FLIP,
 	MM_CAM_CAMERA_HDR_CAPTURE,
 	MM_CAM_DISPLAY_MODE,
-	MM_CAM_CAMERA_FACE_ZOOM_X,
-	MM_CAM_CAMERA_FACE_ZOOM_Y,
-	MM_CAM_CAMERA_FACE_ZOOM_LEVEL,
-	MM_CAM_CAMERA_FACE_ZOOM_MODE,
-	MM_CAM_AUDIO_DISABLE,
+	MM_CAM_AUDIO_DISABLE,			/* 100 */
 	MM_CAM_RECOMMEND_CAMERA_WIDTH,
 	MM_CAM_RECOMMEND_CAMERA_HEIGHT,
-	MM_CAM_CAPTURED_EXIF_RAW_DATA,			/* 110 */
+	MM_CAM_CAPTURED_EXIF_RAW_DATA,
 	MM_CAM_DISPLAY_EVAS_SURFACE_SINK,
 	MM_CAM_DISPLAY_EVAS_DO_SCALING,
 	MM_CAM_CAMERA_FACING_DIRECTION,
 	MM_CAM_DISPLAY_FLIP,
 	MM_CAM_CAMERA_VIDEO_STABILIZATION,
 	MM_CAM_TAG_VIDEO_ORIENTATION,
+	MM_CAM_VIDEO_WIDTH,			/* 110 */
+	MM_CAM_VIDEO_HEIGHT,
+	MM_CAM_SUPPORT_ZSL_CAPTURE,
+	MM_CAM_SUPPORT_ZERO_COPY_FORMAT,
+	MM_CAM_SUPPORT_MEDIA_PACKET_PREVIEW_CB,
 	MM_CAM_NUM
 }MMCamcorderAttrsID;
 
@@ -185,7 +184,7 @@ typedef bool (*mmf_cam_commit_func_t)(MMHandleType handle, int attr_idx, const m
 ========================================================================================*/
 typedef struct {
 	MMCamcorderAttrsID attrid;
-	char *name;
+	const char *name;
 	int value_type;
 	int flags;
 	union {
@@ -325,6 +324,7 @@ bool _mmcamcorder_commit_camera_fps(MMHandleType handle, int attr_idx, const mmf
 bool _mmcamcorder_commit_camera_recording_motion_rate(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_width(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_height(MMHandleType handle, int attr_idx, const mmf_value_t *value);
+bool _mmcamcorder_commit_video_size(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_zoom(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_focus_mode(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_af_scan_range(MMHandleType handle, int attr_idx, const mmf_value_t *value);
@@ -333,9 +333,7 @@ bool _mmcamcorder_commit_camera_capture_mode(MMHandleType handle, int attr_idx, 
 bool _mmcamcorder_commit_camera_wdr(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_anti_handshake(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_video_stabilization(MMHandleType handle, int attr_idx, const mmf_value_t *value);
-bool _mmcamcorder_commit_camera_hold_af_after_capturing(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_rotate(MMHandleType handle, int attr_idx, const mmf_value_t *value);
-bool _mmcamcorder_commit_camera_face_zoom(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_image_encoder_quality(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_target_filename(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_filter(MMHandleType handle, int attr_idx, const mmf_value_t *value);

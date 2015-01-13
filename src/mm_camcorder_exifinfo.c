@@ -18,9 +18,10 @@
  * limitations under the License.
  *
  */
- 
+
 #include "mm_camcorder_exifinfo.h"
 #include "mm_camcorder_exifdef.h"
+#include "mm_camcorder_internal.h"
 
 #include <libexif/exif-loader.h>
 #include <libexif/exif-utils.h>
@@ -37,9 +38,11 @@
 #define JPEG_MAX_SIZE                           20000000
 #define JPEG_THUMBNAIL_MAX_SIZE                 (128*1024)
 #define JPEG_DATA_OFFSET                        2
+#define JPEG_EXIF_OFFSET                        4
 #define EXIF_MARKER_SOI_LENGTH                  2
 #define EXIF_MARKER_APP1_LENGTH                 2
 #define EXIF_APP1_LENGTH                        2
+
 
 #if MM_EXIFINFO_USE_BINARY_EXIFDATA
 /**
@@ -102,37 +105,35 @@ _exif_get_jpeg_marker_offset (void *jpeg, int jpeg_size, unsigned short marker)
 	unsigned long	ret;
 	int i;
 
-	// mmf_debug (MMF_DEBUG_LOG, "%s()\n", __func__);
-
 	m[0] = marker >> 8;
 	m[1] = marker & 0x00FF;
 
-	mmf_debug (MMF_DEBUG_LOG,"[%05d][%s] marker: 0x%02X 0x%02X\n\n", __LINE__, __func__,m[0], m[1]);
+	_mmcam_dbg_log("marker: 0x%02X 0x%02X", m[0], m[1]);
 
-	if (*src == 0xff && *(src + 1) == 0xd8) 
+	if (*src == 0xff && *(src + 1) == 0xd8)
 	{
 		p = src + 2; /* SOI(start of image) */
-	} 
-	else 
+	}
+	else
 	{
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] invalid JPEG file.\n", __LINE__, __func__);
+		_mmcam_dbg_log("invalid JPEG file.");
 		return 0UL;
 	}
 
-	for (i = 0; i < src_sz - (1 + 2); i++, p++) 
+	for (i = 0; i < src_sz - (1 + 2); i++, p++)
 	{
-		if (*p == 0xff) 
+		if (*p == 0xff)
 		{
 			/*marker is 0xFFxx*/
-			if (*(p + 1) == m[1]) 
+			if (*(p + 1) == m[1])
 			{
 				ret = p - src;
-				mmf_debug (MMF_DEBUG_LOG,"[%05d][%s]marker offset: %lu %p %p.\n", __LINE__, __func__,ret, (p+1), src);
+				_mmcam_dbg_log("marker offset: %lu %p %p.",ret, (p+1), src);
 				return ret;
 			}
-		} 
+		}
 	}
-	mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s]Marker not found.\n", __LINE__, __func__);
+	_mmcam_dbg_log("Marker not found.");
 	return 0UL;
 }
 #endif /* _MMCAMCORDER_EXIF_GET_JPEG_MARKER_OFFSET */
@@ -143,12 +144,10 @@ mm_exif_get_exif_data_from_data (mm_exif_info_t *info)
 {
 	ExifData 		*ed = NULL;
 
-	//mmf_debug (MMF_DEBUG_LOG, "%s()\n", __func__);
-
 	ed = exif_data_new_from_data(info->data, info->size);
 	if( ed == NULL )
 	{
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s]Null exif data. (ed:%p)\n", __LINE__, __func__, ed);
+		_mmcam_dbg_log("Null exif data. (ed:%p)", ed);
 	}
 
 	return ed;
@@ -164,8 +163,6 @@ mm_exif_get_exif_from_info (mm_exif_info_t *info)
 	unsigned char	size[2];
 	unsigned int	i;
 
-	//mmf_debug (MMF_DEBUG_LOG, "%s()\n", __func__);
-	
 	/*get ExifData from info*/
 	loader = exif_loader_new ();
 
@@ -189,23 +186,23 @@ mm_exif_set_exif_to_info (mm_exif_info_t *info, ExifData *exif)
 
 	if (!exif)
 	{
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s]exif Null\n", __LINE__, __func__);
+		_mmcam_dbg_log("exif Null");
 		return MM_ERROR_CAMCORDER_NOT_INITIALIZED;
 	}
 
-	mmf_debug (MMF_DEBUG_LOG,"[%05d][%s]exif(ifd :%p)\n", __LINE__, __func__, exif->ifd);
+	_mmcam_dbg_log("exif(ifd :%p)", exif->ifd);
 
 	if(info->data)
 	{
-		free (info->data); 
-		info->data = NULL; 
-		info->size = 0; 
+		free (info->data);
+		info->data = NULL;
+		info->size = 0;
 	}
 
 	exif_data_save_data (exif, &eb, &ebs);
 	if(eb==NULL)
 	{
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s]MM_ERROR_CAMCORDER_LOW_MEMORY\n", __LINE__, __func__);
+		_mmcam_dbg_log("MM_ERROR_CAMCORDER_LOW_MEMORY");
 		return MM_ERROR_CAMCORDER_LOW_MEMORY;
 	}
 	info->data = eb;
@@ -215,15 +212,14 @@ mm_exif_set_exif_to_info (mm_exif_info_t *info, ExifData *exif)
 
 
 int
-mm_exif_set_add_entry (ExifData *exif, ExifIfd ifd, ExifTag tag,ExifFormat format,unsigned long components,unsigned char* data)
+mm_exif_set_add_entry (ExifData *exif, ExifIfd ifd, ExifTag tag,ExifFormat format,unsigned long components, const char* data)
 {
-	/*mmf_debug (MMF_DEBUG_LOG, "%s()\n", __func__);*/
 	ExifData *ed = (ExifData *)exif;
 	ExifEntry *e = NULL;
 
 	if (exif == NULL || format <= 0 || components <= 0 || data == NULL) {
-		mmf_debug(MMF_DEBUG_ERROR,"[%05d][%s] invalid argument exif=%p format=%d, components=%lu data=%p!\n",
-		                          __LINE__, __func__,exif,format,components,data);
+		_mmcam_dbg_err("invalid argument exif=%p format=%d, components=%lu data=%p!",
+		                          exif,format,components,data);
 		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
 	}
 
@@ -233,7 +229,7 @@ mm_exif_set_add_entry (ExifData *exif, ExifIfd ifd, ExifTag tag,ExifFormat forma
 	/*create new tag*/
 	e = exif_entry_new();
 	if (e == NULL) {
-		mmf_debug(MMF_DEBUG_ERROR,"[%05d][%s] entry create error!\n", __LINE__, __func__);
+		_mmcam_dbg_err("entry create error!");
 		return MM_ERROR_CAMCORDER_LOW_MEMORY;
 	}
 
@@ -281,23 +277,23 @@ mm_exif_create_exif_info (mm_exif_info_t **info)
 	unsigned char *eb = NULL;
 	unsigned int ebs;
 #endif
-	mmf_debug (MMF_DEBUG_LOG,"[%05d][%s]\n", __LINE__, __func__);
+	_mmcam_dbg_log("");
 
 	if (!info) {
-		mmf_debug(MMF_DEBUG_ERROR,"[%05d][%s] NULL pointer\n", __LINE__, __func__);
+		_mmcam_dbg_err("NULL pointer");
 		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
 	}
 
 	x = malloc(sizeof(mm_exif_info_t));
 	if (!x) {
-		mmf_debug(MMF_DEBUG_ERROR,"[%05d][%s]malloc error\n", __LINE__, __func__);
+		_mmcam_dbg_err("malloc error");
 		return MM_ERROR_CAMCORDER_LOW_MEMORY;
 	}
 #if MM_EXIFINFO_USE_BINARY_EXIFDATA
 	x->data = NULL;
 	x->data = malloc(_EXIF_BIN_SIZE_);
 	if (!x->data) {
-		mmf_debug(MMF_DEBUG_ERROR,"[%05d][%s]malloc error\n", __LINE__, __func__);
+		_mmcam_dbg_err("malloc error");
 		free(x);
 		return MM_ERROR_CAMCORDER_LOW_MEMORY;
 	}
@@ -306,7 +302,7 @@ mm_exif_create_exif_info (mm_exif_info_t **info)
 #else
 	ed = exif_data_new();
 	if (!ed) {
-		mmf_debug(MMF_DEBUG_ERROR,"[%05d][%s]exif data new error\n", __LINE__, __func__);
+		_mmcam_dbg_err("exif data new error");
 		return MM_ERROR_CAMCORDER_LOW_MEMORY;
 	}
 
@@ -318,7 +314,7 @@ mm_exif_create_exif_info (mm_exif_info_t **info)
 
 	exif_data_save_data(ed, &eb, &ebs);
 	if (eb == NULL) {
-		mmf_debug(MMF_DEBUG_ERROR,"[%05d][%s]exif_data_save_data error\n", __LINE__, __func__);
+		_mmcam_dbg_err("exif_data_save_data error");
 		free(x->data);
 		free(x);
 		exif_data_unref(ed);
@@ -331,7 +327,7 @@ mm_exif_create_exif_info (mm_exif_info_t **info)
 #endif
 	*info = x;
 
-	mmf_debug(MMF_DEBUG_LOG, "%s() Data:%p Size:%d\n", __func__, x->data, x->size);
+	_mmcam_dbg_log("Data:%p Size:%d", x->data, x->size);
 
 	return MM_ERROR_NONE;
 }
@@ -339,17 +335,17 @@ mm_exif_create_exif_info (mm_exif_info_t **info)
 void
 mm_exif_destory_exif_info (mm_exif_info_t *info)
 {
-	//mmf_debug (MMF_DEBUG_LOG, "%s()\n", __func__);
+	//_mmcam_dbg_log( "");
 
 #if MM_EXIFINFO_USE_BINARY_EXIFDATA
 	if (info) {
-		if (info->data) 
+		if (info->data)
 			free (info->data);
 		free (info);
 	}
 #else
 	if (info) {
-		if (info->data) 
+		if (info->data)
 			exif_mem_free (info->data);
 		free (info);
 	}
@@ -367,11 +363,11 @@ mm_exif_add_thumbnail_info (mm_exif_info_t *info, void *thumbnail, int width, in
 	int ret = MM_ERROR_NONE;
 	int cntl = 0;
 
-	mmf_debug (MMF_DEBUG_LOG,"[%05d][%s] Thumbnail size:%d, width:%d, height:%d\n", __LINE__, __func__, len, width, height);
+	_mmcam_dbg_log("Thumbnail size:%d, width:%d, height:%d", len, width, height);
 
 	if( len > JPEG_THUMBNAIL_MAX_SIZE )
 	{
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] Thumbnail size[%d] over!!! Skip inserting thumbnail...\n", __LINE__, __func__, len);
+		_mmcam_dbg_err("Thumbnail size[%d] over!!! Skip inserting thumbnail...", len);
 		return MM_ERROR_NONE;
 	}
 
@@ -381,10 +377,10 @@ mm_exif_add_thumbnail_info (mm_exif_info_t *info, void *thumbnail, int width, in
 	ed->size = len;
 
 	/* set thumbnail data */
-	p_compressed = malloc(sizeof(ExifShort));
+	p_compressed = (unsigned char *)malloc(sizeof(ExifShort));
 	if (p_compressed != NULL) {
 		exif_set_short(p_compressed, exif_data_get_byte_order(ed), 6);
-		ret = mm_exif_set_add_entry(ed, EXIF_IFD_1, EXIF_TAG_COMPRESSION, EXIF_FORMAT_SHORT, 1, p_compressed);
+		ret = mm_exif_set_add_entry(ed, EXIF_IFD_1, EXIF_TAG_COMPRESSION, EXIF_FORMAT_SHORT, 1, (const char *)p_compressed);
 		if (ret != MM_ERROR_NONE) {
 			goto exit;
 		}
@@ -395,12 +391,12 @@ mm_exif_add_thumbnail_info (mm_exif_info_t *info, void *thumbnail, int width, in
 
 	/* set thumbnail size */
 	exif_set_long ((unsigned char *)&elong[cntl], exif_data_get_byte_order(ed), width);
-	ret = mm_exif_set_add_entry(ed, EXIF_IFD_1, EXIF_TAG_IMAGE_WIDTH, EXIF_FORMAT_LONG, 1, (unsigned char*)&elong[cntl++]);
+	ret = mm_exif_set_add_entry(ed, EXIF_IFD_1, EXIF_TAG_IMAGE_WIDTH, EXIF_FORMAT_LONG, 1, (const char *)&elong[cntl++]);
 	if (ret != MM_ERROR_NONE) {
 		goto exit;
 	}
 	exif_set_long ((unsigned char *)&elong[cntl], exif_data_get_byte_order(ed), height);
-	ret = mm_exif_set_add_entry(ed, EXIF_IFD_1, EXIF_TAG_IMAGE_LENGTH, EXIF_FORMAT_LONG, 1, (unsigned char*)&elong[cntl++]);
+	ret = mm_exif_set_add_entry(ed, EXIF_IFD_1, EXIF_TAG_IMAGE_LENGTH, EXIF_FORMAT_LONG, 1, (const char *)&elong[cntl++]);
 	if (ret != MM_ERROR_NONE) {
 		goto exit;
 	}
@@ -412,121 +408,12 @@ mm_exif_add_thumbnail_info (mm_exif_info_t *info, void *thumbnail, int width, in
 
 	ed->data = NULL;
 	ed->size = 0;
-	exif_data_unref (ed);	
+	exif_data_unref (ed);
 
 exit :
 	if(p_compressed != NULL)
 		free(p_compressed);
 	return ret;
-}
-
-
-int mm_exif_mnote_create (ExifData *exif)
-{
-	ExifData* ed = exif;
-	ExifDataOption o = 0;
-	if(!ed){
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] invalid argument exif=%p \n", __LINE__, __func__,ed);
-		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
-	}
-
-	if(!exif_data_mnote_data_new(ed, MAKER_SAMSUNG,  o )){
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] exif_mnote_data_samsung_new() failed. \n", __LINE__, __func__);
-		return MM_ERROR_CAMCORDER_MNOTE_CREATION;
-	}
-
-	return MM_ERROR_NONE;
-}
-
-
-int mm_exif_mnote_set_add_entry (ExifData *exif, MnoteSamsungTag tag, int index, int subindex1, int subindex2)
-{
-	ExifData *ed = exif;
-	ExifMnoteData *md;
-
-	ExifShort product_id = 32768;	//should be modified
-	char serialNum[] = "SerialNum123"; //should be modified
-
-	if(!ed){
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] invalid argument exif=%p \n", __LINE__, __func__,ed);
-		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
-	}
-
-	md = exif_data_get_mnote_data (ed);
-	if(!md){
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] exif_data_get_mnote_data() failed. \n", __LINE__, __func__);
-		return MM_ERROR_CAMCORDER_MNOTE_CREATION;
-	}
-
-	if(!exif_data_mnote_set_mem_for_adding_entry(md, MAKER_SAMSUNG)){
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] exif_data_mnote_set_mem_for_adding_entry() failed. \n", __LINE__, __func__);
-		return MM_ERROR_CAMCORDER_MNOTE_MALLOC;
-	}
-
-	exif_mnote_data_set_byte_order(md, (ExifByteOrder) exif_data_get_data_order(ed));
-
-	switch(tag){
-		case MNOTE_SAMSUNG_TAG_MNOTE_VERSION:
-			if(!exif_data_mnote_set_add_entry(md, MAKER_SAMSUNG, tag, EXIF_FORMAT_UNDEFINED, 4, index)){
-				mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] exif_data_mnote_set_add_entry() failed. \n", __LINE__, __func__);
-				return MM_ERROR_CAMCORDER_MNOTE_ADD_ENTRY;
-			}
-			break;
-		case MNOTE_SAMSUNG_TAG_DEVICE_ID:
-			if(!exif_data_mnote_set_add_entry(md, MAKER_SAMSUNG, tag, EXIF_FORMAT_LONG, 1, index)){
-				mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] exif_data_mnote_set_add_entry() failed. \n", __LINE__, __func__);
-				return MM_ERROR_CAMCORDER_MNOTE_ADD_ENTRY;
-			}
-			break;
-		case MNOTE_SAMSUNG_TAG_MODEL_ID:
-			if(!exif_data_mnote_set_add_entry_subtag(md, MAKER_SAMSUNG, tag, EXIF_FORMAT_LONG, 1, MNOTE_SAMSUNG_SUBTAG_MODEL_ID_CLASS, subindex1, MNOTE_SAMSUNG_SUBTAG_MODEL_ID_DEVEL, subindex2, product_id )){
-				mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] exif_data_mnote_set_add_entry_subtag() failed. \n", __LINE__, __func__);
-				return MM_ERROR_CAMCORDER_MNOTE_ADD_ENTRY;
-			}	
-			break;
-		case MNOTE_SAMSUNG_TAG_COLOR_INFO:
-		case MNOTE_SAMSUNG_TAG_SERIAL_NUM:
-			if(!exif_data_mnote_set_add_entry_string(md, MAKER_SAMSUNG, tag, EXIF_FORMAT_ASCII, strlen(serialNum), serialNum)){
-				mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] exif_data_mnote_set_add_entry_string() failed. \n", __LINE__, __func__);
-				return MM_ERROR_CAMCORDER_MNOTE_ADD_ENTRY;
-			}
-			break;
-		case MNOTE_SAMSUNG_TAG_IMAGE_COUNT:
-		case MNOTE_SAMSUNG_TAG_GPS_INFO01:
-		case MNOTE_SAMSUNG_TAG_GPS_INFO02:
-		case MNOTE_SAMSUNG_TAG_PREVIEW_IMAGE:
-		case MNOTE_SAMSUNG_TAG_FAVOR_TAGGING:
-		case MNOTE_SAMSUNG_TAG_SRW_COMPRESS:
-		case MNOTE_SAMSUNG_TAG_COLOR_SPACE:
-			if(!exif_data_mnote_set_add_entry(md, MAKER_SAMSUNG, tag, EXIF_FORMAT_LONG, 1, index)){
-				mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] exif_data_mnote_set_add_entry() failed. \n", __LINE__, __func__);
-				return MM_ERROR_CAMCORDER_MNOTE_ADD_ENTRY;
-			}
-			break;
-		case MNOTE_SAMSUNG_TAG_AE:
-		case MNOTE_SAMSUNG_TAG_AF:
-		case MNOTE_SAMSUNG_TAG_AWB01:
-		case MNOTE_SAMSUNG_TAG_AWB02:
-		case MNOTE_SAMSUNG_TAG_IPC:
-		case MNOTE_SAMSUNG_TAG_SCENE_RESULT:
-		case MNOTE_SAMSUNG_TAG_SADEBUG_INFO01:
-		case MNOTE_SAMSUNG_TAG_SADEBUG_INFO02:
-		case MNOTE_SAMSUNG_TAG_FACE_DETECTION:
-			if(!exif_data_mnote_set_add_entry(md, MAKER_SAMSUNG, tag, EXIF_FORMAT_LONG, 1, index)){
-				mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s] exif_data_mnote_set_add_entry() failed. \n", __LINE__, __func__);
-				return MM_ERROR_CAMCORDER_MNOTE_ADD_ENTRY;
-			}
-			break;
-		case MNOTE_SAMSUNG_TAG_FACE_FEAT01:
-		case MNOTE_SAMSUNG_TAG_FACE_FEAT02:
-		case MNOTE_SAMSUNG_TAG_FACE_RECOG:
-		case MNOTE_SAMSUNG_TAG_LENS_INFO:
-		case MNOTE_SAMSUNG_TAG_THIRDPARTY:
-			break;
-		default:
-			break;
-	}
-	return MM_ERROR_NONE;
 }
 
 
@@ -539,7 +426,7 @@ mm_exif_write_exif_jpeg_to_file (char *filename, mm_exif_info_t *info,  void *jp
 	unsigned char *eb = NULL;
 	unsigned int ebs;
 
-	mmf_debug (MMF_DEBUG_LOG,"[%05d][%s]\n", __LINE__, __func__);
+	_mmcam_dbg_log("");
 
 	eb = info->data;
 	ebs = info->size;
@@ -547,7 +434,7 @@ mm_exif_write_exif_jpeg_to_file (char *filename, mm_exif_info_t *info,  void *jp
 	/*create file*/
 	fp = fopen (filename, "wb");
 	if (!fp) {
-		mmf_debug (MMF_DEBUG_ERROR, "%s(), fopen() failed [%s].\n", __func__, filename);
+		_mmcam_dbg_err( "fopen() failed [%s].", filename);
 		return MM_ERROR_IMAGE_FILEOPEN;
 	}
 
@@ -559,7 +446,7 @@ mm_exif_write_exif_jpeg_to_file (char *filename, mm_exif_info_t *info,  void *jp
 
 	if(head[0]==0 || head[1]==0 || head_len==0)
 	{
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s]setting error\n", __LINE__, __func__);
+		_mmcam_dbg_err("setting error");
 		fclose (fp);
 		return -1;
 	}
@@ -582,36 +469,55 @@ mm_exif_write_exif_jpeg_to_memory (void **mem, unsigned int *length, mm_exif_inf
 	unsigned short head_len = 0;
 	unsigned char *eb = NULL;
 	unsigned int ebs;
+	int jpeg_offset = JPEG_DATA_OFFSET;
+	mm_exif_info_t *test_exif_info = NULL;
 
 	/*output*/
 	unsigned char *m = NULL;
 	int m_len = 0;
 
-	mmf_debug (MMF_DEBUG_LOG,"[%05d][%s]\n", __LINE__, __func__);
+	_mmcam_dbg_log("");
 
 	if(info==NULL || jpeg==NULL)
 	{
-		mmf_debug (MMF_DEBUG_ERROR, "%s(), MM_ERROR_CAMCORDER_INVALID_ARGUMENT info=%p, jpeg=%p\n", __func__,info,jpeg);
+		_mmcam_dbg_err( "MM_ERROR_CAMCORDER_INVALID_ARGUMENT info=%p, jpeg=%p",info,jpeg);
 		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
 	}
 
 	if(jpeg_len>JPEG_MAX_SIZE)
 	{
-		mmf_debug (MMF_DEBUG_ERROR, "%s(),jpeg_len is worng jpeg_len=%d\n", __func__,jpeg_len);
-		return MM_ERROR_CAMCORDER_DEVICE_WRONG_JPEG;	
+		_mmcam_dbg_err( "jpeg_len is worng jpeg_len=%d",jpeg_len);
+		return MM_ERROR_CAMCORDER_DEVICE_WRONG_JPEG;
 	}
 
 	eb = info->data;
 	ebs = info->size;
 
+	/* check EXIF in JPEG */
+	if (mm_exif_load_exif_info(&test_exif_info, jpeg, jpeg_len) == MM_ERROR_NONE) {
+		if (test_exif_info) {
+			jpeg_offset = test_exif_info->size + JPEG_EXIF_OFFSET;
+			if (test_exif_info->data) {
+				free(test_exif_info->data);
+				test_exif_info->data = NULL;
+			}
+			free(test_exif_info);
+			test_exif_info = NULL;
+		} else {
+			_mmcam_dbg_err("test_exif_info is NULL");
+		}
+	} else {
+		_mmcam_dbg_warn("no EXIF in JPEG");
+	}
+
 	/*length of output image*/
 	/*SOI + APP1 + length of APP1 + length of EXIF + IMAGE*/
-	m_len = EXIF_MARKER_SOI_LENGTH + EXIF_MARKER_APP1_LENGTH + EXIF_APP1_LENGTH + ebs + (jpeg_len - JPEG_DATA_OFFSET);
+	m_len = EXIF_MARKER_SOI_LENGTH + EXIF_MARKER_APP1_LENGTH + EXIF_APP1_LENGTH + ebs + (jpeg_len - jpeg_offset);
 	/*alloc output image*/
 	m = malloc (m_len);
 	if (!m) {
-		mmf_debug (MMF_DEBUG_ERROR, "%s(), malloc() failed.\n", __func__);
-		return MM_ERROR_CAMCORDER_LOW_MEMORY;	
+		_mmcam_dbg_err( "malloc() failed.");
+		return MM_ERROR_CAMCORDER_LOW_MEMORY;
 	}
 
 	/*set SOI, APP1*/
@@ -620,7 +526,7 @@ mm_exif_write_exif_jpeg_to_memory (void **mem, unsigned int *length, mm_exif_inf
 	/*set header length*/
 	_exif_set_uint16 (0, &head_len, (unsigned short)(ebs + 2));
 	if (head[0] == 0 || head[1] == 0 || head_len == 0) {
-		mmf_debug (MMF_DEBUG_ERROR,"[%05d][%s]setting error\n", __LINE__, __func__);
+		_mmcam_dbg_err("setting error");
 		free(m);
 		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
 	}
@@ -639,14 +545,55 @@ mm_exif_write_exif_jpeg_to_memory (void **mem, unsigned int *length, mm_exif_inf
 	       eb, ebs);
 	/*IMAGE*/
 	memcpy(m + EXIF_MARKER_SOI_LENGTH + EXIF_MARKER_APP1_LENGTH + EXIF_APP1_LENGTH + ebs,
-	       jpeg + JPEG_DATA_OFFSET, jpeg_len - JPEG_DATA_OFFSET);
+	       jpeg + jpeg_offset, jpeg_len - jpeg_offset);
 
-	mmf_debug(MMF_DEBUG_LOG,"[%05d][%s] JPEG+EXIF Copy DONE(original:%d, copied:%d)\n",
-	                        __LINE__, __func__, jpeg_len, jpeg_len - JPEG_DATA_OFFSET);
+	_mmcam_dbg_log("JPEG+EXIF Copy DONE(original:%d, offset:%d, copied:%d)",
+	                        jpeg_len, jpeg_offset, jpeg_len - jpeg_offset);
 
 	/*set ouput param*/
 	*mem    = m;
 	*length = m_len;
 
 	return MM_ERROR_NONE;
+}
+
+
+int mm_exif_load_exif_info(mm_exif_info_t **info, void *jpeg_data, int jpeg_length)
+{
+	ExifLoader *loader = NULL;
+	const unsigned char *b = NULL;
+	unsigned int s = 0;
+	mm_exif_info_t *x = NULL;
+	// TODO : get exif and re-set exif
+	loader = exif_loader_new();
+	if (loader) {
+		exif_loader_write (loader, jpeg_data, jpeg_length);
+		exif_loader_get_buf (loader, &b, &s);
+		if (s > 0) {
+			x = malloc(sizeof(mm_exif_info_t));
+			if (x) {
+				x->data = malloc(s);
+				memcpy((char*)x->data, b, s);
+				x->size = s;
+				*info = x;
+				_mmcam_dbg_warn("load EXIF : data %p, size %d", x->data, x->size);
+			} else {
+				_mmcam_dbg_err("mm_exif_info_t malloc failed");
+			}
+		} else {
+			_mmcam_dbg_err("exif_loader_get_buf failed");
+		}
+
+		/* The loader is no longer needed--free it */
+		exif_loader_unref(loader);
+		loader = NULL;
+	} else {
+		_mmcam_dbg_err("exif_loader_new failed");
+	}
+
+	if (x) {
+		return MM_ERROR_NONE;
+	} else {
+		return MM_ERROR_CAMCORDER_INTERNAL;
+	}
 }
