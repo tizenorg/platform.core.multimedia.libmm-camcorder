@@ -601,7 +601,7 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 
 	/* [General] matching table */
 	static conf_info_table conf_main_general_table[] = {
-		{ "SyncStateChange", CONFIGURE_VALUE_INT,           {1} },
+		{ "SyncStateChange", CONFIGURE_VALUE_INT,           {.value_int = 1} },
 		{ "GSTInitOption",   CONFIGURE_VALUE_STRING_ARRAY,  {NULL} },
 		{ "ModelName",       CONFIGURE_VALUE_STRING,        {NULL} },
 		{ "DisabledAttributes", CONFIGURE_VALUE_STRING_ARRAY,  {NULL} },
@@ -609,15 +609,15 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 
 	/* [VideoInput] matching table */
 	static conf_info_table conf_main_video_input_table[] = {
-		{ "UseConfCtrl",        CONFIGURE_VALUE_INT,            {1} },
-		{ "ConfCtrlFile0",      CONFIGURE_VALUE_STRING,         {0} },
-		{ "ConfCtrlFile1",      CONFIGURE_VALUE_STRING,         {0} },
+		{ "UseConfCtrl",        CONFIGURE_VALUE_INT,            {.value_int = 1} },
+		{ "ConfCtrlFile0",      CONFIGURE_VALUE_STRING,         {NULL} },
+		{ "ConfCtrlFile1",      CONFIGURE_VALUE_STRING,         {NULL} },
 		{ "VideosrcElement",    CONFIGURE_VALUE_ELEMENT,        {&_videosrc_element_default} },
-		{ "UseVideoscale",      CONFIGURE_VALUE_INT,            {0} },
+		{ "UseVideoscale",      CONFIGURE_VALUE_INT,            {.value_int = 0} },
 		{ "VideoscaleElement",  CONFIGURE_VALUE_ELEMENT,        {&_videoscale_element_default} },
-		{ "UseZeroCopyFormat",  CONFIGURE_VALUE_INT,            {0} },
-		{ "DeviceCount",        CONFIGURE_VALUE_INT,            {MM_VIDEO_DEVICE_NUM} },
-		{ "SupportMediaPacketPreviewCb",  CONFIGURE_VALUE_INT,  {0} },
+		{ "UseZeroCopyFormat",  CONFIGURE_VALUE_INT,            {.value_int = 0} },
+		{ "DeviceCount",        CONFIGURE_VALUE_INT,            {.value_int = MM_VIDEO_DEVICE_NUM} },
+		{ "SupportMediaPacketPreviewCb",  CONFIGURE_VALUE_INT,  {.value_int = 0} },
 	};
 
 	/* [AudioInput] matching table */
@@ -635,40 +635,40 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		{ "VideosinkElementEvas",  CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_evas_default} },
 		{ "VideosinkElementGL",    CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_gl_default} },
 		{ "VideosinkElementNull",  CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_null_default} },
-		{ "UseVideoscale",         CONFIGURE_VALUE_INT,       {0} },
+		{ "UseVideoscale",         CONFIGURE_VALUE_INT,       {.value_int = 0} },
 		{ "VideoscaleElement",     CONFIGURE_VALUE_ELEMENT,   {&_videoscale_element_default} },
 		{ "VideoconvertElement",   CONFIGURE_VALUE_ELEMENT,   {&_videoconvert_element_default} },
 	};
 
 	/* [Capture] matching table */
 	static conf_info_table conf_main_capture_table[] = {
-		{ "UseEncodebin",           CONFIGURE_VALUE_INT,     {0} },
-		{ "UseCaptureMode",         CONFIGURE_VALUE_INT,     {0} },
+		{ "UseEncodebin",           CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "UseCaptureMode",         CONFIGURE_VALUE_INT,     {.value_int = 0} },
 		{ "VideoscaleElement",      CONFIGURE_VALUE_ELEMENT, {&_videoscale_element_default} },
-		{ "PlayCaptureSound",       CONFIGURE_VALUE_INT,     {1} },
+		{ "PlayCaptureSound",       CONFIGURE_VALUE_INT,     {.value_int = 1} },
 	};
 
 	/* [Record] matching table */
 	static conf_info_table conf_main_record_table[] = {
-		{ "UseAudioEncoderQueue",   CONFIGURE_VALUE_INT,     {1} },
-		{ "UseVideoEncoderQueue",   CONFIGURE_VALUE_INT,     {1} },
-		{ "VideoProfile",           CONFIGURE_VALUE_INT,     {0} },
-		{ "VideoAutoAudioConvert",  CONFIGURE_VALUE_INT,     {0} },
-		{ "VideoAutoAudioResample", CONFIGURE_VALUE_INT,     {0} },
-		{ "VideoAutoColorSpace",    CONFIGURE_VALUE_INT,     {0} },
-		{ "AudioProfile",           CONFIGURE_VALUE_INT,     {0} },
-		{ "AudioAutoAudioConvert",  CONFIGURE_VALUE_INT,     {0} },
-		{ "AudioAutoAudioResample", CONFIGURE_VALUE_INT,     {0} },
-		{ "AudioAutoColorSpace",    CONFIGURE_VALUE_INT,     {0} },
-		{ "ImageProfile",           CONFIGURE_VALUE_INT,     {0} },
-		{ "ImageAutoAudioConvert",  CONFIGURE_VALUE_INT,     {0} },
-		{ "ImageAutoAudioResample", CONFIGURE_VALUE_INT,     {0} },
-		{ "ImageAutoColorSpace",    CONFIGURE_VALUE_INT,     {0} },
+		{ "UseAudioEncoderQueue",   CONFIGURE_VALUE_INT,     {.value_int = 1} },
+		{ "UseVideoEncoderQueue",   CONFIGURE_VALUE_INT,     {.value_int = 1} },
+		{ "VideoProfile",           CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "VideoAutoAudioConvert",  CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "VideoAutoAudioResample", CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "VideoAutoColorSpace",    CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "AudioProfile",           CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "AudioAutoAudioConvert",  CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "AudioAutoAudioResample", CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "AudioAutoColorSpace",    CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "ImageProfile",           CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "ImageAutoAudioConvert",  CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "ImageAutoAudioResample", CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "ImageAutoColorSpace",    CONFIGURE_VALUE_INT,     {.value_int = 0} },
 		{ "RecordsinkElement",      CONFIGURE_VALUE_ELEMENT, {&_recordsink_element_default} },
-		{ "UseNoiseSuppressor",     CONFIGURE_VALUE_INT,     {0} },
-		{ "DropVideoFrame",         CONFIGURE_VALUE_INT,     {0} },
-		{ "PassFirstVideoFrame",    CONFIGURE_VALUE_INT,     {0} },
-		{ "SupportDualStream",      CONFIGURE_VALUE_INT,     {FALSE} },
+		{ "UseNoiseSuppressor",     CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "DropVideoFrame",         CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "PassFirstVideoFrame",    CONFIGURE_VALUE_INT,     {.value_int = 0} },
+		{ "SupportDualStream",      CONFIGURE_VALUE_INT,     {.value_int = FALSE} },
 	};
 
 	/* [VideoEncoder] matching table */
@@ -744,11 +744,11 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		{ "FPS",               CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
 		{ "PictureFormat",     CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
 		{ "Overlay",           CONFIGURE_VALUE_INT_RANGE,      {NULL} },
-		{ "RecommendDisplayRotation", CONFIGURE_VALUE_INT,     {3}    },
-		{ "RecommendPreviewFormatCapture", CONFIGURE_VALUE_INT, {MM_PIXEL_FORMAT_YUYV} },
-		{ "RecommendPreviewFormatRecord",  CONFIGURE_VALUE_INT, {MM_PIXEL_FORMAT_NV12} },
+		{ "RecommendDisplayRotation", CONFIGURE_VALUE_INT,     {.value_int = 3}    },
+		{ "RecommendPreviewFormatCapture", CONFIGURE_VALUE_INT, {.value_int = MM_PIXEL_FORMAT_YUYV} },
+		{ "RecommendPreviewFormatRecord",  CONFIGURE_VALUE_INT, {.value_int = MM_PIXEL_FORMAT_NV12} },
 		{ "RecommendPreviewResolution", CONFIGURE_VALUE_INT_PAIR_ARRAY, {NULL} },
-		{ "FacingDirection", CONFIGURE_VALUE_INT, {MM_CAMCORDER_CAMERA_FACING_DIRECTION_REAR} },
+		{ "FacingDirection", CONFIGURE_VALUE_INT, {.value_int = MM_CAMCORDER_CAMERA_FACING_DIRECTION_REAR} },
 	};
 
 	/* [Strobe] matching table */
@@ -761,7 +761,7 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 	/* [Effect] matching table */
 	static conf_info_table conf_ctrl_effect_table[] = {
 		{ "Brightness",           CONFIGURE_VALUE_INT_RANGE, {NULL} },
-		{ "BrightnessStepDenominator", CONFIGURE_VALUE_INT, {2} },
+		{ "BrightnessStepDenominator", CONFIGURE_VALUE_INT, {.value_int = 2} },
 		{ "Contrast",             CONFIGURE_VALUE_INT_RANGE, {NULL} },
 		{ "Saturation",           CONFIGURE_VALUE_INT_RANGE, {NULL} },
 		{ "Sharpness",            CONFIGURE_VALUE_INT_RANGE, {NULL} },
@@ -798,9 +798,9 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		{ "OutputMode",           CONFIGURE_VALUE_INT_ARRAY, {NULL} },
 		{ "JpegQuality",          CONFIGURE_VALUE_INT_RANGE, {NULL} },
 		{ "MultishotNumber",      CONFIGURE_VALUE_INT_RANGE, {NULL} },
-		{ "SensorEncodedCapture", CONFIGURE_VALUE_INT,       {1} },
+		{ "SensorEncodedCapture", CONFIGURE_VALUE_INT,       {.value_int = 1} },
 		{ "SupportHDR",           CONFIGURE_VALUE_INT_ARRAY, {NULL} },
-		{ "SupportZSL",           CONFIGURE_VALUE_INT,       {FALSE} },
+		{ "SupportZSL",           CONFIGURE_VALUE_INT,       {.value_int = FALSE} },
 	};
 
 	/* [Detect] matching table */
