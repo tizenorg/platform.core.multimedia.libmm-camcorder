@@ -279,68 +279,64 @@ extern "C" {
  *	Functions related with LOCK and WAIT
  */
 #define _MMCAMCORDER_CAST_MTSAFE(handle)			(((mmf_camcorder_t*)handle)->mtsafe)
+#define _MMCAMCORDER_LOCK_FUNC(mutex)				pthread_mutex_lock(&mutex)
+#define _MMCAMCORDER_TRYLOCK_FUNC(mutex)			(!pthread_mutex_trylock(&mutex))
+#define _MMCAMCORDER_UNLOCK_FUNC(mutex)				pthread_mutex_unlock(&mutex)
 
 #define _MMCAMCORDER_GET_LOCK(handle)				(_MMCAMCORDER_CAST_MTSAFE(handle).lock)
-#define _MMCAMCORDER_LOCK(handle)				pthread_mutex_lock(&_MMCAMCORDER_GET_LOCK(handle))
-#define _MMCAMCORDER_TRYLOCK(handle)				pthread_mutex_trylock(&_MMCAMCORDER_GET_LOCK(handle))
-#define _MMCAMCORDER_UNLOCK(handle)				pthread_mutex_unlock(&_MMCAMCORDER_GET_LOCK(handle))
-
-#define _MMCAMCORDER_GET_COND(handle)				(_MMCAMCORDER_CAST_MTSAFE(handle).cond)
-#define _MMCAMCORDER_WAIT(handle)				pthread_cond_wait(&_MMCAMCORDER_GET_COND(handle), &_MMCAMCORDER_GET_LOCK(handle))
-#define _MMCAMCORDER_TIMED_WAIT(handle, timeval)		pthread_cond_timedwait(&_MMCAMCORDER_GET_COND(handle), &_MMCAMCORDER_GET_LOCK(handle), timeval)
-
-#define _MMCAMCORDER_SIGNAL(handle)				pthread_cond_signal(&_MMCAMCORDER_GET_COND(handle))
-#define _MMCAMCORDER_BROADCAST(handle)				pthread_cond_broadcast(&_MMCAMCORDER_GET_COND(handle))
+#define _MMCAMCORDER_LOCK(handle)				_MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK(handle)				_MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK(handle)				_MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_LOCK(handle))
 
 /* for command */
 #define _MMCAMCORDER_GET_CMD_LOCK(handle)			(_MMCAMCORDER_CAST_MTSAFE(handle).cmd_lock)
-#define _MMCAMCORDER_LOCK_CMD(handle)				pthread_mutex_lock(&_MMCAMCORDER_GET_CMD_LOCK(handle))
-#define _MMCAMCORDER_TRYLOCK_CMD(handle)			pthread_mutex_trylock(&_MMCAMCORDER_GET_CMD_LOCK(handle))
-#define _MMCAMCORDER_UNLOCK_CMD(handle)				pthread_mutex_unlock(&_MMCAMCORDER_GET_CMD_LOCK(handle))
+#define _MMCAMCORDER_LOCK_CMD(handle)				_MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_CMD_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_CMD(handle)			_MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_CMD_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_CMD(handle)				_MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_CMD_LOCK(handle))
 
 /* for ASM */
 #define _MMCAMCORDER_GET_ASM_LOCK(handle)			(_MMCAMCORDER_CAST_MTSAFE(handle).asm_lock)
-#define _MMCAMCORDER_LOCK_ASM(handle)				pthread_mutex_lock(&_MMCAMCORDER_GET_ASM_LOCK(handle))
-#define _MMCAMCORDER_TRYLOCK_ASM(handle)			pthread_mutex_trylock(&_MMCAMCORDER_GET_ASM_LOCK(handle))
-#define _MMCAMCORDER_UNLOCK_ASM(handle)				pthread_mutex_unlock(&_MMCAMCORDER_GET_ASM_LOCK(handle))
+#define _MMCAMCORDER_LOCK_ASM(handle)				_MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_ASM_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_ASM(handle)			_MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_ASM_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_ASM(handle)				_MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_ASM_LOCK(handle))
 
 /* for state change */
 #define _MMCAMCORDER_GET_STATE_LOCK(handle)			(_MMCAMCORDER_CAST_MTSAFE(handle).state_lock)
-#define _MMCAMCORDER_LOCK_STATE(handle)				pthread_mutex_lock(&_MMCAMCORDER_GET_STATE_LOCK(handle))
-#define _MMCAMCORDER_TRYLOCK_STATE(handle)			pthread_mutex_trylock(&_MMCAMCORDER_GET_STATE_LOCK(handle))
-#define _MMCAMCORDER_UNLOCK_STATE(handle)			pthread_mutex_unlock(&_MMCAMCORDER_GET_STATE_LOCK(handle))
+#define _MMCAMCORDER_LOCK_STATE(handle)				_MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_STATE_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_STATE(handle)			_MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_STATE_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_STATE(handle)			_MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_STATE_LOCK(handle))
 
 /* for gstreamer state change */
 #define _MMCAMCORDER_GET_GST_STATE_LOCK(handle)			(_MMCAMCORDER_CAST_MTSAFE(handle).gst_state_lock)
-#define _MMCAMCORDER_LOCK_GST_STATE(handle)			pthread_mutex_lock(&_MMCAMCORDER_GET_GST_STATE_LOCK(handle))
-#define _MMCAMCORDER_TRYLOCK_GST_STATE(handle)			pthread_mutex_trylock(&_MMCAMCORDER_GET_GST_STATE_LOCK(handle))
-#define _MMCAMCORDER_UNLOCK_GST_STATE(handle)			pthread_mutex_unlock(&_MMCAMCORDER_GET_GST_STATE_LOCK(handle))
+#define _MMCAMCORDER_LOCK_GST_STATE(handle)			_MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_GST_STATE_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_GST_STATE(handle)			_MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_GST_STATE_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_GST_STATE(handle)			_MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_GST_STATE_LOCK(handle))
 
 #define _MMCAMCORDER_GET_GST_ENCODE_STATE_LOCK(handle)		(_MMCAMCORDER_CAST_MTSAFE(handle).gst_encode_state_lock)
-#define _MMCAMCORDER_LOCK_GST_ENCODE_STATE(handle)		pthread_mutex_lock(&_MMCAMCORDER_GET_GST_ENCODE_STATE_LOCK(handle))
-#define _MMCAMCORDER_TRYLOCK_GST_ENCODE_STATE(handle)		pthread_mutex_trylock(&_MMCAMCORDER_GET_GST_ENCODE_STATE_LOCK(handle))
-#define _MMCAMCORDER_UNLOCK_GST_ENCODE_STATE(handle)		pthread_mutex_unlock(&_MMCAMCORDER_GET_GST_ENCODE_STATE_LOCK(handle))
+#define _MMCAMCORDER_LOCK_GST_ENCODE_STATE(handle)		_MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_GST_ENCODE_STATE_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_GST_ENCODE_STATE(handle)		_MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_GST_ENCODE_STATE_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_GST_ENCODE_STATE(handle)		_MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_GST_ENCODE_STATE_LOCK(handle))
 
 /* for setting/calling callback */
 #define _MMCAMCORDER_GET_MESSAGE_CALLBACK_LOCK(handle)      (_MMCAMCORDER_CAST_MTSAFE(handle).message_cb_lock)
-#define _MMCAMCORDER_LOCK_MESSAGE_CALLBACK(handle)          pthread_mutex_lock(&_MMCAMCORDER_GET_MESSAGE_CALLBACK_LOCK(handle))
-#define _MMCAMCORDER_TRYLOCK_MESSAGE_CALLBACK(handle)       pthread_mutex_trylock(&_MMCAMCORDER_GET_MESSAGE_CALLBACK_LOCK(handle))
-#define _MMCAMCORDER_UNLOCK_MESSAGE_CALLBACK(handle)        pthread_mutex_unlock(&_MMCAMCORDER_GET_MESSAGE_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_LOCK_MESSAGE_CALLBACK(handle)          _MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_MESSAGE_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_MESSAGE_CALLBACK(handle)       _MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_MESSAGE_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_MESSAGE_CALLBACK(handle)        _MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_MESSAGE_CALLBACK_LOCK(handle))
 
 #define _MMCAMCORDER_GET_VCAPTURE_CALLBACK_LOCK(handle)     (_MMCAMCORDER_CAST_MTSAFE(handle).vcapture_cb_lock)
-#define _MMCAMCORDER_LOCK_VCAPTURE_CALLBACK(handle)         pthread_mutex_lock(&_MMCAMCORDER_GET_VCAPTURE_CALLBACK_LOCK(handle))
-#define _MMCAMCORDER_TRYLOCK_VCAPTURE_CALLBACK(handle)      pthread_mutex_trylock(&_MMCAMCORDER_GET_VCAPTURE_CALLBACK_LOCK(handle))
-#define _MMCAMCORDER_UNLOCK_VCAPTURE_CALLBACK(handle)       pthread_mutex_unlock(&_MMCAMCORDER_GET_VCAPTURE_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_LOCK_VCAPTURE_CALLBACK(handle)         _MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_VCAPTURE_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_VCAPTURE_CALLBACK(handle)      _MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_VCAPTURE_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_VCAPTURE_CALLBACK(handle)       _MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_VCAPTURE_CALLBACK_LOCK(handle))
 
 #define _MMCAMCORDER_GET_VSTREAM_CALLBACK_LOCK(handle)      (_MMCAMCORDER_CAST_MTSAFE(handle).vstream_cb_lock)
-#define _MMCAMCORDER_LOCK_VSTREAM_CALLBACK(handle)          pthread_mutex_lock(&_MMCAMCORDER_GET_VSTREAM_CALLBACK_LOCK(handle))
-#define _MMCAMCORDER_TRYLOCK_VSTREAM_CALLBACK(handle)       pthread_mutex_trylock(&_MMCAMCORDER_GET_VSTREAM_CALLBACK_LOCK(handle))
-#define _MMCAMCORDER_UNLOCK_VSTREAM_CALLBACK(handle)        pthread_mutex_unlock(&_MMCAMCORDER_GET_VSTREAM_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_LOCK_VSTREAM_CALLBACK(handle)          _MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_VSTREAM_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_VSTREAM_CALLBACK(handle)       _MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_VSTREAM_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_VSTREAM_CALLBACK(handle)        _MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_VSTREAM_CALLBACK_LOCK(handle))
 
 #define _MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle)      (_MMCAMCORDER_CAST_MTSAFE(handle).astream_cb_lock)
-#define _MMCAMCORDER_LOCK_ASTREAM_CALLBACK(handle)          pthread_mutex_lock(&_MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle))
-#define _MMCAMCORDER_TRYLOCK_ASTREAM_CALLBACK(handle)       pthread_mutex_trylock(&_MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle))
-#define _MMCAMCORDER_UNLOCK_ASTREAM_CALLBACK(handle)        pthread_mutex_unlock(&_MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_LOCK_ASTREAM_CALLBACK(handle)          _MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_ASTREAM_CALLBACK(handle)       _MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_ASTREAM_CALLBACK(handle)        _MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle))
 
 /**
  * Caster of main handle (camcorder)
@@ -532,7 +528,6 @@ typedef struct {
  */
 typedef struct {
 	pthread_mutex_t lock;			/**< Mutex (for general use) */
-	pthread_cond_t cond;			/**< Condition (for general use) */
 	pthread_mutex_t cmd_lock;		/**< Mutex (for command) */
 	pthread_mutex_t asm_lock;		/**< Mutex (for ASM) */
 	pthread_mutex_t state_lock;		/**< Mutex (for state change) */
@@ -647,7 +642,6 @@ typedef struct mmf_camcorder {
 	char *model_name;                                       /**< model name from system info */
 	char *software_version;                                 /**< software_version from system info */
 	int capture_sound_count;                                /**< count for capture sound */
-	bool stillshot_wide_resolution;				/**<to set the capture resolution high*/
 
 	_MMCamcorderInfoConverting caminfo_convert[CAMINFO_CONVERT_NUM];        /**< converting structure of camera info */
 	_MMCamcorderEnumConvert enum_conv[ENUM_CONVERT_NUM];                    /**< enum converting list that is modified by ini info */

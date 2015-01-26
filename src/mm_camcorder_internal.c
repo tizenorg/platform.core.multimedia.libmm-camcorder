@@ -108,8 +108,6 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	hcamcorder->capture_in_recording = FALSE;
 
 	pthread_mutex_init(&((hcamcorder->mtsafe).lock), NULL);
-	pthread_cond_init(&((hcamcorder->mtsafe).cond), NULL);
-
 	pthread_mutex_init(&((hcamcorder->mtsafe).cmd_lock), NULL);
 	pthread_mutex_init(&((hcamcorder->mtsafe).asm_lock), NULL);
 	pthread_mutex_init(&((hcamcorder->mtsafe).state_lock), NULL);
@@ -166,7 +164,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	}
 
 	if (info->videodev_type != MM_VIDEO_DEVICE_NONE) {
-		_mmcamcorder_conf_get_value_int(handle, hcamcorder->conf_main,
+		_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_main,
 		                                CONFIGURE_CATEGORY_MAIN_VIDEO_INPUT,
 		                                "UseConfCtrl", &UseConfCtrl);
 
@@ -214,42 +212,42 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			}
 
 			/* Get device info, recommend preview fmt and display rotation from INI */
-			_mmcamcorder_conf_get_value_int(handle, hcamcorder->conf_ctrl,
+			_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_ctrl,
 			                                CONFIGURE_CATEGORY_CTRL_CAMERA,
 			                                "RecommendPreviewFormatCapture",
 			                                &rcmd_fmt_capture);
 
-			_mmcamcorder_conf_get_value_int(handle, hcamcorder->conf_ctrl,
+			_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_ctrl,
 			                                CONFIGURE_CATEGORY_CTRL_CAMERA,
 			                                "RecommendPreviewFormatRecord",
 			                                &rcmd_fmt_recording);
 
-			_mmcamcorder_conf_get_value_int(handle, hcamcorder->conf_ctrl,
+			_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_ctrl,
 			                                CONFIGURE_CATEGORY_CTRL_CAMERA,
 			                                "RecommendDisplayRotation",
 			                                &rcmd_dpy_rotation);
 
-			_mmcamcorder_conf_get_value_int(handle, hcamcorder->conf_main,
+			_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_main,
 			                                CONFIGURE_CATEGORY_MAIN_CAPTURE,
 			                                "PlayCaptureSound",
 			                                &play_capture_sound);
 
-			_mmcamcorder_conf_get_value_int(handle, hcamcorder->conf_main,
+			_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_main,
 			                                CONFIGURE_CATEGORY_MAIN_VIDEO_INPUT,
 			                                "DeviceCount",
 			                                &camera_device_count);
 
-			_mmcamcorder_conf_get_value_int(handle, hcamcorder->conf_ctrl,
+			_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_ctrl,
 			                                CONFIGURE_CATEGORY_CTRL_CAMERA,
 			                                "FacingDirection",
 			                                &camera_facing_direction);
 
-			_mmcamcorder_conf_get_value_int(handle, hcamcorder->conf_ctrl,
+			_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_ctrl,
 			                                CONFIGURE_CATEGORY_CTRL_EFFECT,
 			                                "BrightnessStepDenominator",
 			                                &hcamcorder->brightness_step_denominator);
 
-			_mmcamcorder_conf_get_value_int(handle, hcamcorder->conf_ctrl,
+			_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_ctrl,
 			                                CONFIGURE_CATEGORY_CTRL_CAPTURE,
 			                                "SupportZSL",
 			                                &hcamcorder->support_zsl_capture);
@@ -260,13 +258,13 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			               hcamcorder->brightness_step_denominator, hcamcorder->support_zsl_capture);
 
 			/* Get UseZeroCopyFormat value from INI */
-			_mmcamcorder_conf_get_value_int(handle, hcamcorder->conf_main,
+			_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_main,
 			                                CONFIGURE_CATEGORY_MAIN_VIDEO_INPUT,
 			                                "UseZeroCopyFormat",
 			                                &(hcamcorder->use_zero_copy_format));
 
 			/* Get SupportMediaPacketPreviewCb value from INI */
-			_mmcamcorder_conf_get_value_int(handle, hcamcorder->conf_main,
+			_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_main,
 			                                CONFIGURE_CATEGORY_MAIN_VIDEO_INPUT,
 			                                "SupportMediaPacketPreviewCb",
 			                                &(hcamcorder->support_media_packet_preview_cb));
@@ -364,7 +362,6 @@ _ERR_AFTER_ASM_REGISTER:
 _ERR_DEFAULT_VALUE_INIT:
 	/* Release lock, cond */
 	pthread_mutex_destroy(&((hcamcorder->mtsafe).lock));
-	pthread_cond_destroy(&((hcamcorder->mtsafe).cond));
 	pthread_mutex_destroy(&((hcamcorder->mtsafe).cmd_lock));
 	pthread_mutex_destroy(&((hcamcorder->mtsafe).asm_lock));
 	pthread_mutex_destroy(&((hcamcorder->mtsafe).state_lock));
@@ -525,7 +522,6 @@ int _mmcamcorder_destroy(MMHandleType handle)
 
 	/* Release lock, cond */
 	pthread_mutex_destroy(&((hcamcorder->mtsafe).lock));
-	pthread_cond_destroy(&((hcamcorder->mtsafe).cond));
 	pthread_mutex_destroy(&((hcamcorder->mtsafe).cmd_lock));
 	pthread_mutex_destroy(&((hcamcorder->mtsafe).asm_lock));
 	pthread_mutex_destroy(&((hcamcorder->mtsafe).state_lock));
