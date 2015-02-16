@@ -78,6 +78,7 @@ static gboolean __mmcamcorder_set_attr_to_camsensor_cb(gpointer data);
 int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 {
 	int ret = MM_ERROR_NONE;
+	int sys_info_ret = SYSTEM_INFO_ERROR_NONE;
 	int UseConfCtrl = 0;
 	int rcmd_fmt_capture = MM_PIXEL_FORMAT_YUYV;
 	int rcmd_fmt_recording = MM_PIXEL_FORMAT_NV12;
@@ -343,10 +344,20 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	_mmcam_dbg_log("current shutter sound policy : %d", hcamcorder->shutter_sound_policy);
 
 	/* get model name */
-	system_info_get_value_string(SYSTEM_INFO_KEY_MODEL, &hcamcorder->model_name);
+	sys_info_ret = system_info_get_platform_string("tizen.org/system/model_name", &hcamcorder->model_name);
+	if (hcamcorder->model_name) {
+		_mmcam_dbg_log("model name [%s], sys_info_ret 0x%x", hcamcorder->model_name, sys_info_ret);
+	} else {
+		_mmcam_dbg_warn("failed get model name, sys_info_ret 0x%x", sys_info_ret);
+	}
 
 	/* get software version */
-	system_info_get_value_string(SYSTEM_INFO_KEY_BUILD_STRING, &hcamcorder->software_version);
+	sys_info_ret = system_info_get_platform_string("tizen.org/system/build.string", &hcamcorder->software_version);
+	if (hcamcorder->software_version) {
+		_mmcam_dbg_log("software version [%s], sys_info_ret 0x%d", hcamcorder->software_version, sys_info_ret);
+	} else {
+		_mmcam_dbg_warn("failed get software version, sys_info_ret 0x%x", sys_info_ret);
+	}
 
 	/* Set initial state */
 	_mmcamcorder_set_state((MMHandleType)hcamcorder, MM_CAMCORDER_STATE_NULL);
