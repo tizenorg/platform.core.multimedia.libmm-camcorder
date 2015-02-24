@@ -1,7 +1,7 @@
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
 Version:    0.9.3
-Release:    0
+Release:    1
 Group:      Multimedia/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
@@ -56,8 +56,6 @@ cp LICENSE.APLv2 %{buildroot}/usr/share/license/%{name}
 
 vconftool set -t int memory/camera/state 0 -i -u 5000 -s system::vconf_multimedia
 vconftool set -t int file/camera/shutter_sound_policy 0 -u 5000 -s system::vconf_inhouse
-chsmack -a "device::camera" /usr/share/sounds/mm-camcorder/camera_resource
-chsmack -a "pulseaudio::record" /usr/share/sounds/mm-camcorder/recorder_resource
 
 %postun -p /sbin/ldconfig
 
