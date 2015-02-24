@@ -344,7 +344,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	_mmcam_dbg_log("current shutter sound policy : %d", hcamcorder->shutter_sound_policy);
 
 	/* get model name */
-	sys_info_ret = system_info_get_platform_string("tizen.org/system/model_name", &hcamcorder->model_name);
+	sys_info_ret = system_info_get_platform_string("http://tizen.org/system/model_name", &hcamcorder->model_name);
 	if (hcamcorder->model_name) {
 		_mmcam_dbg_log("model name [%s], sys_info_ret 0x%x", hcamcorder->model_name, sys_info_ret);
 	} else {
@@ -352,7 +352,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	}
 
 	/* get software version */
-	sys_info_ret = system_info_get_platform_string("tizen.org/system/build.string", &hcamcorder->software_version);
+	sys_info_ret = system_info_get_platform_string("http://tizen.org/system/build.string", &hcamcorder->software_version);
 	if (hcamcorder->software_version) {
 		_mmcam_dbg_log("software version [%s], sys_info_ret 0x%d", hcamcorder->software_version, sys_info_ret);
 	} else {

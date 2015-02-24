@@ -155,8 +155,8 @@ static GTimer *timer = NULL;
 #define IMAGE_CAPTURE_THUMBNAIL_PATH    TARGET_FILENAME_PATH"thumbnail.jpg"
 #define IMAGE_CAPTURE_SCREENNAIL_PATH   TARGET_FILENAME_PATH"screennail.yuv"
 #define IMAGE_CAPTURE_EXIF_PATH         TARGET_FILENAME_PATH"exif.raw"
-#define TARGET_FILENAME_VIDEO           TARGET_FILENAME_PATH"test_rec_video.3gp"
-#define TARGET_FILENAME_AUDIO           TARGET_FILENAME_PATH"test_rec_audio.amr"
+#define TARGET_FILENAME_VIDEO           TARGET_FILENAME_PATH"test_rec_video.mp4"
+#define TARGET_FILENAME_AUDIO           TARGET_FILENAME_PATH"test_rec_audio.m4a"
 #define CAPTURE_FILENAME_LEN            256
 
 #define AUDIO_SOURCE_SAMPLERATE_AAC     44100
@@ -2140,7 +2140,7 @@ static gboolean init(int type)
 		                                   MMCAM_AUDIO_ENCODER, MM_AUDIO_CODEC_AAC,
 		                                   MMCAM_VIDEO_ENCODER, MM_VIDEO_CODEC_MPEG4,
 		                                   MMCAM_VIDEO_ENCODER_BITRATE, VIDEO_ENCODE_BITRATE,
-		                                   MMCAM_FILE_FORMAT, MM_FILE_FORMAT_3GP,
+		                                   MMCAM_FILE_FORMAT, MM_FILE_FORMAT_MP4,
 		                                   MMCAM_CAMERA_FPS, SRC_VIDEO_FRAME_RATE_30,
 		                                   MMCAM_CAMERA_FPS_AUTO, 0,
 		                                   MMCAM_CAMERA_ROTATION, MM_VIDEO_INPUT_ROTATION_NONE,
@@ -2179,7 +2179,7 @@ static gboolean init(int type)
 		                                   MMCAM_AUDIO_CHANNEL, AUDIO_SOURCE_CHANNEL_AAC,
 		                                   MMCAM_TARGET_FILENAME, TARGET_FILENAME_AUDIO, size,
 		                                   MMCAM_TARGET_TIME_LIMIT, 360000,
-		                                   MMCAM_AUDIO_ENCODER_BITRATE, 12200,
+		                                   MMCAM_AUDIO_ENCODER_BITRATE, 128000,
 		                                   MMCAM_TARGET_MAX_SIZE, 300,
 		                                   NULL);
 

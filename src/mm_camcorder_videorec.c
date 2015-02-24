@@ -1278,6 +1278,7 @@ static GstPadProbeReturn __mmcamcorder_audio_dataprobe_check(GstPad *pad, GstPad
 	if (videoinfo->audio_frame_count == 0) {
 		videoinfo->filesize += buffer_size;
 		videoinfo->audio_frame_count++;
+		pthread_mutex_unlock(&(videoinfo->size_check_lock));
 		return GST_PAD_PROBE_OK;
 	}
 
