@@ -1756,6 +1756,21 @@ typedef struct _MMCamFaceDetectInfo {
 	MMCamFaceInfo *face_info;               /**< face information, this should be freed after use it. */
 } MMCamFaceDetectInfo;
 
+#ifdef HAVE_WAYLAND
+/**
+ * Wayland information
+ */
+typedef struct _MMCamWaylandInfo {
+	void *evas_obj;
+	void *window;
+	void *surface;
+	void *display;
+	int window_x;
+	int window_y;
+	int window_width;
+	int window_height;
+} MMCamWaylandInfo;
+#endif /* HAVE_WAYLAND */
 
 /*=======================================================================================
 | TYPE DEFINITIONS									|
