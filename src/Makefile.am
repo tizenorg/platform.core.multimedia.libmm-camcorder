@@ -65,6 +65,11 @@ libmmfcamcorder_la_CFLAGS += -DMMF_LOG_OWNER=0x010 -D_FILE_OFFSET_BITS=64
 libmmfcamcorder_la_CFLAGS += -fdata-sections -ffunction-sections -Wl,--gc-sections
 libmmfcamcorder_la_LIBADD += $(SYSTEMINFO_LIBS)
 
+if WAYLAND_SUPPORT
+libmmfcamcorder_la_CFLAGS += $(GST_WAYLAND_CFLAGS)
+libmmfcamcorder_la_LIBADD += $(GST_WAYLAND_LIBS)
+endif
+
 install-exec-hook:
 					mkdir -p $(DESTDIR)$(prefix)/share/sounds/mm-camcorder && \
 					cp $(srcdir)/../sounds/* $(DESTDIR)$(prefix)/share/sounds/mm-camcorder/

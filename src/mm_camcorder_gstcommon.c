@@ -25,6 +25,10 @@
 #include <gst/audio/audio-format.h>
 #include <gst/video/videooverlay.h>
 #include <gst/video/cameracontrol.h>
+#ifdef HAVE_WAYLAND
+#include <gst/wayland/wayland.h>
+#endif
+
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -1220,6 +1224,29 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 			_mmcam_dbg_err("display handle(eavs object) is NULL");
 			return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
 		}
+#ifdef HAVE_WAYLAND
+	} else if (!strcmp(videosink_name, "waylandsink")) {
+		MMCamWaylandInfo *wl_info = (MMCamWaylandInfo *)overlay;
+		if (wl_info) {
+			GstContext *context = NULL;
+
+			context = gst_wayland_display_handle_context_new((struct wl_display *)wl_info->display);
+			if (context) {
+				gst_element_set_context(vsink, context);
+			} else {
+				_mmcam_dbg_warn("gst_wayland_display_handle_context_new failed");
+			}
+
+			gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(vsink), (guintptr)wl_info->surface);
+			gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(vsink),
+							       wl_info->window_x,
+							       wl_info->window_y,
+							       wl_info->window_width,
+							       wl_info->window_height);
+		} else {
+			_mmcam_dbg_warn("Handle is NULL. skip setting.");
+		}
+#endif /* HAVE_WAYLAND */
 	} else {
 		_mmcam_dbg_warn("Who are you?? (Videosink: %s)", videosink_name);
 	}

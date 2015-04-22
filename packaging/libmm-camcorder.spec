@@ -1,7 +1,9 @@
+%bcond_with wayland
+
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.9.3
-Release:    1
+Version:    0.9.4
+Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
@@ -15,6 +17,10 @@ BuildRequires:  pkgconfig(libexif)
 BuildRequires:  pkgconfig(mmutil-imgp)
 BuildRequires:  pkgconfig(mm-log)
 BuildRequires:  pkgconfig(gstreamer-base-1.0)
+%if %{with wayland}
+BuildRequires:  pkgconfig(gstreamer-wayland-1.0)
+BuildRequires:  pkgconfig(wayland-client)
+%endif
 BuildRequires:  pkgconfig(sndfile)
 BuildRequires:  pkgconfig(camsrcjpegenc)
 BuildRequires:  pkgconfig(libpulse)
@@ -41,8 +47,15 @@ Camera and recorder development library.
 
 
 %build
+%if %{with wayland}
+export CFLAGS+=" -DHAVE_WAYLAND"
+%endif
 ./autogen.sh
-%configure --disable-static
+%configure \
+%if %{with wayland}
+	--enable-wayland \
+%endif
+	--disable-static
 make %{?jobs:-j%jobs}
 
 %install
