@@ -1185,43 +1185,47 @@ extern "C" {
 /**
  * Recommend rotation of display
  */
-#define MMCAM_RECOMMEND_DISPLAY_ROTATION               "recommend-display-rotation"
+#define MMCAM_RECOMMEND_DISPLAY_ROTATION        "recommend-display-rotation"
 
 /**
  * Recommend width of camera preview.
  * This attribute can be used with #mm_camcorder_get_attribute_info and #MMCamcorderPreviewType.
  * @see		mm_camcorder_get_attribute_info, MMCamcorderPreviewType
  */
-#define MMCAM_RECOMMEND_CAMERA_WIDTH                   "recommend-camera-width"
+#define MMCAM_RECOMMEND_CAMERA_WIDTH            "recommend-camera-width"
 
 /**
  * Recommend height of camera preview
  * This attribute can be used with #mm_camcorder_get_attribute_info and #MMCamcorderPreviewType.
  * @see		mm_camcorder_get_attribute_info, MMCamcorderPreviewType
  */
-#define MMCAM_RECOMMEND_CAMERA_HEIGHT                  "recommend-camera-height"
+#define MMCAM_RECOMMEND_CAMERA_HEIGHT           "recommend-camera-height"
 
 /**
  * Flip of video input stream.
  * @see		MMFlipType (in mm_types.h)
  */
-#define MMCAM_CAMERA_FLIP                              "camera-flip"
+#define MMCAM_CAMERA_FLIP                       "camera-flip"
 
 /**
  * Support Zero Shutter Lag capture
  */
-#define MMCAM_SUPPORT_ZSL_CAPTURE                   "support-zsl-capture"
+#define MMCAM_SUPPORT_ZSL_CAPTURE               "support-zsl-capture"
 
 /**
 * Support zero copy format
 */
-#define MMCAM_SUPPORT_ZERO_COPY_FORMAT              "support-zero-copy-format"
+#define MMCAM_SUPPORT_ZERO_COPY_FORMAT          "support-zero-copy-format"
 
 /**
 * Support media packet callback
 */
-#define MMCAM_SUPPORT_MEDIA_PACKET_PREVIEW_CB              "support-media-packet-preview-cb"
+#define MMCAM_SUPPORT_MEDIA_PACKET_PREVIEW_CB   "support-media-packet-preview-cb"
 
+/**
+ * Enable to write tags for recorded file
+ */
+#define MMCAM_RECORDER_TAG_ENABLE               "recorder-tag-enable"
 
 /*=======================================================================================
 | ENUM DEFINITIONS									|
@@ -1596,6 +1600,7 @@ typedef enum {
 	MM_CAM_STREAM_DATA_YUV420SP,            /**< YUV420 SemiPlannar type - 2 planes */
 	MM_CAM_STREAM_DATA_YUV420P,             /**< YUV420 Plannar type - 3 planes */
 	MM_CAM_STREAM_DATA_YUV422P,             /**< YUV422 Plannar type - 3 planes */
+	MM_CAM_STREAM_DATA_ENCODED              /**< Encoded data type - 1 plane */
 } MMCamStreamData;
 
 
@@ -1611,7 +1616,7 @@ typedef struct {
 	MMCamAttrsValidType validity_type;
 
 	/**
-	 * A union that describes validity of the attribute. 
+	 * A union that describes validity of the attribute.
 	 * Only when type is 'MM_CAM_ATTRS_TYPE_INT' or 'MM_CAM_ATTRS_TYPE_DOUBLE',
 	 * the attribute can have validity.
 	 */
@@ -1694,6 +1699,10 @@ typedef struct {
 			unsigned char *v;
 			unsigned int length_v;
 		} yuv420p, yuv422p;
+		struct {
+			unsigned char *data;
+			unsigned int length_data;
+		} encoded;
 	} data;                         /**< pointer of captured stream */
 	MMCamStreamData data_type;      /**< data type */
 	unsigned int length_total;      /**< total length of stream buffer (in byte)*/
@@ -1704,6 +1713,8 @@ typedef struct {
 	unsigned int timestamp;         /**< timestamp of stream buffer (msec)*/
 	void *bo[BUFFER_MAX_PLANE_NUM]; /**< TBM buffer object */
 	void *internal_buffer;          /**< Internal buffer pointer */
+	int stride[BUFFER_MAX_PLANE_NUM];    /**< Stride of each plane */
+	int elevation[BUFFER_MAX_PLANE_NUM]; /**< Elevation of each plane */
 } MMCamcorderVideoStreamDataType;
 
 
@@ -3022,6 +3033,48 @@ gboolean getting_info_from_attribute()
  *	@endcode
  */
 int mm_camcorder_get_attribute_info(MMHandleType camcorder, const char *attribute_name, MMCamAttrsInfo *info);
+
+
+/**
+ *    mm_camcorder_get_fps_list_by_resolution:\n
+ *  Get detail information of the fps configure. To manager fps, an user may want to know the supported fps list by the current preview resolution,
+ *  Gives attribute information structure, from the configure data.
+ *  Depending on the 'validity_type', validity union would be different. To know about the type of union, please refer 'MMCamAttrsInfo'.
+ *
+ *	@param[in]	camcorder	Specifies the camcorder  handle.
+ *	@param[in]	width	width value of the current Preview resolution.
+ *	@param[in]	height	height value of the current Preview resolution.
+ *	@param[out]	fps_info		a structure that holds information related with the attribute.
+ *	@return		This function returns zero(MM_ERROR_NONE) on success, or negative value with error code.\n
+ *			Please refer 'mm_error.h' to know the exact meaning of the error.
+ *	@pre		None
+ *	@post		None
+ *	@remarks	If the function succeeds, 'info' holds detail information about the attribute, such as type,
+ *			flag, validity_type, validity_values, and default values.
+ *	@see		mm_camcorder_get_attributes, mm_camcorder_set_attributes
+ *	@par example
+ *	@code
+
+#include <mm_camcorder.h>
+
+gboolean getting_info_from_attribute()
+{
+	MMCamAttrsInfo info;
+	int err;
+
+	err = mm_camcorder_get_fps_list_by_resolution(handle, width, height, &info);
+	if (err < 0) {
+		printf("Fail to call mm_camcorder_get_attribute_info()");
+		return FALSE;
+	}
+
+	//Now 'info' has many information about 'MMCAM_CAPTURE_HEIGHT'
+
+	return TRUE;
+}
+ *	@endcode
+ */
+int mm_camcorder_get_fps_list_by_resolution(MMHandleType camcorder, int width, int height, MMCamAttrsInfo *fps_info);
 
 
 /**

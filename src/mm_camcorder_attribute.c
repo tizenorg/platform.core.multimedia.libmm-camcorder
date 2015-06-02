@@ -1555,6 +1555,7 @@ _mmcamcorder_set_attributes(MMHandleType handle, char **err_attr_name, const cha
 {
 	MMHandleType attrs = 0;
 	int ret = MM_ERROR_NONE;
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
 	mmf_return_val_if_fail( handle, MM_ERROR_CAMCORDER_INVALID_ARGUMENT );
 //	mmf_return_val_if_fail( err_attr_name, MM_ERROR_CAMCORDER_INVALID_ARGUMENT );
@@ -1573,12 +1574,19 @@ _mmcamcorder_set_attributes(MMHandleType handle, char **err_attr_name, const cha
 	}
 
 	if (ret == MM_ERROR_NONE) {
+		hcamcorder->error_code = MM_ERROR_NONE;
 		ret = mm_attrs_set_valist(attrs, err_attr_name, attribute_name, var_args);
 	}
 
 	_MMCAMCORDER_UNLOCK_CMD(handle);
 
 	if (ret != MM_ERROR_NONE) {
+		if (hcamcorder->error_code != MM_ERROR_NONE) {
+			_mmcam_dbg_err("error_code is not NONE. origin 0x%x, modified 0x%x", ret, hcamcorder->error_code);
+			ret = hcamcorder->error_code;
+			hcamcorder->error_code = MM_ERROR_NONE;
+		}
+
 		_mmcam_dbg_err("failed error code 0x%x - handle %p", ret, (mmf_camcorder_t *)handle);
 	}
 
@@ -1761,7 +1769,7 @@ bool _mmcamcorder_commit_capture_width (MMHandleType handle, int attr_idx, const
 	attr = MMF_CAMCORDER_ATTRS(handle);
 	mmf_return_val_if_fail(attr, FALSE);
 
-	_mmcam_dbg_log("(%d)", attr_idx);
+	/*_mmcam_dbg_log("(%d)", attr_idx);*/
 
 	current_state = _mmcamcorder_get_state(handle);
 	if (current_state <= MM_CAMCORDER_STATE_PREPARE) {
@@ -1837,10 +1845,13 @@ bool _mmcamcorder_commit_capture_break_cont_shot (MMHandleType handle, int attr_
 			return TRUE;
 		}
 
-		control = GST_CAMERA_CONTROL( sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst );
-		gst_camera_control_set_capture_command( control, GST_CAMERA_CONTROL_CAPTURE_COMMAND_STOP_MULTISHOT );
-
-		_mmcam_dbg_warn( "Commit Break continuous shot : Set command OK. current state[%d]", current_state );
+		control = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (control) {
+			gst_camera_control_set_capture_command(control, GST_CAMERA_CONTROL_CAPTURE_COMMAND_STOP_MULTISHOT);
+			_mmcam_dbg_warn("Commit Break continuous shot : Set command OK. current state[%d]", current_state);
+		} else {
+			_mmcam_dbg_warn("cast CAMERA_CONTROL failed");
+		}
 	} else {
 		_mmcam_dbg_warn( "Commit Break continuous shot : No effect. value[%d],current state[%d]", ivalue, current_state );
 	}
@@ -1934,8 +1945,39 @@ bool _mmcamcorder_commit_audio_volume (MMHandleType handle, int attr_idx, const 
 
 bool _mmcamcorder_commit_camera_fps (MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
+	MMCamAttrsInfo fps_info;
+	int resolution_width = 0;
+	int resolution_height = 0;
+	int i;
+	int ret;
+
 	_mmcam_dbg_log("FPS(%d)", value->value.i_val);
-	return TRUE;
+
+	ret = mm_camcorder_get_attributes(handle, NULL,
+							MMCAM_CAMERA_WIDTH, &resolution_width,
+							MMCAM_CAMERA_HEIGHT, &resolution_height,
+							NULL);
+
+	if(ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("FAILED : coult not get resolution values.");
+		return FALSE;
+	}
+
+	ret = mm_camcorder_get_fps_list_by_resolution(handle, resolution_width, resolution_height, &fps_info);
+
+	if(ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("FAILED : coult not get FPS values by resolution.");
+		return FALSE;
+	}
+
+	for(i=0; i<fps_info.int_array.count; i++) {
+		if(value->value.i_val == fps_info.int_array.array[i]) {
+			return TRUE;
+		}
+	}
+
+	_mmcam_dbg_err("FAILED : %d is not supported FPS", value->value.i_val);
+	return FALSE;
 }
 
 
@@ -2198,6 +2240,11 @@ bool _mmcamcorder_commit_camera_zoom (MMHandleType handle, int attr_idx, const m
 		}
 
 		control = GST_CAMERA_CONTROL (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (control == NULL) {
+			_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+			return FALSE;
+		}
+
 		ret = gst_camera_control_set_zoom(control, zoom_type, zoom_level);
 		if (ret) {
 			_mmcam_dbg_log("Succeed in operating Zoom[%d].", zoom_level);
@@ -2255,6 +2302,10 @@ bool _mmcamcorder_commit_camera_focus_mode (MMHandleType handle, int attr_idx, c
 		}
 
 		control = GST_CAMERA_CONTROL (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (control == NULL) {
+			_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+			return FALSE;
+		}
 
 		mslVal = value->value.i_val;
 		set_focus_mode = _mmcamcorder_convert_msl_to_sensor( handle, attr_idx, mslVal );
@@ -2264,15 +2315,19 @@ bool _mmcamcorder_commit_camera_focus_mode (MMHandleType handle, int attr_idx, c
 
 		if (!(flags & MM_ATTRS_FLAG_MODIFIED)) {
 			if (gst_camera_control_get_focus(control, &cur_focus_mode, &cur_focus_range)) {
-				if (gst_camera_control_set_focus(control, set_focus_mode, cur_focus_range)) {
-					_mmcam_dbg_log("Succeed in setting AF mode[%d]", mslVal);
-					return TRUE;
+				if (set_focus_mode != cur_focus_mode) {
+					if (gst_camera_control_set_focus(control, set_focus_mode, cur_focus_range)) {
+						_mmcam_dbg_log("Succeed in setting AF mode[%d]", mslVal);
+						return TRUE;
+					} else {
+						_mmcam_dbg_warn("Failed to set AF mode[%d]", mslVal);
+					}
 				} else {
-					_mmcam_dbg_warn("Failed to set AF mode[%d]", mslVal);
+					_mmcam_dbg_log("No need to set AF mode. Current[%d]", mslVal);
+					return TRUE;
 				}
 			} else {
-				_mmcam_dbg_err("failed to get focus mode");
-				return FALSE;
+				_mmcam_dbg_warn("Failed to get AF mode, so do not set new AF mode[%d]", mslVal);
 			}
 		}
 	} else {
@@ -2290,6 +2345,8 @@ bool _mmcamcorder_commit_camera_af_scan_range (MMHandleType handle, int attr_idx
 	int current_state = MM_CAMCORDER_STATE_NONE;
 	int mslVal = 0;
 	int newVal = 0;
+	int cur_focus_mode = 0;
+	int cur_focus_range = 0;
 	int msl_mode = MM_CAMCORDER_FOCUS_MODE_NONE;
 	int converted_mode = 0;
 
@@ -2309,8 +2366,8 @@ bool _mmcamcorder_commit_camera_af_scan_range (MMHandleType handle, int attr_idx
 	newVal = _mmcamcorder_convert_msl_to_sensor(handle, attr_idx, mslVal);
 
 	current_state = _mmcamcorder_get_state(handle);
-	if (current_state < MM_CAMCORDER_STATE_READY) {
-		_mmcam_dbg_log("af scan range will be changed later.(state=%d)", current_state);
+	if (current_state < MM_CAMCORDER_STATE_PREPARE) {
+		_mmcam_dbg_log("It doesn't need to change dynamically.(state=%d)", current_state);
 		return TRUE;
 	}
 
@@ -2321,19 +2378,33 @@ bool _mmcamcorder_commit_camera_af_scan_range (MMHandleType handle, int attr_idx
 		}
 
 		control = GST_CAMERA_CONTROL (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (control == NULL) {
+			_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+			return FALSE;
+		}
 
 		mm_camcorder_get_attributes(handle, NULL, MMCAM_CAMERA_FOCUS_MODE, &msl_mode, NULL);
 		converted_mode = _mmcamcorder_convert_msl_to_sensor( handle, MM_CAM_CAMERA_FOCUS_MODE, msl_mode );
 
-		if (gst_camera_control_set_focus(control, converted_mode, newVal)) {
-			//_mmcam_dbg_log( "Succeed in setting AF mode[%d]", mslVal );
-			return TRUE;
+		if (gst_camera_control_get_focus(control, &cur_focus_mode, &cur_focus_range)) {
+			if ((newVal != cur_focus_range) || (converted_mode != cur_focus_mode)) {
+				if (gst_camera_control_set_focus(control, converted_mode, newVal)) {
+					//_mmcam_dbg_log("Succeed in setting AF mode[%d]", mslVal);
+					return TRUE;
+				} else {
+					_mmcam_dbg_warn("Failed to set AF mode[%d]", mslVal);
+				}
+			} else {
+				//_mmcam_dbg_log("No need to set AF mode. Current[%d]", mslVal);
+				return TRUE;
+			}
 		} else {
-			_mmcam_dbg_warn( "Failed to set AF mode[%d]", mslVal );
+			_mmcam_dbg_warn("Failed to get AF mode, so do not set new AF mode[%d]", mslVal);
 		}
 	} else {
 		_mmcam_dbg_log("pointer of video src is null");
 	}
+
 	return FALSE;
 }
 
@@ -2463,6 +2534,10 @@ bool _mmcamcorder_commit_camera_af_touch_area (MMHandleType handle, int attr_idx
 		if( do_set )
 		{
 			control = GST_CAMERA_CONTROL (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+			if (control == NULL) {
+				_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+				return FALSE;
+			}
 
 			ret = gst_camera_control_get_auto_focus_area( control, &get_area );
 			if( !ret )
@@ -2569,6 +2644,10 @@ bool _mmcamcorder_commit_camera_capture_mode (MMHandleType handle, int attr_idx,
 		}
 
 		control = GST_CAMERA_CONTROL (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (control == NULL) {
+			_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+			return FALSE;
+		}
 
 		ret = gst_camera_control_set_exposure(control, exposure_type, newVal1, newVal2);
 		if (ret) {
@@ -2627,6 +2706,11 @@ bool _mmcamcorder_commit_camera_wdr (MMHandleType handle, int attr_idx, const mm
 		}
 
 		control = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (control == NULL) {
+			_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+			return FALSE;
+		}
+
 		if (gst_camera_control_get_wdr(control, &cur_value)) {
 			if (newVal != cur_value) {
 				if (gst_camera_control_set_wdr(control, newVal)) {
@@ -2756,6 +2840,10 @@ bool _mmcamcorder_commit_target_filename(MMHandleType handle, int attr_idx, cons
 
 	/* get string */
 	filename = mmf_value_get_string(value, &size);
+	if (filename == NULL) {
+		_mmcam_dbg_err("NULL filename");
+		return FALSE;
+	}
 
 	if (sc->info_video) {
 		if (sc->info_video->filename) {
@@ -2880,7 +2968,7 @@ bool _mmcamcorder_commit_filter (MMHandleType handle, int attr_idx, const mmf_va
 		return FALSE;
 	}
 
-	_mmcam_dbg_log("label(%s): MSL(%d)->Sensor(%d)", control_label, mslNewVal, newVal);
+	/*_mmcam_dbg_log("label(%s): MSL(%d)->Sensor(%d)", control_label, mslNewVal, newVal);*/
 
 	if (!GST_IS_COLOR_BALANCE(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst)) {
 		_mmcam_dbg_log("Can't cast Video source into color balance.");
@@ -2888,6 +2976,11 @@ bool _mmcamcorder_commit_filter (MMHandleType handle, int attr_idx, const mmf_va
 	}
 
 	balance = GST_COLOR_BALANCE(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+	if (balance == NULL) {
+		_mmcam_dbg_err("cast COLOR_BALANCE failed");
+		return FALSE;
+	}
+
 	controls = gst_color_balance_list_channels(balance);
 	if (controls == NULL) {
 		_mmcam_dbg_log("There is no list of colorbalance controls");
@@ -2947,6 +3040,11 @@ bool _mmcamcorder_commit_filter_scene_mode (MMHandleType handle, int attr_idx, c
 		}
 
 		control = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (control == NULL) {
+			_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+			return FALSE;
+		}
+
 		ret = gst_camera_control_set_exposure(control, GST_CAMERA_CONTROL_PROGRAM_MODE, newVal, 0);
 		if (ret) {
 			_mmcam_dbg_log("Succeed in setting program mode[%d].", mslVal);
@@ -3201,7 +3299,7 @@ bool _mmcamcorder_commit_display_visible(MMHandleType handle, int attr_idx, cons
 
 	/* Get videosink name */
 	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
-	if (!strcmp(videosink_name, "xvimagesink") ||
+	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "evasimagesink") ||
 	    !strcmp(videosink_name, "evaspixmapsink")) {
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "visible", value->value.i_val);
 		_mmcam_dbg_log("Set visible [%d] done.", value->value.i_val);
@@ -3241,7 +3339,7 @@ bool _mmcamcorder_commit_display_geometry_method (MMHandleType handle, int attr_
 
 	/* Get videosink name */
 	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
-	if (!strcmp(videosink_name, "xvimagesink") ||
+	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "evasimagesink") ||
 	    !strcmp(videosink_name, "evaspixmapsink")) {
 		method = value->value.i_val;
 		MMCAMCORDER_G_OBJECT_SET( sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "display-geometry-method", method);
@@ -3449,27 +3547,72 @@ bool _mmcamcorder_commit_strobe (MMHandleType handle, int attr_idx, const mmf_va
 {
 	bool bret = FALSE;
 	_MMCamcorderSubContext *sc = NULL;
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	int strobe_type, mslVal, newVal, cur_value;
 	int current_state = MM_CAMCORDER_STATE_NONE;
+	int set_flash_state = -1;
+
+	if (hcamcorder == NULL) {
+		_mmcam_dbg_err("NULL handle");
+		return FALSE;
+	}
 
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
 	if (!sc)
 		return TRUE;
 
-	_mmcam_dbg_log( "Commit : strobe attribute(%d)", attr_idx );
+	/*_mmcam_dbg_log( "Commit : strobe attribute(%d)", attr_idx );*/
 
-	//status check
-	current_state = _mmcamcorder_get_state( handle);
+	mslVal = value->value.i_val;
 
+	/* check flash state */
+	if (attr_idx == MM_CAM_STROBE_MODE) {
+		int flash_brightness = 0;
+
+		/* get current flash brightness */
+		if (_mmcamcorder_get_device_flash_brightness(&flash_brightness) != MM_ERROR_NONE) {
+			_mmcam_dbg_err("_mmcamcorder_get_device_flash_brightness failed");
+			hcamcorder->error_code = MM_ERROR_COMMON_INVALID_PERMISSION;
+			return FALSE;
+		}
+
+		_mmcam_dbg_log("flash brightness %d", flash_brightness);
+
+		if (flash_brightness > 0 &&
+		    mslVal != MM_CAMCORDER_STROBE_MODE_OFF) {
+			/* other module already turned on flash */
+			hcamcorder->error_code = MM_ERROR_CAMCORDER_DEVICE_BUSY;
+			_mmcam_dbg_err("other module already turned on flash. avoid to set flash mode here.");
+			return FALSE;
+		} else {
+			/* flash is OFF state, this case will set flash state key */
+			if (mslVal == MM_CAMCORDER_STROBE_MODE_OFF) {
+				set_flash_state = VCONFKEY_CAMERA_FLASH_STATE_OFF;
+			} else {
+				set_flash_state = VCONFKEY_CAMERA_FLASH_STATE_ON;
+			}
+
+			_mmcam_dbg_log("keep going, and will set flash state key %d", set_flash_state);
+		}
+	}
+
+	/* check state */
+	current_state = _mmcamcorder_get_state(handle);
 	if (current_state < MM_CAMCORDER_STATE_READY) {
 		_mmcam_dbg_log("It doesn't need to change dynamically.(state=%d)", current_state);
+
+		if (set_flash_state != -1) {
+			_mmcam_dbg_log("set VCONFKEY_CAMERA_FLASH_STATE : %d", set_flash_state);
+			vconf_set_int(VCONFKEY_CAMERA_FLASH_STATE, set_flash_state);
+			vconf_set_int(VCONFKEY_CAMERA_PID, (int)getpid());
+		}
+
 		return TRUE;
 	} else if (current_state == MM_CAMCORDER_STATE_CAPTURING) {
 		_mmcam_dbg_warn("invalid state[capturing]");
+		hcamcorder->error_code = MM_ERROR_CAMCORDER_INVALID_STATE;
 		return FALSE;
 	}
-
-	mslVal = value->value.i_val;
 
 	switch (attr_idx) {
 	case MM_CAM_STROBE_CONTROL:
@@ -3501,6 +3644,10 @@ bool _mmcamcorder_commit_strobe (MMHandleType handle, int attr_idx, const mmf_va
 		bret = FALSE;
 	} else {
 		control = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (control == NULL) {
+			_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+			return FALSE;
+		}
 
 		if (gst_camera_control_get_strobe(control, strobe_type, &cur_value)) {
 			if (newVal != cur_value) {
@@ -3519,6 +3666,12 @@ bool _mmcamcorder_commit_strobe (MMHandleType handle, int attr_idx, const mmf_va
 			_mmcam_dbg_warn("Failed to get strobe. Type[%d]", strobe_type);
 			bret = FALSE;
 		}
+	}
+
+	if (bret == TRUE && set_flash_state != -1) {
+		_mmcam_dbg_log("set VCONFKEY_CAMERA_FLASH_STATE : %d", set_flash_state);
+		vconf_set_int(VCONFKEY_CAMERA_FLASH_STATE, set_flash_state);
+		vconf_set_int(VCONFKEY_CAMERA_PID, (int)getpid());
 	}
 
 	return bret;
@@ -3566,7 +3719,7 @@ bool _mmcamcorder_commit_camera_hdr_capture(MMHandleType handle, int attr_idx, c
 		return FALSE;
 	}
 
-	_mmcam_dbg_log("Commit : HDR Capture %d", value->value.i_val);
+	/*_mmcam_dbg_log("Commit : HDR Capture %d", value->value.i_val);*/
 
 	/* check whether set or not */
 	if (!_mmcamcorder_check_supported_attribute(handle, attr_idx)) {
@@ -3644,7 +3797,7 @@ bool _mmcamcorder_commit_detect(MMHandleType handle, int attr_idx, const mmf_val
 		return TRUE;
 	}
 
-	_mmcam_dbg_log("Commit : detect attribute(%d)", attr_idx);
+	/*_mmcam_dbg_log("Commit : detect attribute(%d)", attr_idx);*/
 
 	/* state check */
 	current_state = _mmcamcorder_get_state( handle);
@@ -3687,6 +3840,10 @@ bool _mmcamcorder_commit_detect(MMHandleType handle, int attr_idx, const mmf_val
 		bret = FALSE;
 	} else {
 		control = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (control == NULL) {
+			_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+			return FALSE;
+		}
 
 		if (gst_camera_control_get_detect(control, detect_type, &current_value)) {
 			if (current_value == set_value) {
@@ -4114,25 +4271,33 @@ bool _mmcamcorder_check_supported_attribute(MMHandleType handle, int attr_index)
 
 	switch (info.validity_type) {
 	case MM_ATTRS_VALID_TYPE_INT_ARRAY:
-		_mmcam_dbg_log("int array count %d", info.int_array.count)
+		/*
+		_mmcam_dbg_log("int array count %d", info.int_array.count);
+		*/
 		if (info.int_array.count <= 1) {
 			return FALSE;
 		}
 		break;
 	case MM_ATTRS_VALID_TYPE_INT_RANGE:
+		/*
 		_mmcam_dbg_log("int range min %d, max %d",info.int_range.min, info.int_range.max);
+		*/
 		if (info.int_range.min >= info.int_range.max) {
 			return FALSE;
 		}
 		break;
 	case MM_ATTRS_VALID_TYPE_DOUBLE_ARRAY:
-		_mmcam_dbg_log("double array count %d", info.double_array.count)
+		/*
+		_mmcam_dbg_log("double array count %d", info.double_array.count);
+		*/
 		if (info.double_array.count <= 1) {
 			return FALSE;
 		}
 		break;
 	case MM_ATTRS_VALID_TYPE_DOUBLE_RANGE:
+		/*
 		_mmcam_dbg_log("double range min %lf, max %lf",info.int_range.min, info.int_range.max);
+		*/
 		if (info.double_range.min >= info.double_range.max) {
 			return FALSE;
 		}

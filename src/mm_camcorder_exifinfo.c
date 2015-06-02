@@ -373,6 +373,11 @@ mm_exif_add_thumbnail_info (mm_exif_info_t *info, void *thumbnail, int width, in
 
 	/* get ExifData from info*/
 	ed = mm_exif_get_exif_from_info(info);
+	if (ed == NULL) {
+		_mmcam_dbg_err("mm_exif_get_exif_from_info failed");
+		return MM_ERROR_CAMCORDER_INTERNAL;
+	}
+
 	ed->data = thumbnail;
 	ed->size = len;
 
@@ -573,10 +578,17 @@ int mm_exif_load_exif_info(mm_exif_info_t **info, void *jpeg_data, int jpeg_leng
 			x = malloc(sizeof(mm_exif_info_t));
 			if (x) {
 				x->data = malloc(s);
-				memcpy((char*)x->data, b, s);
-				x->size = s;
-				*info = x;
-				_mmcam_dbg_warn("load EXIF : data %p, size %d", x->data, x->size);
+				if (x->data) {
+					memcpy((char*)x->data, b, s);
+					x->size = s;
+					*info = x;
+					_mmcam_dbg_warn("load EXIF : data %p, size %d", x->data, x->size);
+				} else {
+					_mmcam_dbg_err("mm_exif_info_t malloc failed");
+					free(x);
+					exif_loader_unref(loader);
+					return MM_ERROR_CAMCORDER_LOW_MEMORY;
+				}
 			} else {
 				_mmcam_dbg_err("mm_exif_info_t malloc failed");
 			}

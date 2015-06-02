@@ -40,10 +40,11 @@ extern "C" {
 /*=======================================================================================
 | MACRO DEFINITIONS									|
 ========================================================================================*/
-#define _MMCAMCORDER_CAPTURE_STOP_CHECK_INTERVAL	5000
-#define _MMCAMCORDER_CAPTURE_STOP_CHECK_COUNT		600
+#define _MMCAMCORDER_CAPTURE_STOP_CHECK_INTERVAL	(50*1000)
+#define _MMCAMCORDER_CAPTURE_STOP_CHECK_COUNT		60
+
 #define _MNOTE_VALUE_NONE				0
-#define _SOUND_STATUS_INIT                              -1
+#define _SOUND_STATUS_INIT				-1
 
 /*=======================================================================================
 | ENUM DEFINITIONS									|
@@ -71,7 +72,6 @@ typedef struct {
 	int preview_format;				/**< Preview format */
 	int hdr_capture_mode;				/**< HDR Capture mode */
 	gboolean sound_status;				/**< sound status of system */
-	unsigned int volume_level;			/**< media volume level of system */
 	gboolean played_capture_sound;			/**< whether play capture sound when capture starts */
 } _MMCamcorderImageInfo;
 

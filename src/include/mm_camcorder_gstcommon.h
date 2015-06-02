@@ -149,7 +149,6 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 int _mmcamcorder_create_preview_pipeline(MMHandleType handle);
 
 /* plug-in related */
-void _mmcamcorder_negosig_handler(GstElement *videosrc, MMHandleType handle);
 void _mmcamcorder_ready_to_encode_callback(GstElement *element, guint size, gpointer handle);
 
 /* etc */
