@@ -282,15 +282,6 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 	{
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_CAMERA,
-		MM_CAM_CAMERA_FPS,
-		MM_CAMCORDER_ATTR_NONE,
-		"FPS",
-		MM_CAMCONVERT_TYPE_INT_ARRAY,
-		NULL,
-	},
-	{ /* 5 */
-		CONFIGURE_TYPE_CTRL,
-		CONFIGURE_CATEGORY_CTRL_CAMERA,
 		MM_CAM_CAMERA_FORMAT,
 		MM_CAMCORDER_ATTR_NONE,
 		"PictureFormat",
@@ -689,6 +680,58 @@ int _mmcamcorder_convert_msl_to_sensor(MMHandleType handle, int attr_idx, int ms
 	return mslval;
 }
 
+int _mmcamcorder_get_fps_array_by_resolution(MMHandleType handle, int width, int height,  MMCamAttrsInfo* fps_info)
+{
+	MMCamAttrsInfo *infoW = NULL;
+	MMCamAttrsInfo *infoH = NULL;
+	int i = 0;
+	char nameFps[5] = {0,};
+	bool valid_check = false;
+
+	type_int_array *fps_array;
+
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+
+	//_mmcam_dbg_log("prev resolution w:%d, h:%d", width, height);
+
+	infoW = (MMCamAttrsInfo*)calloc(1, sizeof(MMCamAttrsInfo));
+	infoH = (MMCamAttrsInfo*)calloc(1, sizeof(MMCamAttrsInfo));
+
+	mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_WIDTH, infoW);
+	mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_HEIGHT, infoH);
+
+	for(i=0; i < infoW->int_array.count; i++) {
+		//_mmcam_dbg_log("width :%d, height : %d\n", infoW->int_array.array[i], infoH->int_array.array[i]);
+		if(infoW->int_array.array[i] == width && infoH->int_array.array[i] == height) {
+			valid_check = true;
+			sprintf(nameFps, "FPS%d", i);
+			_mmcam_dbg_log("nameFps : %s!!!", nameFps);
+			break;
+		}
+	}
+
+	if(infoW)
+		free(infoW);
+	if(infoH)
+		free(infoH);
+
+	if(!valid_check) {
+		_mmcam_dbg_err("FAILED : Can't find the valid resolution from attribute.");
+		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
+	}
+
+	if (!_mmcamcorder_conf_get_value_int_array(hcamcorder->conf_ctrl, CONFIGURE_CATEGORY_CTRL_CAMERA, nameFps, &fps_array)) {
+		_mmcam_dbg_err("FAILED : Can't find the valid FPS array.");
+		return MM_ERROR_CAMCORDER_CREATE_CONFIGURE;
+	}
+
+	fps_info->int_array.count = fps_array->count;
+	fps_info->int_array.array = fps_array->value;
+	fps_info->int_array.def = fps_array->default_value;
+
+	return MM_ERROR_NONE;
+}
+
 //convert sensor value to MSL value
 int _mmcamcorder_convert_sensor_to_msl(MMHandleType handle, int attr_idx, int sensval)
 {
@@ -755,18 +798,23 @@ __mmcamcorder_get_valid_array(int * original_array, int original_count, int ** v
 	if (valid_count > 0) {
 		*valid_array = (int*)malloc(sizeof(int) * valid_count);
 
-		valid_count = 0;
-		for (i = 0; i < original_count; i++) {
-			if (original_array[i] != _MMCAMCORDER_SENSOR_ENUM_NONE) {
-				(*valid_array)[valid_count++] = i;
-				//_mmcam_dbg_log( "valid_array[%d] = %d", valid_count-1, (*valid_array)[valid_count-1] );
+		if (*valid_array) {
+			valid_count = 0;
+			for (i = 0; i < original_count; i++) {
+				if (original_array[i] != _MMCAMCORDER_SENSOR_ENUM_NONE) {
+					(*valid_array)[valid_count++] = i;
+					/*_mmcam_dbg_log( "valid_array[%d] = %d", valid_count-1, (*valid_array)[valid_count-1] );*/
 
-				if (original_array[i] == *valid_default &&
-				    new_default == _MMCAMCORDER_SENSOR_ENUM_NONE) {
-					new_default = i;
-					//_mmcam_dbg_log( "converted MSL default[%d]", new_default );
+					if (original_array[i] == *valid_default &&
+					    new_default == _MMCAMCORDER_SENSOR_ENUM_NONE) {
+						new_default = i;
+						/*_mmcam_dbg_log( "converted MSL default[%d]", new_default );*/
+					}
 				}
 			}
+		}
+		else {
+			valid_count = 0;
 		}
 	}
 
@@ -901,9 +949,9 @@ __mmcamcorder_set_info_to_attr( MMHandleType handle, _MMCamcorderInfoConverting 
 						/* "mmf_attrs_set_valid_type" initializes spec value in attribute, so allocated memory could be missed */
 						//mmf_attrs_set_valid_type(attrs, info[i].attr_idx, MM_ATTRS_VALID_TYPE_INT_ARRAY);
 						mmf_attrs_set_valid_array(attrs, info[i].attr_idx, iarray, iarray_size, idefault);
-					}
 
-					ret = mm_attrs_set_int(MMF_CAMCORDER_ATTRS(hcamcorder), info[i].attr_idx, idefault);
+						ret = mm_attrs_set_int(MMF_CAMCORDER_ATTRS(hcamcorder), info[i].attr_idx, idefault);
+					}
 				}
 
 				if (iarray && iarray != tarray->value )

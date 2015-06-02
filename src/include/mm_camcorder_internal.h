@@ -145,6 +145,22 @@ extern "C" {
 	} \
 	elist = g_list_append(elist, &(element[eid]));
 
+#define _MMCAMCORDER_ELEMENT_MAKE2(sub_context, element, eid, name /*char* */, nickname /*char* */, err) \
+	if (element[eid].gst != NULL) { \
+		_mmcam_dbg_err("The element is existed. element_id=[%d], name=[%s]", eid, name); \
+		gst_object_unref(element[eid].gst); \
+	} \
+	element[eid].gst = gst_element_factory_make(name, nickname); \
+	if (element[eid].gst == NULL) { \
+		_mmcam_dbg_err("Element creation fail. element_id=[%d], name=[%s]", eid, name); \
+		err = MM_ERROR_CAMCORDER_RESOURCE_CREATION; \
+	} else { \
+		_mmcam_dbg_log("Element creation done. element_id=[%d], name=[%s]", eid, name); \
+		element[eid].id = eid; \
+		g_object_weak_ref(G_OBJECT(element[eid].gst), (GWeakNotify)_mmcamcorder_element_release_noti, sub_context); \
+		err = MM_ERROR_NONE; \
+	} \
+
 #define _MMCAMCORDER_ELEMENT_MAKE_IGNORE_ERROR(sub_context, element, eid, name /*char* */, nickname /*char* */, elist) \
 	if (element[eid].gst != NULL) { \
 		_mmcam_dbg_err("The element is existed. element_id=[%d], name=[%s]", eid, name); \
@@ -184,6 +200,7 @@ extern "C" {
 
 #define _MM_GST_ELEMENT_LINK_MANY       gst_element_link_many
 #define _MM_GST_ELEMENT_LINK            gst_element_link
+#define _MM_GST_ELEMENT_UNLINK          gst_element_unlink
 #define _MM_GST_PAD_LINK                gst_pad_link
 
 #define _MM_GST_PAD_LINK_UNREF(srcpad, sinkpad, err, if_fail_goto)\
@@ -229,7 +246,7 @@ extern "C" {
 
 #define	_MMCAMCORDER_STATE_SET_COUNT		3		/* checking interval */
 #define	_MMCAMCORDER_STATE_CHECK_TOTALTIME	5000000L	/* total wating time for state change */
-#define	_MMCAMCORDER_STATE_CHECK_INTERVAL	5000		/* checking interval */
+#define	_MMCAMCORDER_STATE_CHECK_INTERVAL	(50*1000)	/* checking interval - 50ms*/
 
 /**
  * Default videosink type
@@ -287,6 +304,12 @@ extern "C" {
 #define _MMCAMCORDER_LOCK(handle)				_MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_LOCK(handle))
 #define _MMCAMCORDER_TRYLOCK(handle)				_MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_LOCK(handle))
 #define _MMCAMCORDER_UNLOCK(handle)				_MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_LOCK(handle))
+
+#define _MMCAMCORDER_GET_COND(handle)				(_MMCAMCORDER_CAST_MTSAFE(handle).cond)
+#define _MMCAMCORDER_WAIT(handle)				pthread_cond_wait(&_MMCAMCORDER_GET_COND(handle), &_MMCAMCORDER_GET_LOCK(handle))
+#define _MMCAMCORDER_TIMED_WAIT(handle, timeout)		pthread_cond_timedwait(&_MMCAMCORDER_GET_COND(handle), &_MMCAMCORDER_GET_LOCK(handle), &timeout)
+#define _MMCAMCORDER_SIGNAL(handle)				pthread_cond_signal(&_MMCAMCORDER_GET_COND(handle));
+#define _MMCAMCORDER_BROADCAST(handle)				pthread_cond_broadcast(&_MMCAMCORDER_GET_COND(handle));
 
 /* for command */
 #define _MMCAMCORDER_GET_CMD_LOCK(handle)			(_MMCAMCORDER_CAST_MTSAFE(handle).cmd_lock)
@@ -354,7 +377,7 @@ extern "C" {
  * If you increase any enum of attribute values, you also have to increase this.
  */
 #define MM_CAMCORDER_MODE_NUM			3	/**< Number of mode type */
-#define MM_CAMCORDER_COLOR_TONE_NUM		30	/**< Number of color-tone modes */
+#define MM_CAMCORDER_COLOR_TONE_NUM		31	/**< Number of color-tone modes */
 #define MM_CAMCORDER_WHITE_BALANCE_NUM		10	/**< Number of WhiteBalance modes*/
 #define MM_CAMCORDER_SCENE_MODE_NUM		16	/**< Number of program-modes */
 #define MM_CAMCORDER_FOCUS_MODE_NUM		6	/**< Number of focus mode*/
@@ -528,6 +551,7 @@ typedef struct {
  */
 typedef struct {
 	pthread_mutex_t lock;			/**< Mutex (for general use) */
+	pthread_cond_t cond;			/**< Condition (for general use) */
 	pthread_mutex_t cmd_lock;		/**< Mutex (for command) */
 	pthread_mutex_t asm_lock;		/**< Mutex (for ASM) */
 	pthread_mutex_t state_lock;		/**< Mutex (for state change) */
@@ -553,8 +577,6 @@ typedef struct {
 	GstClockTime pause_time;                /**< amount of time while pipeline is in PAUSE state.*/
 	GstClockTime stillshot_time;            /**< pipeline time of capturing moment*/
 	gboolean is_modified_rate;              /**< whether recording motion rate is modified or not */
-	gboolean error_occurs;                  /**< flag for error */
-	int error_code;                         /**< error code for internal gstreamer error */
 	gboolean ferror_send;                   /**< file write/seek error **/
 	guint ferror_count;                     /**< file write/seek error count **/
 	GstClockTime previous_slot_time;
@@ -647,6 +669,11 @@ typedef struct mmf_camcorder {
 	_MMCamcorderEnumConvert enum_conv[ENUM_CONVERT_NUM];                    /**< enum converting list that is modified by ini info */
 
 	gboolean capture_in_recording;                          /**< Flag for capture while recording */
+
+	guint64 system_memory;                                  /* system memory size, do not use this size for recording*/
+
+	gboolean error_occurs;                                  /**< flag for error */
+	int error_code;                                         /**< error code for internal gstreamer error */
 
 	/* task thread */
 	pthread_t task_thread;                                  /**< thread for task */
@@ -1045,6 +1072,23 @@ gboolean _mmcamcorder_pipeline_cb_message(GstBus *bus, GstMessage *message, gpoi
  *
  */
 GstBusSyncReply _mmcamcorder_pipeline_bus_sync_callback(GstBus *bus, GstMessage *message, gpointer data);
+
+/**
+ * This function is callback function of main pipeline.
+ * Once this function is registered with certain pipeline using gst_bus_set_sync_handler(),
+ * this callback will be called every time when there is upcomming message from pipeline.
+ * Basically, this function is used as sync error handling function, now.
+ *
+ * @param[in]	bus		pointer of buf that called this function.
+ * @param[in]	message		callback message from pipeline.
+ * @param[in]	data		user data.
+ * @return	This function returns true on success, or false value with error
+ * @remarks
+ * @see		__mmcamcorder_create_audiop_with_encodebin()
+ *
+ */
+GstBusSyncReply _mmcamcorder_audio_pipeline_bus_sync_callback(GstBus *bus, GstMessage *message, gpointer data);
+
 
 /**
  * This function create main pipeline according to type.

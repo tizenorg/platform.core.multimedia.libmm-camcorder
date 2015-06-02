@@ -227,7 +227,7 @@ GTimeVal result;
  * Enumerations for command
  */
 #define SENSOR_WHITEBALANCE_NUM		10
-#define SENSOR_COLOR_TONE_NUM		30
+#define SENSOR_COLOR_TONE_NUM		31
 #define SENSOR_FLIP_NUM			3
 #define SENSOR_PROGRAM_MODE_NUM		15
 #define SENSOR_FOCUS_NUM		6
@@ -330,6 +330,7 @@ const char *ct[SENSOR_COLOR_TONE_NUM] = {
 	"SELECTVE_COLOR_BLUE",
 	"SELECTVE_COLOR_YELLOW",
 	"SELECTVE_COLOR_RED_YELLOW",
+	"GRAPHICS"
 };
 
 const char *flip[SENSOR_FLIP_NUM] = {
@@ -431,6 +432,12 @@ const char *output_mode[] = {
 	"Full Screen mode",
 	"Cropped Full Screen mode",
 	"ROI mode",
+};
+
+const char *capture_sound[] = {
+	"Default",
+	"Extra 01",
+	"Extra 02",
 };
 
 const char *rotate_mode[] = {
@@ -625,7 +632,7 @@ camcordertest_video_capture_cb(MMCamcorderCaptureDataType *main, MMCamcorderCapt
 		void *dst = NULL;
 
 		nret = _mmcamcorder_encode_jpeg(main->data, main->width, main->height, main->format,
-		                                main->length, 90, &dst, &dst_size, 0);
+		                                main->length, 90, &dst, &dst_size);
 		if (nret) {
 			_file_write(m_filename, dst, dst_size);
 		} else {
@@ -797,7 +804,7 @@ int camcordertest_get_attr_valid_intrange(const char * attr_name, int *min, int 
 
 			err = mm_camcorder_get_attribute_info(hcamcorder->camcorder, attr_name, &info);
 			if (err != MM_ERROR_NONE) {
-				err_msg_t("camcordertest_get_attr_valid_intarray : Error(%x)!!",  err);
+				err_msg_t("camcordertest_get_attr_valid_intrange : Error(%x)!!",  err);
 				return FALSE;
 			} else {
 				if (info.type == MM_CAM_ATTRS_TYPE_INT) {
@@ -809,17 +816,17 @@ int camcordertest_get_attr_valid_intrange(const char * attr_name, int *min, int 
 					}
 				}
 
-				err_msg_t("camcordertest_get_attr_valid_intarray : Type mismatched!!");
+				err_msg_t("camcordertest_get_attr_valid_intrange : Type mismatched!!");
 				return FALSE;
 			}
 			//success
 
 		}
 
-		debug_msg_t("camcordertest_get_attr_valid_intarray(!hcamcorder->camcorde)");
+		debug_msg_t("camcordertest_get_attr_valid_intrange(!hcamcorder->camcorde)");
 	}
 
-	debug_msg_t("camcordertest_get_attr_valid_intarray(!hcamcorder)");
+	debug_msg_t("camcordertest_get_attr_valid_intrange(!hcamcorder)");
 	return FALSE;
 }
 
@@ -983,6 +990,7 @@ static void main_menu(gchar buf)
 					g_print("*Recording start!\n");
 					video_stream_cb_cnt = 0;
 					audio_stream_cb_cnt = 0;
+					hcamcorder->elapsed_time = 0;
 
 					g_timer_reset(timer);
 					err = mm_camcorder_record(hcamcorder->camcorder);
@@ -1076,6 +1084,7 @@ static void main_menu(gchar buf)
 			switch(buf) {
 				case '1' : //  Start Recording
 					g_print("*Recording start!\n");
+					hcamcorder->elapsed_time = 0;
 					g_timer_reset(timer);
 					err = mm_camcorder_record(hcamcorder->camcorder);
 
@@ -1417,14 +1426,14 @@ static void setting_menu(gchar buf)
 
 			case 'r' : // Setting > Rotate camera input when recording
 				g_print("*Rotate camera input\n");
-				camcordertest_get_attr_valid_intrange(MMCAM_CAMERA_ROTATION, &min, &max);
+				camcordertest_get_attr_valid_intarray(MMCAM_CAMERA_ROTATION, &array, &count);
 
-				if(min >= max) {
+				if(count <= 0) {
 					g_print("Not supported !! \n");
 				} else {
 					flush_stdin();
-					for (i = min ; i <= max ; i++) {
-						g_print("\t %d. %s\n", i, camera_rotation[i]);
+					for ( i = 0; i < count; i++) {
+						g_print("\t %d. %s\n", array[i], camera_rotation[array[i]]);
 					}
 					err = scanf("%d",&idx);
 					CHECK_MM_ERROR(mm_camcorder_stop(hcamcorder->camcorder));
@@ -2133,6 +2142,7 @@ static gboolean init(int type)
 		                                   MMCAM_DISPLAY_SURFACE, MM_DISPLAY_SURFACE_X,
 		                                   MMCAM_DISPLAY_GEOMETRY_METHOD, MM_DISPLAY_METHOD_LETTER_BOX,
 		                                   MMCAM_CAPTURE_COUNT, IMAGE_CAPTURE_COUNT_STILL,
+		                                   MMCAM_TAG_GPS_ENABLE, TRUE,
 		                                   "tag-gps-time-stamp", 72815.5436243543,
 		                                   "tag-gps-date-stamp", "2010:09:20", 10,
 		                                   "tag-gps-processing-method", "GPS NETWORK HYBRID ARE ALL FINE.", 32,
@@ -2489,6 +2499,10 @@ static gboolean mode_change()
 		g_print("\t  Enter the media type:\n\t");
 
 		err = scanf("%c", &media_type);
+		if (err == EOF) {
+			g_print("\t!!!read input error!!!\n");
+			continue;
+		}
 
 		switch (media_type) {
 		case '1':

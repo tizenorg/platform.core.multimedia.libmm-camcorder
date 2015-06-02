@@ -143,7 +143,7 @@ extern "C" {
 #define _MMCAMCORDER_SENSOR_ENUM_NONE 	-255
 
 /* camera information related */
-#define CAMINFO_CONVERT_NUM		41
+#define CAMINFO_CONVERT_NUM		40
 
 
 /*=======================================================================================
@@ -226,6 +226,7 @@ typedef struct {
 ========================================================================================*/
 int _mmcamcorder_convert_msl_to_sensor(MMHandleType handle, int attr_idx, int mslval);
 int _mmcamcorder_convert_sensor_to_msl(MMHandleType handle, int attr_idx, int sensval);
+int _mmcamcorder_get_fps_array_by_resolution(MMHandleType handle, int width, int height,  MMCamAttrsInfo* fps_info);
 
 int _mmcamcorder_set_converted_value(MMHandleType handle, _MMCamcorderEnumConvert *convert);
 int _mmcamcorder_init_convert_table(MMHandleType handle);

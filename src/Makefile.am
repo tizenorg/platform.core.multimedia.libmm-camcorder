@@ -37,32 +37,38 @@ libmmfcamcorder_la_CFLAGS = -I$(srcdir)/include \
 			     $(GST_PLUGIN_BASE_CFLAGS) \
 			     $(GST_VIDEO_CFLAGS) \
 			     $(GST_APP_CFLAGS) \
-			     $(MM_LOG_CFLAGS) \
 			     $(EXIF_CFLAGS) \
 			     $(MM_COMMON_CFLAGS) \
 			     $(MMSOUND_CFLAGS) \
 			     $(SNDFILE_CFLAGS) \
-			     $(CAMSRCJPEGENC_CFLAGS) \
 			     $(VCONF_CFLAGS) \
 			     $(MMUTIL_IMGP_CFLAGS) \
+			     $(MMUTIL_JPEG_CFLAGS) \
+			     $(TTRACE_CFLAGS) \
+			     $(TBM_CFLAGS) \
 			     $(SYSTEMINFO_CFLAGS)
 
 libmmfcamcorder_la_LIBADD = \
+			    $(GLIB_LIBS) \
+			    $(GIO_LIBS) \
 			    $(GST_LIBS) \
 			    $(GST_PLUGIN_BASE_LIBS) \
 			    $(GST_VIDEO_LIBS) \
 			    $(GST_APP_LIBS) \
 			    $(MM_COMMON_LIBS) \
-			    $(MM_LOG_LIBS) \
 			    $(EXIF_LIBS) \
 			    $(MMSOUND_LIBS) \
 			    $(SNDFILE_LIBS) \
-			    $(CAMSRCJPEGENC_LIBS) \
 			    $(VCONF_LIBS) \
-			    $(MMUTIL_IMGP_LIBS)
+			    $(MMUTIL_IMGP_LIBS) \
+			    $(MMUTIL_JPEG_LIBS) \
+			    $(TBM_LIBS) \
+			    $(TTRACE_LIBS)
 
 libmmfcamcorder_la_CFLAGS += -DMMF_LOG_OWNER=0x010 -D_FILE_OFFSET_BITS=64
 libmmfcamcorder_la_CFLAGS += -fdata-sections -ffunction-sections -Wl,--gc-sections
+libmmfcamcorder_la_LDFLAGS = -Wl,--gc-sections \
+			     -Wl,-init,_mmcamcorder_constructor
 libmmfcamcorder_la_LIBADD += $(SYSTEMINFO_LIBS)
 
 if WAYLAND_SUPPORT

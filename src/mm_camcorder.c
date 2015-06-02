@@ -354,6 +354,11 @@ int mm_camcorder_get_attribute_info(MMHandleType camcorder, const char *attribut
 	return _mmcamcorder_get_attribute_info(camcorder, attribute_name, info);
 }
 
+int mm_camcorder_get_fps_list_by_resolution(MMHandleType camcorder, int width, int height, MMCamAttrsInfo *fps_info)
+{
+	return _mmcamcorder_get_fps_array_by_resolution(camcorder, width, height, fps_info);
+}
+
 
 int mm_camcorder_init_focusing(MMHandleType camcorder)
 {

@@ -25,7 +25,6 @@
 /*=======================================================================================
 | INCLUDE FILES										|
 ========================================================================================*/
-#include <camsrcjpegenc.h>
 #include <linux/magic.h>
 
 
@@ -93,7 +92,7 @@ do { \
 		item->handler_id = g_signal_connect(G_OBJECT(x_object), x_signal,\
 						    G_CALLBACK(x_callback), x_hcamcorder ); \
 		x_hcamcorder->signals = g_list_append(x_hcamcorder->signals, item); \
-		_mmcam_dbg_log("Connecting signal on [%s] - [ID : %lu], [Category : %x] ", GST_OBJECT_NAME(item->object), item->handler_id, item->category); \
+		_mmcam_dbg_log("Connecting signal on [%s][%p] - [ID : %lu], [Category : %x] ", GST_OBJECT_NAME(item->object), item->object, item->handler_id, item->category); \
 	} \
 } while (0);
 
@@ -185,68 +184,6 @@ typedef struct {
 	pthread_mutex_t lock;		/**< mutex for item */
 } _MMCamcorderMsgItem;
 
-/**
- * Structure of zero copy image buffer
- */
-#define SCMN_IMGB_MAX_PLANE         (4)
-
-/* image buffer definition ***************************************************
-
-    +------------------------------------------+ ---
-    |                                          |  ^
-    |     a[], p[]                             |  |
-    |     +---------------------------+ ---    |  |
-    |     |                           |  ^     |  |
-    |     |<---------- w[] ---------->|  |     |  |
-    |     |                           |  |     |  |
-    |     |                           |        |
-    |     |                           |  h[]   |  e[]
-    |     |                           |        |
-    |     |                           |  |     |  |
-    |     |                           |  |     |  |
-    |     |                           |  v     |  |
-    |     +---------------------------+ ---    |  |
-    |                                          |  v
-    +------------------------------------------+ ---
-
-    |<----------------- s[] ------------------>|
-*/
-
-typedef struct
-{
-	/* width of each image plane */
-	int w[SCMN_IMGB_MAX_PLANE];
-	/* height of each image plane */
-	int h[SCMN_IMGB_MAX_PLANE];
-	/* stride of each image plane */
-	int s[SCMN_IMGB_MAX_PLANE];
-	/* elevation of each image plane */
-	int e[SCMN_IMGB_MAX_PLANE];
-	/* user space address of each image plane */
-	void *a[SCMN_IMGB_MAX_PLANE];
-	/* physical address of each image plane, if needs */
-	void *p[SCMN_IMGB_MAX_PLANE];
-	/* color space type of image */
-	int cs;
-	/* left postion, if needs */
-	int x;
-	/* top position, if needs */
-	int y;
-	/* to align memory */
-	int __dummy2;
-	/* arbitrary data */
-	int data[16];
-	/* dmabuf or ion fd */
-	int fd[SCMN_IMGB_MAX_PLANE];
-	/* flag for buffer share */
-	int buf_share_method;
-	/* Y plane size */
-	int y_size;
-	/* UV plane size */
-	int uv_size;
-	/* Tizen buffer object of each image plane */
-	void *bo[SCMN_IMGB_MAX_PLANE];
-} SCMN_IMGB;
 
 /*=======================================================================================
 | CONSTANT DEFINITIONS									|
@@ -255,6 +192,7 @@ typedef struct
 #define NANO_SEC_PER_MILI_SEC                   1000000
 #define _MMCAMCORDER_HANDLER_CATEGORY_ALL \
 	(_MMCAMCORDER_HANDLER_PREVIEW | _MMCAMCORDER_HANDLER_VIDEOREC |_MMCAMCORDER_HANDLER_STILLSHOT | _MMCAMCORDER_HANDLER_AUDIOREC)
+#define G_DBUS_REPLY_TIMEOUT (120 * 1000)
 
 /*=======================================================================================
 | GLOBAL FUNCTION PROTOTYPES								|
@@ -282,7 +220,7 @@ unsigned int _mmcamcorder_get_fourcc(int pixtype, int codectype, int use_zero_co
 /* JPEG encode */
 gboolean _mmcamcorder_encode_jpeg(void *src_data, unsigned int src_width, unsigned int src_height,
                                   int src_format, unsigned int src_length, unsigned int jpeg_quality,
-                                  void **result_data, unsigned int *result_length, int enc_type);
+                                  void **result_data, unsigned int *result_length);
 /* resize */
 gboolean _mmcamcorder_resize_frame(unsigned char *src_data, unsigned int src_width, unsigned int src_height, unsigned int src_length, int src_format,
                                    unsigned char **dst_data, unsigned int *dst_width, unsigned int *dst_height, unsigned int *dst_length);
@@ -293,21 +231,27 @@ gboolean _mmcamcorder_downscale_UYVYorYUYV(unsigned char *src, unsigned int src_
 /* find top level tag only, do not use this function for finding sub level tags.
    tag_fourcc is Four-character-code (FOURCC) */
 gint _mmcamcorder_find_tag(FILE *f, guint32 tag_fourcc, gboolean do_rewind);
+gboolean _mmcamcorder_find_fourcc(FILE *f, guint32 tag_fourcc, gboolean do_rewind);
 gint32 _mmcamcorder_double_to_fix(gdouble d_number);
 gboolean _mmcamcorder_update_size(FILE *f, gint64 prev_pos, gint64 curr_pos);
 gboolean _mmcamcorder_write_loci(FILE *f, _MMCamcorderLocationInfo info);
-gboolean _mmcamcorder_write_udta(FILE *f, _MMCamcorderLocationInfo info);
+gboolean _mmcamcorder_write_geodata(FILE *f,_MMCamcorderLocationInfo info);
+gboolean _mmcamcorder_write_udta(FILE *f, int gps_enable, _MMCamcorderLocationInfo info, _MMCamcorderLocationInfo geotag);
 guint64 _mmcamcorder_get_container_size(const guchar *size);
 gboolean _mmcamcorder_update_composition_matrix(FILE *f, int orientation);
 
 /* File system */
 int _mmcamcorder_get_freespace(const gchar *path, guint64 *free_space);
+int _mmcamcorder_get_freespace_except_system(guint64 *free_space);
 int _mmcamcorder_get_file_size(const char *filename, guint64 *size);
 int _mmcamcorder_get_file_system_type(const gchar *path, int *file_system_type);
 gboolean _mmcamcorder_check_file_path(const gchar *path);
 
 /* Task */
 void *_mmcamcorder_util_task_thread_func(void *data);
+
+/* device */
+int _mmcamcorder_get_device_flash_brightness(int *brightness);
 
 #ifdef __cplusplus
 }
