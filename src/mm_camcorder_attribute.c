@@ -397,9 +397,9 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			MMF_VALUE_TYPE_INT,
 			MM_ATTRS_FLAG_RW,
 			{(void*)30},
-			MM_ATTRS_VALID_TYPE_INT_ARRAY,
+			MM_ATTRS_VALID_TYPE_INT_RANGE,
 			{0},
-			{0},
+			{1024},
 			_mmcamcorder_commit_camera_fps,
 		},
 		{
@@ -1410,6 +1410,17 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			{.int_min = FALSE},
 			{.int_max = TRUE},
 			NULL,
+		},
+		{
+			MM_CAM_RECORDER_TAG_ENABLE,
+			"recorder-tag-enable",
+			MMF_VALUE_TYPE_INT,
+			MM_ATTRS_FLAG_RW,
+			{(void*)FALSE},
+			MM_ATTRS_VALID_TYPE_INT_RANGE,
+			FALSE,
+			TRUE,
+			NULL,
 		}
 	};
 
@@ -1954,9 +1965,9 @@ bool _mmcamcorder_commit_camera_fps (MMHandleType handle, int attr_idx, const mm
 	_mmcam_dbg_log("FPS(%d)", value->value.i_val);
 
 	ret = mm_camcorder_get_attributes(handle, NULL,
-							MMCAM_CAMERA_WIDTH, &resolution_width,
-							MMCAM_CAMERA_HEIGHT, &resolution_height,
-							NULL);
+					  MMCAM_CAMERA_WIDTH, &resolution_width,
+					  MMCAM_CAMERA_HEIGHT, &resolution_height,
+					  NULL);
 
 	if(ret != MM_ERROR_NONE) {
 		_mmcam_dbg_err("FAILED : coult not get resolution values.");
@@ -1964,13 +1975,12 @@ bool _mmcamcorder_commit_camera_fps (MMHandleType handle, int attr_idx, const mm
 	}
 
 	ret = mm_camcorder_get_fps_list_by_resolution(handle, resolution_width, resolution_height, &fps_info);
-
-	if(ret != MM_ERROR_NONE) {
+	if (ret != MM_ERROR_NONE) {
 		_mmcam_dbg_err("FAILED : coult not get FPS values by resolution.");
 		return FALSE;
 	}
 
-	for(i=0; i<fps_info.int_array.count; i++) {
+	for (i = 0 ; i < fps_info.int_array.count ; i++) {
 		if(value->value.i_val == fps_info.int_array.array[i]) {
 			return TRUE;
 		}
