@@ -717,7 +717,7 @@ int _mmcamcorder_get_fps_array_by_resolution(MMHandleType handle, int width, int
 
 	if(!valid_check) {
 		_mmcam_dbg_err("FAILED : Can't find the valid resolution from attribute.");
-		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
+		return MM_ERROR_CAMCORDER_NOT_SUPPORTED;
 	}
 
 	if (!_mmcamcorder_conf_get_value_int_array(hcamcorder->conf_ctrl, CONFIGURE_CATEGORY_CTRL_CAMERA, nameFps, &fps_array)) {

@@ -89,6 +89,7 @@ static void _mmcamcorder_constructor() __attribute__((constructor));
 |    GLOBAL FUNCTION DEFINITIONS:							|
 ---------------------------------------------------------------------------------------*/
 
+
 static void __mm_camcorder_signal_handler(int signo)
 {
 	pid_t my_pid = getpid();
@@ -1026,7 +1027,6 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 	}
 
 	/* Deinitialize main context member */
-
 	hcamcorder->command = NULL;
 
 
@@ -3105,6 +3105,7 @@ int _mmcamcorder_gst_set_state(MMHandleType handle, GstElement *pipeline, GstSta
 
 			return MM_ERROR_CAMCORDER_RESPONSE_TIMEOUT;
 		}
+
 		usleep(_MMCAMCORDER_STATE_CHECK_INTERVAL);
 	}
 

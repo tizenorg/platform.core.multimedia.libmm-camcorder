@@ -231,6 +231,8 @@ void _mmcamcorder_destroy_video_capture_pipeline(MMHandleType handle)
 
 		/* NULL initialization will be done in _mmcamcorder_element_release_noti */
 	}
+
+	return;
 }
 
 
