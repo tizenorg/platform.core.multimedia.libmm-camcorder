@@ -708,7 +708,7 @@ int _mmcamcorder_destroy(MMHandleType handle)
 	}
 
 	/* Remove messages which are not called yet */
-	_mmcamcroder_remove_message_all(handle);
+	_mmcamcorder_remove_message_all(handle);
 
 	/* release model_name */
 	if (hcamcorder->model_name) {
@@ -2228,8 +2228,8 @@ void _mmcamcorder_set_state(MMHandleType handle, int state)
 		msg.param.state.previous = old_state;
 		msg.param.state.current = state;
 
-		/*_mmcam_dbg_log("_mmcamcroder_send_message : msg : %p, id:%x", &msg, msg.id);*/
-		_mmcamcroder_send_message(handle, &msg);
+		/*_mmcam_dbg_log("_mmcamcorder_send_message : msg : %p, id:%x", &msg, msg.id);*/
+		_mmcamcorder_send_message(handle, &msg);
 	}
 
 	_MMCAMCORDER_UNLOCK_STATE(handle);
@@ -2682,7 +2682,7 @@ GstBusSyncReply _mmcamcorder_pipeline_bus_sync_callback(GstBus *bus, GstMessage 
 			hcamcorder->error_occurs = TRUE;
 			msg.id = MM_MESSAGE_CAMCORDER_ERROR;
 			msg.param.code = hcamcorder->error_code;
-			_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
+			_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
 
 			goto DROP_MESSAGE;
 		}
@@ -2698,7 +2698,7 @@ GstBusSyncReply _mmcamcorder_pipeline_bus_sync_callback(GstBus *bus, GstMessage 
 
 			msg.id = MM_MESSAGE_CAMCORDER_FOCUS_CHANGED;
 			msg.param.code = focus_state;
-			_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
+			_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
 
 			goto DROP_MESSAGE;
 		} else if (gst_structure_has_name(gst_message_get_structure(message), "camerasrc-HDR")) {
@@ -2711,7 +2711,7 @@ GstBusSyncReply _mmcamcorder_pipeline_bus_sync_callback(GstBus *bus, GstMessage 
 
 				msg.id = MM_MESSAGE_CAMCORDER_HDR_PROGRESS;
 				msg.param.code = progress;
-				_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
+				_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
 			}
 
 			goto DROP_MESSAGE;
@@ -2782,7 +2782,7 @@ GstBusSyncReply _mmcamcorder_pipeline_bus_sync_callback(GstBus *bus, GstMessage 
 				msg.param.size = sizeof(MMCamFaceDetectInfo);
 				msg.param.code = 0;
 
-				_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
+				_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
 			}
 
 			/* free fd_info allocated by plugin */
@@ -2862,7 +2862,7 @@ GstBusSyncReply _mmcamcorder_audio_pipeline_bus_sync_callback(GstBus *bus, GstMe
 				msg.param.code = hcamcorder->error_code;
 				_mmcam_dbg_err(" error : sc->error_occurs %d", hcamcorder->error_occurs);
 				g_error_free(err);
-				_mmcamcroder_send_message((MMHandleType)hcamcorder, &msg);
+				_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
 				gst_message_unref(message);
 				message = NULL;
 				return GST_BUS_DROP;
@@ -3224,7 +3224,7 @@ static gboolean __mmcamcorder_handle_gst_error(MMHandleType handle, GstMessage *
 	/* post error to application */
 	hcamcorder->error_occurs = TRUE;
 	msg.id = MM_MESSAGE_CAMCORDER_ERROR;
-	_mmcamcroder_send_message(handle, &msg);
+	_mmcamcorder_send_message(handle, &msg);
 
 	return TRUE;
 }

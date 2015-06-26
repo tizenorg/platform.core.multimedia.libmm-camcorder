@@ -949,7 +949,7 @@ void _mmcamcorder_element_release_noti(gpointer data, GObject *where_the_object_
 }
 
 
-gboolean _mmcamcroder_msg_callback(void *data)
+gboolean _mmcamcorder_msg_callback(void *data)
 {
 	_MMCamcorderMsgItem *item = (_MMCamcorderMsgItem*)data;
 	mmf_camcorder_t *hcamcorder = NULL;
@@ -1011,7 +1011,7 @@ MSG_CALLBACK_DONE:
 }
 
 
-gboolean _mmcamcroder_send_message(MMHandleType handle, _MMCamcorderMsgItem *data)
+gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *data)
 {
 	mmf_camcorder_t* hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderMsgItem *item = NULL;
@@ -1059,7 +1059,7 @@ gboolean _mmcamcroder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 //		_mmcam_dbg_log("item[%p]", item);
 
 		/* Use DEFAULT priority */
-		g_idle_add_full(G_PRIORITY_DEFAULT, _mmcamcroder_msg_callback, item, NULL);
+		g_idle_add_full(G_PRIORITY_DEFAULT, _mmcamcorder_msg_callback, item, NULL);
 
 		_MMCAMCORDER_UNLOCK(handle);
 	} else {
@@ -1070,7 +1070,7 @@ gboolean _mmcamcroder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 }
 
 
-void _mmcamcroder_remove_message_all(MMHandleType handle)
+void _mmcamcorder_remove_message_all(MMHandleType handle)
 {
 	mmf_camcorder_t* hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderMsgItem *item = NULL;

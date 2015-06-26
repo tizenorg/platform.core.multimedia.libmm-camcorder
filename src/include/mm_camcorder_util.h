@@ -135,7 +135,7 @@ do { \
 	msg.id = msg_id;\
 	msg.param.code = msg_code;\
 	_mmcam_dbg_log("msg id : %x, code : %x", msg_id, msg_code);\
-	_mmcamcroder_send_message((MMHandleType)handle, &msg);\
+	_mmcamcorder_send_message((MMHandleType)handle, &msg);\
 }
 
 
@@ -208,9 +208,9 @@ gboolean _mmcamcorder_add_elements_to_bin(GstBin *bin, GList *element_list);
 gboolean _mmcamcorder_link_elements(GList *element_list);
 
 /* Message */
-gboolean _mmcamcroder_msg_callback(void *data);
-gboolean _mmcamcroder_send_message(MMHandleType handle, _MMCamcorderMsgItem *data);
-void _mmcamcroder_remove_message_all(MMHandleType handle);
+gboolean _mmcamcorder_msg_callback(void *data);
+gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *data);
+void _mmcamcorder_remove_message_all(MMHandleType handle);
 
 /* Pixel format */
 int _mmcamcorder_get_pixel_format(GstCaps *pad);
