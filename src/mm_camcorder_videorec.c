@@ -634,6 +634,9 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 				info->restart_preview = TRUE;
 			}
 
+			/* set recording hint */
+			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "recording-hint", TRUE);
+
 			if (info->restart_preview) {
 				/* stop preview and set new size */
 				_mmcam_dbg_log("restart preview");
@@ -710,10 +713,10 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 				CameraControl =  GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
 				if (CameraControl) {
 					MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "stop-video", TRUE);
-#ifdef LATEST_CAMERA_CONTROL
+
 					_mmcam_dbg_log("GST_CAMERA_CONTROL_RECORD_COMMAND_START");
 					gst_camera_control_set_record_command(CameraControl, GST_CAMERA_CONTROL_RECORD_COMMAND_START);
-#endif /* LATEST_CAMERA_CONTROL */
+
 					MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "stop-video", FALSE);
 				} else {
 					_mmcam_dbg_err("could not get camera control");
@@ -761,10 +764,10 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 					CameraControl = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
 					if (CameraControl) {
 						MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "stop-video", TRUE);
-#ifdef LATEST_CAMERA_CONTROL
+
 						_mmcam_dbg_log("GST_CAMERA_CONTROL_RECORD_COMMAND_STOP");
 						gst_camera_control_set_record_command(CameraControl, GST_CAMERA_CONTROL_RECORD_COMMAND_STOP);
-#endif /* LATEST_CAMERA_CONTROL */
+
 						MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "stop-video", FALSE);
 					} else {
 						_mmcam_dbg_err("failed to get camera control");
@@ -893,15 +896,18 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 			goto _ERR_CAMCORDER_VIDEO_COMMAND;
 		}
 
+		/* set recording hint */
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "recording-hint", FALSE);
+
 		/* stop video stream */
 		if (info->record_dual_stream) {
 			CameraControl = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
 			if (CameraControl) {
 				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "stop-video", TRUE);
-#ifdef LATEST_CAMERA_CONTROL
+
 				_mmcam_dbg_log("GST_CAMERA_CONTROL_RECORD_COMMAND_STOP");
 				gst_camera_control_set_record_command(CameraControl, GST_CAMERA_CONTROL_RECORD_COMMAND_STOP);
-#endif /* LATEST_CAMERA_CONTROL */
+
 				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "stop-video", FALSE);
 			} else {
 				_mmcam_dbg_err("failed to get camera control");
@@ -1096,15 +1102,18 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
 		_mmcam_dbg_warn("_MMCamcorder_CMD_COMMIT:__mmcamcorder_remove_recorder_pipeline failed. error[%x]", ret);
 	}
 
+	/* set recording hint */
+	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "recording-hint", FALSE);
+
 	/* stop video stream */
 	if (info->record_dual_stream) {
 		GstCameraControl *control = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
 		if (control) {
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "stop-video", TRUE);
-#ifdef LATEST_CAMERA_CONTROL
+
 			_mmcam_dbg_log("GST_CAMERA_CONTROL_RECORD_COMMAND_STOP");
 			gst_camera_control_set_record_command(control, GST_CAMERA_CONTROL_RECORD_COMMAND_STOP);
-#endif /* LATEST_CAMERA_CONTROL */
+
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "stop-video", FALSE);
 		} else {
 			_mmcam_dbg_err("failed to get camera control");

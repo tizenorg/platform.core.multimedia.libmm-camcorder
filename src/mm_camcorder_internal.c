@@ -341,11 +341,15 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			ret = _mmcamcorder_init_convert_table((MMHandleType)hcamcorder);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("converting table initialize error!!");
+				ret = MM_ERROR_CAMCORDER_INTERNAL;
+				goto _ERR_AFTER_ASM_REGISTER;
 			}
 
-			ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder);
+			ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, info->videodev_type);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("converting table initialize error!!");
+				ret = MM_ERROR_CAMCORDER_INTERNAL;
+				goto _ERR_AFTER_ASM_REGISTER;
 			}
 
 			/* Get device info, recommend preview fmt and display rotation from INI */
@@ -433,6 +437,8 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 				_mmcam_dbg_err("Set %s FAILED.", err_attr_name);
 				free(err_attr_name);
 				err_attr_name = NULL;
+				ret = MM_ERROR_CAMCORDER_INTERNAL;
+				goto _ERR_AFTER_ASM_REGISTER;
 			}
 
 			/* Get default value of brightness */
@@ -443,6 +449,8 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 				_mmcam_dbg_err("Get brightness FAILED.");
 				free(err_attr_name);
 				err_attr_name = NULL;
+				ret = MM_ERROR_CAMCORDER_INTERNAL;
+				goto _ERR_AFTER_ASM_REGISTER;
 			}
 			_mmcam_dbg_log("Default brightness : %d", hcamcorder->brightness_default);
 		} else {
@@ -461,6 +469,15 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			_mmcam_dbg_err("Set %s FAILED.", err_attr_name);
 			free(err_attr_name);
 			err_attr_name = NULL;
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_AFTER_ASM_REGISTER;
+		}
+
+		ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, info->videodev_type);
+		if (ret != MM_ERROR_NONE) {
+			_mmcam_dbg_warn("init attribute from configure error : 0x%x", ret);
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_AFTER_ASM_REGISTER;
 		}
 	}
 

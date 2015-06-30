@@ -221,6 +221,18 @@ _MMCamcorderEnumConvert _mmcamcorder_enum_conv_detect_mode =
  * For detail information, refer below documents.
  *
  */
+static _MMCamcorderInfoConverting	g_audio_info[] = {
+	{
+		CONFIGURE_TYPE_MAIN,
+		CONFIGURE_CATEGORY_MAIN_AUDIO_INPUT,
+		MM_CAM_AUDIO_DEVICE,
+		MM_CAMCORDER_ATTR_NONE,
+		"AudioDevice",
+		MM_CAMCONVERT_TYPE_INT_ARRAY,
+		NULL,
+	}
+};
+
 static _MMCamcorderInfoConverting	g_display_info[] = {
 	{
 		CONFIGURE_TYPE_MAIN,
@@ -826,7 +838,7 @@ __mmcamcorder_get_valid_array(int * original_array, int original_count, int ** v
 }
 
 
-int _mmcamcorder_init_attr_from_configure(MMHandleType handle)
+int _mmcamcorder_init_attr_from_configure(MMHandleType handle, int type)
 {
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderInfoConverting *info = NULL;
@@ -836,27 +848,42 @@ int _mmcamcorder_init_attr_from_configure(MMHandleType handle)
 
 	mmf_return_val_if_fail(hcamcorder, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
 
-	_mmcam_dbg_log("");
+	_mmcam_dbg_log("type : %d", type);
 
-	/* Initialize attribute related to camera control */
-	info = hcamcorder->caminfo_convert;
-	table_size = sizeof(g_caminfo_convert) / sizeof(_MMCamcorderInfoConverting);
-	ret = __mmcamcorder_set_info_to_attr( handle, info, table_size );
-	if( ret != MM_ERROR_NONE )
-	{
-		_mmcam_dbg_err( "ret : %x", ret );
+	if (type != MM_VIDEO_DEVICE_NONE) {
+		/* Initialize attribute related to camera control */
+		info = hcamcorder->caminfo_convert;
+		table_size = sizeof(g_caminfo_convert) / sizeof(_MMCamcorderInfoConverting);
+		ret = __mmcamcorder_set_info_to_attr(handle, info, table_size);
+		if (ret != MM_ERROR_NONE) {
+			_mmcam_dbg_err("camera info set error : 0x%x", ret);
+			return ret;
+		}
+
+		/* Initialize attribute related to display */
+		info = g_display_info;
+		table_size = sizeof(g_display_info) / sizeof(_MMCamcorderInfoConverting);
+		ret = __mmcamcorder_set_info_to_attr(handle, info, table_size);
+		if (ret != MM_ERROR_NONE) {
+			_mmcam_dbg_err("display info set error : 0x%x", ret);
+			return ret;
+		}
+	}
+
+	/* Initialize attribute related to audio */
+	info = g_audio_info;
+	table_size = sizeof(g_audio_info) / sizeof(_MMCamcorderInfoConverting);
+	ret = __mmcamcorder_set_info_to_attr(handle, info, table_size);
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("audio info set error : 0x%x", ret);
 		return ret;
 	}
 
-	/* Initialize attribute related to display */
-	info = g_display_info;
-	table_size = sizeof(g_display_info) / sizeof(_MMCamcorderInfoConverting);
-	ret = __mmcamcorder_set_info_to_attr( handle, info, table_size );
-
-	_mmcam_dbg_log( "result: %x", ret );
+	_mmcam_dbg_log("done");
 
 	return ret;
 }
+
 
 static int
 __mmcamcorder_set_info_to_attr( MMHandleType handle, _MMCamcorderInfoConverting *info, int table_size )

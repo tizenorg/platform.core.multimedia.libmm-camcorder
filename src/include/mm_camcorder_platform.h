@@ -230,7 +230,7 @@ int _mmcamcorder_get_fps_array_by_resolution(MMHandleType handle, int width, int
 
 int _mmcamcorder_set_converted_value(MMHandleType handle, _MMCamcorderEnumConvert *convert);
 int _mmcamcorder_init_convert_table(MMHandleType handle);
-int _mmcamcorder_init_attr_from_configure(MMHandleType handle);
+int _mmcamcorder_init_attr_from_configure(MMHandleType handle, int type);
 
 int _mmcamcorder_convert_brightness(int mslVal);
 int _mmcamcorder_convert_whitebalance(int mslVal);
