@@ -622,6 +622,7 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 
 	/* [AudioInput] matching table */
 	static conf_info_table conf_main_audio_input_table[] = {
+		{ "AudioDevice",          CONFIGURE_VALUE_INT_ARRAY, {NULL} },
 		{ "AudiosrcElement",      CONFIGURE_VALUE_ELEMENT, {&_audiosrc_element_default} },
 		{ "AudiomodemsrcElement", CONFIGURE_VALUE_ELEMENT, {&_audiomodemsrc_element_default} },
 	};

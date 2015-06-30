@@ -153,9 +153,9 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			MMF_VALUE_TYPE_INT,
 			MM_ATTRS_FLAG_RW,
 			{(void*)MM_AUDIO_DEVICE_MIC},
-			MM_ATTRS_VALID_TYPE_INT_RANGE,
-			{.int_min = 0},
-			{.int_max = (MM_AUDIO_DEVICE_NUM-1)},
+			MM_ATTRS_VALID_TYPE_INT_ARRAY,
+			{NULL},
+			{0},
 			NULL,
 		},
 		{
