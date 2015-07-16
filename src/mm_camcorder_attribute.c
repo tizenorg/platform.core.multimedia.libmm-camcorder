@@ -2418,11 +2418,13 @@ bool _mmcamcorder_commit_camera_af_scan_range (MMHandleType handle, int attr_idx
 	return FALSE;
 }
 
+
 bool _mmcamcorder_commit_camera_af_touch_area (MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
 	_MMCamcorderSubContext *sc = NULL;
 	GstCameraControl *control = NULL;
-	GstCameraControlRectType set_area = { 0, 0, 0, 0 }, get_area = { 0, 0, 0, 0 };
+	GstCameraControlRectType set_area = { 0, 0, 0, 0 };
+	GstCameraControlRectType get_area = { 0, 0, 0, 0 };
 
 	int current_state = MM_CAMCORDER_STATE_NONE;
 	int ret = FALSE;
@@ -2430,154 +2432,179 @@ bool _mmcamcorder_commit_camera_af_touch_area (MMHandleType handle, int attr_idx
 
 	gboolean do_set = FALSE;
 
-	MMCamAttrsInfo info_y, info_w, info_h;
+	MMCamAttrsInfo info_y;
+	MMCamAttrsInfo info_w;
+	MMCamAttrsInfo info_h;
 
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
-	if (!sc)
+	if (!sc) {
 		return TRUE;
+	}
 
 	_mmcam_dbg_log("(%d)", attr_idx);
 
-	current_state = _mmcamcorder_get_state( handle);
-
-	if( current_state < MM_CAMCORDER_STATE_PREPARE )
-	{
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_PREPARE) {
 		_mmcam_dbg_log("It doesn't need to change dynamically.(state=%d)", current_state);
 		return TRUE;
 	}
 
 	ret = mm_camcorder_get_attributes(handle, NULL,
-				MMCAM_CAMERA_FOCUS_MODE, &focus_mode,
-				NULL);
-	if( ret != MM_ERROR_NONE )
-	{
-		_mmcam_dbg_warn( "Failed to get FOCUS MODE.[%x]", ret );
+					  MMCAM_CAMERA_FOCUS_MODE, &focus_mode,
+					  NULL);
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_warn("Failed to get FOCUS MODE.[%x]", ret);
 		return FALSE;
 	}
 
-	if ((focus_mode != MM_CAMCORDER_FOCUS_MODE_TOUCH_AUTO ) && (focus_mode != MM_CAMCORDER_FOCUS_MODE_CONTINUOUS))
-	{
-		_mmcam_dbg_warn( "Focus mode is NOT TOUCH AUTO or CONTINUOUS(current[%d]). return FALSE", focus_mode );
+	if ((focus_mode != MM_CAMCORDER_FOCUS_MODE_TOUCH_AUTO) && (focus_mode != MM_CAMCORDER_FOCUS_MODE_CONTINUOUS)) {
+		_mmcam_dbg_warn("Focus mode is NOT TOUCH AUTO or CONTINUOUS(current[%d]). return FALSE", focus_mode);
 		return FALSE;
 	}
 
-	if( sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst )
-	{
-		if (!GST_IS_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst))
-		{
+	if (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst) {
+		if (!GST_IS_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst)) {
 			_mmcam_dbg_log("Can't cast Video source into camera control.");
 			return TRUE;
 		}
 
-		switch( attr_idx )
-		{
-			case MM_CAM_CAMERA_AF_TOUCH_X:
-				mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_Y, &info_y);
-				mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_WIDTH, &info_w);
-				mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_HEIGHT, &info_h);
-				if( !( (info_y.flag|info_w.flag|info_h.flag) & MM_ATTRS_FLAG_MODIFIED) )
-				{
-					set_area.x = value->value.i_val;
-					mm_camcorder_get_attributes(handle, NULL,
-							MMCAM_CAMERA_AF_TOUCH_Y, &set_area.y,
-							MMCAM_CAMERA_AF_TOUCH_WIDTH, &set_area.width,
-							MMCAM_CAMERA_AF_TOUCH_HEIGHT, &set_area.height,
-							NULL);
-					do_set = TRUE;
-				}
-				else
-				{
-					_mmcam_dbg_log( "Just store AF area[x:%d]", value->value.i_val );
-					return TRUE;
-				}
-				break;
-			case MM_CAM_CAMERA_AF_TOUCH_Y:
-				mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_WIDTH, &info_w);
-				mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_HEIGHT, &info_h);
-				if( !( (info_w.flag|info_h.flag) & MM_ATTRS_FLAG_MODIFIED) )
-				{
-					set_area.y = value->value.i_val;
-					mm_camcorder_get_attributes(handle, NULL,
-							MMCAM_CAMERA_AF_TOUCH_X, &set_area.x,
-							MMCAM_CAMERA_AF_TOUCH_WIDTH, &set_area.width,
-							MMCAM_CAMERA_AF_TOUCH_HEIGHT, &set_area.height,
-							NULL);
-					do_set = TRUE;
-				}
-				else
-				{
-					_mmcam_dbg_log( "Just store AF area[y:%d]", value->value.i_val );
-					return TRUE;
-				}
-				break;
-			case MM_CAM_CAMERA_AF_TOUCH_WIDTH:
-				mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_HEIGHT, &info_h);
-				if( !( info_h.flag & MM_ATTRS_FLAG_MODIFIED) )
-				{
-					set_area.width = value->value.i_val;
-					mm_camcorder_get_attributes(handle, NULL,
-							MMCAM_CAMERA_AF_TOUCH_X, &set_area.x,
-							MMCAM_CAMERA_AF_TOUCH_Y, &set_area.y,
-							MMCAM_CAMERA_AF_TOUCH_HEIGHT, &set_area.height,
-							NULL);
-					do_set = TRUE;
-				}
-				else
-				{
-					_mmcam_dbg_log( "Just store AF area[width:%d]", value->value.i_val );
-					return TRUE;
-				}
-				break;
-			case MM_CAM_CAMERA_AF_TOUCH_HEIGHT:
-				set_area.height = value->value.i_val;
+		memset(&info_y, 0x0, sizeof(MMCamAttrsInfo));
+		memset(&info_w, 0x0, sizeof(MMCamAttrsInfo));
+		memset(&info_h, 0x0, sizeof(MMCamAttrsInfo));
+
+		switch (attr_idx) {
+		case MM_CAM_CAMERA_AF_TOUCH_X:
+			mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_Y, &info_y);
+			mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_WIDTH, &info_w);
+			mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_HEIGHT, &info_h);
+			if (!((info_y.flag|info_w.flag|info_h.flag) & MM_ATTRS_FLAG_MODIFIED)) {
+				set_area.x = value->value.i_val;
 				mm_camcorder_get_attributes(handle, NULL,
-						MMCAM_CAMERA_AF_TOUCH_X, &set_area.x,
-						MMCAM_CAMERA_AF_TOUCH_Y, &set_area.y,
-						MMCAM_CAMERA_AF_TOUCH_WIDTH, &set_area.width,
-						NULL);
+							    MMCAM_CAMERA_AF_TOUCH_Y, &set_area.y,
+							    MMCAM_CAMERA_AF_TOUCH_WIDTH, &set_area.width,
+							    MMCAM_CAMERA_AF_TOUCH_HEIGHT, &set_area.height,
+							    NULL);
 				do_set = TRUE;
-				break;
-			default:
-				break;
+			} else {
+				_mmcam_dbg_log("Just store AF area[x:%d]", value->value.i_val);
+				return TRUE;
+			}
+			break;
+		case MM_CAM_CAMERA_AF_TOUCH_Y:
+			mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_WIDTH, &info_w);
+			mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_HEIGHT, &info_h);
+			if (!((info_w.flag|info_h.flag) & MM_ATTRS_FLAG_MODIFIED)) {
+				set_area.y = value->value.i_val;
+				mm_camcorder_get_attributes(handle, NULL,
+							    MMCAM_CAMERA_AF_TOUCH_X, &set_area.x,
+							    MMCAM_CAMERA_AF_TOUCH_WIDTH, &set_area.width,
+							    MMCAM_CAMERA_AF_TOUCH_HEIGHT, &set_area.height,
+							    NULL);
+				do_set = TRUE;
+			} else {
+				_mmcam_dbg_log( "Just store AF area[y:%d]", value->value.i_val );
+				return TRUE;
+			}
+			break;
+		case MM_CAM_CAMERA_AF_TOUCH_WIDTH:
+			mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_AF_TOUCH_HEIGHT, &info_h);
+			if (!(info_h.flag & MM_ATTRS_FLAG_MODIFIED)) {
+				set_area.width = value->value.i_val;
+				mm_camcorder_get_attributes(handle, NULL,
+							    MMCAM_CAMERA_AF_TOUCH_X, &set_area.x,
+							    MMCAM_CAMERA_AF_TOUCH_Y, &set_area.y,
+							    MMCAM_CAMERA_AF_TOUCH_HEIGHT, &set_area.height,
+							    NULL);
+				do_set = TRUE;
+			} else {
+				_mmcam_dbg_log("Just store AF area[width:%d]", value->value.i_val);
+				return TRUE;
+			}
+			break;
+		case MM_CAM_CAMERA_AF_TOUCH_HEIGHT:
+			set_area.height = value->value.i_val;
+			mm_camcorder_get_attributes(handle, NULL,
+						    MMCAM_CAMERA_AF_TOUCH_X, &set_area.x,
+						    MMCAM_CAMERA_AF_TOUCH_Y, &set_area.y,
+						    MMCAM_CAMERA_AF_TOUCH_WIDTH, &set_area.width,
+						    NULL);
+			do_set = TRUE;
+			break;
+		default:
+			break;
 		}
 
-		if( do_set )
-		{
+		if (do_set) {
+			_MMCamcorderVideoInfo *info = sc->info_video;
+
+			if (info == NULL) {
+				_mmcam_dbg_err("video info is NULL");
+				return FALSE;
+			}
+
 			control = GST_CAMERA_CONTROL (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
 			if (control == NULL) {
 				_mmcam_dbg_err("cast CAMERA_CONTROL failed");
 				return FALSE;
 			}
 
-			ret = gst_camera_control_get_auto_focus_area( control, &get_area );
-			if( !ret )
-			{
+			/* convert area */
+			if (current_state >= MM_CAMCORDER_STATE_RECORDING && info->support_dual_stream == FALSE &&
+			    (info->preview_width != info->video_width || info->preview_height != info->video_height)) {
+				float ratio_width = 0.0;
+				float ratio_height = 0.0;
+
+				if (info->preview_width != 0 && info->preview_height != 0) {
+					ratio_width = (float)info->video_width / (float)info->preview_width;
+					ratio_height = (float)info->video_height / (float)info->preview_height;
+
+					_mmcam_dbg_log("original area %d,%d,%dx%d, resolution ratio : width %f, height %f",
+						       set_area.x, set_area.y, set_area.width, set_area.height, ratio_width, ratio_height);
+
+					set_area.x = (int)((float)set_area.x * ratio_width);
+					set_area.y = (int)((float)set_area.y * ratio_height);
+					set_area.width = (int)((float)set_area.width * ratio_width);
+					set_area.height = (int)((float)set_area.height * ratio_height);
+
+					if (set_area.width <= 0) {
+						set_area.width = 1;
+					}
+					if (set_area.height <= 0) {
+						set_area.height = 1;
+					}
+
+					_mmcam_dbg_log("converted area %d,%d,%dx%d",
+						       set_area.x, set_area.y, set_area.width, set_area.height);
+				} else {
+					_mmcam_dbg_warn("invalid preview size %dx%d, skip AF area converting",
+							info->preview_width, info->preview_height);
+				}
+			}
+
+			ret = gst_camera_control_get_auto_focus_area(control, &get_area);
+			if (!ret) {
 				_mmcam_dbg_warn( "Failed to get AF area" );
 				return FALSE;
 			}
 
-			if( get_area.x == set_area.x && get_area.y == set_area.y )
-			// width and height are not supported now.
-			// get_area.width == set_area.width && get_area.height == set_area.height
-			{
-				_mmcam_dbg_log( "No need to set AF area[x,y:%d,%d]", get_area.x, get_area.y );
+			/* width and height are not supported now */
+			if (get_area.x == set_area.x && get_area.y == set_area.y) {
+				_mmcam_dbg_log("No need to set AF area[x,y:%d,%d]",
+					       get_area.x, get_area.y);
 				return TRUE;
 			}
 
-			ret = gst_camera_control_set_auto_focus_area( control, set_area );
-			if( ret )
-			{
-				_mmcam_dbg_log( "Succeed to set AF area[%d,%d,%dx%d]", set_area.x, set_area.y, set_area.width, set_area.height );
+			ret = gst_camera_control_set_auto_focus_area(control, set_area);
+			if (ret) {
+				_mmcam_dbg_log("Succeed to set AF area[%d,%d,%dx%d]",
+					       set_area.x, set_area.y, set_area.width, set_area.height);
 				return TRUE;
-			}
-			else
-			{
-				_mmcam_dbg_warn( "Failed to set AF area[%d,%d,%dx%d]", set_area.x, set_area.y, set_area.width, set_area.height );
+			} else {
+				_mmcam_dbg_warn("Failed to set AF area[%d,%d,%dx%d]",
+						set_area.x, set_area.y, set_area.width, set_area.height);
 			}
 		}
-	}
-	else
-	{
+	} else {
 		_mmcam_dbg_log("pointer of video src is null");
 	}
 

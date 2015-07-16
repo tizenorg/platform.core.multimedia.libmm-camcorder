@@ -2102,6 +2102,7 @@ static gboolean init(int type)
 	int preview_format = MM_PIXEL_FORMAT_NV12;
 	int support_zero_copy_format = 0;
 	int support_media_packet_preview_cb = 0;
+	int recommend_display_rotation = 0;
 	MMHandleType cam_handle = 0;
 
 	char *err_attr_name = NULL;
@@ -2122,10 +2123,12 @@ static gboolean init(int type)
 		                            MMCAM_RECOMMEND_PREVIEW_FORMAT_FOR_CAPTURE, &preview_format,
 		                            MMCAM_SUPPORT_ZERO_COPY_FORMAT, &support_zero_copy_format,
 		                            MMCAM_SUPPORT_MEDIA_PACKET_PREVIEW_CB, &support_media_packet_preview_cb,
+		                            MMCAM_RECOMMEND_DISPLAY_ROTATION, &recommend_display_rotation,
 		                            NULL);
 
 		warn_msg_t("MMCAM_SUPPORT_ZERO_COPY_FORMAT %d", support_zero_copy_format);
 		warn_msg_t("MMCAM_SUPPORT_MEDIA_PACKET_PREVIEW_CB %d", support_media_packet_preview_cb);
+		warn_msg_t("MMCAM_RECOMMEND_DISPLAY_ROTATION %d", recommend_display_rotation);
 
 		/* camcorder attribute setting */
 		err = mm_camcorder_set_attributes( (MMHandleType)cam_handle, &err_attr_name,
@@ -2162,6 +2165,7 @@ static gboolean init(int type)
 		                                   //MMCAM_TARGET_MAX_SIZE, 102400,
 		                                   MMCAM_RECORDER_TAG_ENABLE, 1,
 		                                   MMCAM_TAG_VIDEO_ORIENTATION, 1,
+		                                   MMCAM_DISPLAY_ROTATION, recommend_display_rotation,
 		                                   NULL );
 
 		if (err != MM_ERROR_NONE) {

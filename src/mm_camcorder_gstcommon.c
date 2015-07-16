@@ -1723,7 +1723,7 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_push_buffer_to_record(Gst
 		GST_BUFFER_PTS(buffer) = GST_BUFFER_PTS(buffer) - sc->info_video->base_video_ts;
 		GST_BUFFER_DTS(buffer) = GST_BUFFER_PTS(buffer);
 
-		_mmcam_dbg_log("buffer %p, timestamp %"GST_TIME_FORMAT, buffer, GST_TIME_ARGS(GST_BUFFER_PTS(buffer)));
+		/*_mmcam_dbg_log("buffer %p, timestamp %"GST_TIME_FORMAT, buffer, GST_TIME_ARGS(GST_BUFFER_PTS(buffer)));*/
 
 		if (0) {
 			GstCaps *caps = gst_pad_get_current_caps(pad);
