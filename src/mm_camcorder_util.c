@@ -1770,6 +1770,10 @@ void *_mmcamcorder_util_task_thread_func(void *data)
 			_mmcamcorder_sound_play((MMHandleType)hcamcorder, _MMCAMCORDER_SAMPLE_SOUND_NAME_CAPTURE, FALSE);
 			hcamcorder->task_thread_state = _MMCAMCORDER_TASK_THREAD_STATE_NONE;
 			break;
+		case _MMCAMCORDER_TASK_THREAD_STATE_SOUND_SOLO_PLAY_START:
+			_mmcamcorder_sound_solo_play((MMHandleType)hcamcorder, _MMCAMCORDER_FILEPATH_CAPTURE_SND, FALSE);
+			hcamcorder->task_thread_state = _MMCAMCORDER_TASK_THREAD_STATE_NONE;
+			break;
 		case _MMCAMCORDER_TASK_THREAD_STATE_ENCODE_PIPE_CREATE:
 			ret = _mmcamcorder_video_prepare_record((MMHandleType)hcamcorder);
 

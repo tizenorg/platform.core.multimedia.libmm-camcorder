@@ -1708,6 +1708,14 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_push_buffer_to_record(Gst
 			}
 		} else {
 			if(sc->info_video->is_firstframe) {
+				/* for image capture with encodebin(ex:emulator) */
+				if (sc->bencbin_capture && sc->info_image->capturing) {
+					pthread_mutex_lock(&(hcamcorder->task_thread_lock));
+					_mmcam_dbg_log("send signal for sound play");
+					hcamcorder->task_thread_state = _MMCAMCORDER_TASK_THREAD_STATE_SOUND_SOLO_PLAY_START;
+					pthread_cond_signal(&(hcamcorder->task_thread_cond));
+					pthread_mutex_unlock(&(hcamcorder->task_thread_lock));
+				}
 				sc->info_video->is_firstframe = FALSE;
 				sc->info_video->base_video_ts = GST_BUFFER_PTS(buffer);
 			}

@@ -509,6 +509,9 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 		MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_SINK].gst,"signal-handoffs", TRUE);
 		MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "block", FALSE);
 
+		/* Prepare for the shutter sound when it's the bencbin mode capture */
+		sc->info_video->is_firstframe = TRUE;
+
 		/* set push encoding buffer as TRUE */
 		sc->info_video->push_encoding_buffer = PUSH_ENCODING_BUFFER_INIT;
 
