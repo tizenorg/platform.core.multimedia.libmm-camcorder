@@ -238,6 +238,7 @@ gboolean _mmcamcorder_write_loci(FILE *f, _MMCamcorderLocationInfo info);
 gboolean _mmcamcorder_write_geodata(FILE *f,_MMCamcorderLocationInfo info);
 gboolean _mmcamcorder_write_udta(FILE *f, int gps_enable, _MMCamcorderLocationInfo info, _MMCamcorderLocationInfo geotag);
 guint64 _mmcamcorder_get_container_size(const guchar *size);
+guint64 _mmcamcorder_get_container_size64(const guchar *size);
 gboolean _mmcamcorder_update_composition_matrix(FILE *f, int orientation);
 
 /* File system */

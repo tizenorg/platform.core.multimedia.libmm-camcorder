@@ -156,8 +156,8 @@ gint _mmcamcorder_find_tag(FILE *f, guint32 tag_fourcc, gboolean do_rewind)
 	}
 
 	while ((read_item = fread(&buf, sizeof(guchar), 8, f)) > 0) {
-		unsigned long long buf_size = 0;
-		unsigned int buf_fourcc = 0;
+		uint64_t buf_size = 0;
+		uint32_t buf_fourcc = 0;
 
 		if (read_item < 8) {
 			_mmcam_dbg_err("fread failed : %d", read_item);
@@ -172,27 +172,28 @@ gint _mmcamcorder_find_tag(FILE *f, guint32 tag_fourcc, gboolean do_rewind)
 		} else {
 			_mmcam_dbg_log("skip [%c%c%c%c] tag", MMCAM_FOURCC_ARGS(buf_fourcc));
 
-			buf_size = (unsigned long long)_mmcamcorder_get_container_size(buf);
-			buf_size = buf_size - 8; /* include tag */
+			buf_size = _mmcamcorder_get_container_size(buf);
 
-			do {
-				if (buf_size > _MMCAMCORDER_MAX_INT) {
-					_mmcam_dbg_log("seek %d", _MMCAMCORDER_MAX_INT);
-					if (fseek(f, _MMCAMCORDER_MAX_INT, SEEK_CUR) != 0) {
-						_mmcam_dbg_err("fseek() fail");
-						return FALSE;
-					}
-
-					buf_size -= _MMCAMCORDER_MAX_INT;
-				} else {
-					_mmcam_dbg_log("seek %d", buf_size);
-					if (fseek(f, buf_size, SEEK_CUR) != 0) {
-						_mmcam_dbg_err("fseek() fail");
-						return FALSE;
-					}
-					break;
+			/* if size of mdat is 1, it means largesize is used.(bigger than 4GB) */
+			if (buf_fourcc == MMCAM_FOURCC('m','d','a','t') &&
+			    buf_size == 1) {
+				read_item = fread(&buf, sizeof(guchar), 8, f);
+				if (read_item < 8) {
+					_mmcam_dbg_err("fread failed");
+					return FALSE;
 				}
-			} while (TRUE);
+
+				buf_size = _mmcamcorder_get_container_size64(buf);
+				buf_size = buf_size - 16; /* include tag and large file flag(size 1) */
+			} else {
+				buf_size = buf_size - 8; /* include tag */
+			}
+
+			_mmcam_dbg_log("seek %llu", buf_size);
+			if (fseeko(f, (off_t)buf_size, SEEK_CUR) != 0) {
+				_mmcam_dbg_err("fseeko() fail");
+				return FALSE;
+			}
 		}
 	}
 
@@ -211,8 +212,8 @@ gboolean _mmcamcorder_find_fourcc(FILE *f, guint32 tag_fourcc, gboolean do_rewin
 	}
 
 	while ((read_item = fread(&buf, sizeof(guchar), 8, f))  > 0) {
-		unsigned long long buf_size = 0;
-		unsigned int buf_fourcc = 0;
+		uint64_t buf_size = 0;
+		uint32_t buf_fourcc = 0;
 
 		if (read_item < 8) {
 			_mmcam_dbg_err("fread failed : %d", read_item);
@@ -224,38 +225,38 @@ gboolean _mmcamcorder_find_fourcc(FILE *f, guint32 tag_fourcc, gboolean do_rewin
 		if (tag_fourcc == buf_fourcc) {
 			_mmcam_dbg_log("find tag : %c%c%c%c", MMCAM_FOURCC_ARGS(tag_fourcc));
 			return TRUE;
-		}
-		else if((buf_fourcc == MMCAM_FOURCC('m','o','o','v')) && (tag_fourcc != buf_fourcc)){
-			if(_mmcamcorder_find_fourcc(f,tag_fourcc,FALSE)){
+		} else if (buf_fourcc == MMCAM_FOURCC('m','o','o','v') &&
+		           tag_fourcc != buf_fourcc) {
+			if (_mmcamcorder_find_fourcc(f, tag_fourcc, FALSE)) {
 				return TRUE;
-			}
-			else{
+			} else {
 				continue;
 			}
 		} else {
 			_mmcam_dbg_log("skip [%c%c%c%c] tag", MMCAM_FOURCC_ARGS(buf_fourcc));
 
-			buf_size = (unsigned long long)_mmcamcorder_get_container_size(buf);
-			buf_size = buf_size - 8; /* include tag */
+			buf_size = _mmcamcorder_get_container_size(buf);
 
-			do {
-				if (buf_size > _MMCAMCORDER_MAX_INT) {
-					_mmcam_dbg_log("seek %d", _MMCAMCORDER_MAX_INT);
-					if (fseek(f, _MMCAMCORDER_MAX_INT, SEEK_CUR) != 0) {
-						_mmcam_dbg_err("fseek() fail");
-						return FALSE;
-					}
-
-					buf_size -= _MMCAMCORDER_MAX_INT;
-				} else {
-					_mmcam_dbg_log("seek %d", buf_size);
-					if (fseek(f, buf_size, SEEK_CUR) != 0) {
-						_mmcam_dbg_err("fseek() fail");
-						return FALSE;
-					}
-					break;
+			/* if size of mdat is 1, it means largesize is used.(bigger than 4GB) */
+			if (buf_fourcc == MMCAM_FOURCC('m','d','a','t') &&
+			    buf_size == 1) {
+				read_item = fread(&buf, sizeof(guchar), 8, f);
+				if (read_item < 8) {
+					_mmcam_dbg_err("fread failed");
+					return FALSE;
 				}
-			} while (TRUE);
+
+				buf_size = _mmcamcorder_get_container_size64(buf);
+				buf_size = buf_size - 16; /* include tag and large file flag(size 1) */
+			} else {
+				buf_size = buf_size - 8; /* include tag */
+			}
+
+			_mmcam_dbg_log("seek %llu", buf_size);
+			if (fseeko(f, (off_t)buf_size, SEEK_CUR) != 0) {
+				_mmcam_dbg_err("fseeko() fail");
+				return FALSE;
+			}
 		}
 	}
 
@@ -267,18 +268,18 @@ gboolean _mmcamcorder_find_fourcc(FILE *f, guint32 tag_fourcc, gboolean do_rewin
 gboolean _mmcamcorder_update_size(FILE *f, gint64 prev_pos, gint64 curr_pos)
 {
 	_mmcam_dbg_log("size : %"G_GINT64_FORMAT"", curr_pos-prev_pos);
-	if(fseek(f, prev_pos, SEEK_SET) != 0)
+	if(fseeko(f, prev_pos, SEEK_SET) != 0)
 	{
-		_mmcam_dbg_err("fseek() fail");
+		_mmcam_dbg_err("fseeko() fail");
 		return FALSE;
 	}
 
 	if (!write_to_32(f, curr_pos -prev_pos))
 		return FALSE;
 
-	if(fseek(f, curr_pos, SEEK_SET) != 0)
+	if(fseeko(f, curr_pos, SEEK_SET) != 0)
 	{
-		_mmcam_dbg_err("fseek() fail");
+		_mmcam_dbg_err("fseeko() fail");
 		return FALSE;
 	}
 
@@ -292,9 +293,9 @@ gboolean _mmcamcorder_write_loci(FILE *f, _MMCamcorderLocationInfo info)
 
 	_mmcam_dbg_log("");
 
-	if((pos = ftell(f))<0)
+	if((pos = ftello(f))<0)
 	{
-		_mmcam_dbg_err("ftell() returns negative value");	
+		_mmcam_dbg_err("ftello() returns negative value");	
 		return FALSE;
 	}
 	
@@ -341,9 +342,9 @@ gboolean _mmcamcorder_write_loci(FILE *f, _MMCamcorderLocationInfo info)
 
 	FPUTC_CHECK('\0', f);
 
-	if((current_pos = ftell(f))<0)
+	if((current_pos = ftello(f))<0)
 	{
-		_mmcam_dbg_err("ftell() returns negative value");
+		_mmcam_dbg_err("ftello() returns negative value");
 		return FALSE;
 	}
 
@@ -414,9 +415,9 @@ gboolean _mmcamcorder_write_geodata(FILE *f,_MMCamcorderLocationInfo info) {
 
 	_mmcam_dbg_log("");
 
-	if((pos = ftell(f))<0)
+	if((pos = ftello(f))<0)
 	{
-		_mmcam_dbg_err("ftell() returns negative value");
+		_mmcam_dbg_err("ftello() returns negative value");
 		return FALSE;
 	}
 
@@ -434,9 +435,9 @@ gboolean _mmcamcorder_write_geodata(FILE *f,_MMCamcorderLocationInfo info) {
 
 	FPUTC_CHECK(0x2F, f);
 
-	if((current_pos = ftell(f))<0)
+	if((current_pos = ftello(f))<0)
 	{
-		_mmcam_dbg_err("ftell() returns negative value");
+		_mmcam_dbg_err("ftello() returns negative value");
 		return FALSE;
 	}
 
@@ -457,8 +458,8 @@ gboolean _mmcamcorder_write_udta(FILE *f, int gps_enable, _MMCamcorderLocationIn
 		return TRUE;
 	}
 
-	if ((pos = ftell(f))<0) {
-		_mmcam_dbg_err("ftell() returns negative value");
+	if ((pos = ftello(f))<0) {
+		_mmcam_dbg_err("ftello() returns negative value");
 		return FALSE;
 	}
 
@@ -486,8 +487,8 @@ gboolean _mmcamcorder_write_udta(FILE *f, int gps_enable, _MMCamcorderLocationIn
 		}
 	}
 
-	if ((current_pos = ftell(f))<0) {
-		_mmcam_dbg_err("ftell() returns negative value");
+	if ((current_pos = ftello(f))<0) {
+		_mmcam_dbg_err("ftello() returns negative value");
 		return FALSE;
 	}
 
@@ -515,7 +516,34 @@ guint64 _mmcamcorder_get_container_size(const guchar *size)
 	result = result | (temp << 8);
 	result = result | size[3];
 
-	_mmcam_dbg_log("result : %lld", (unsigned long long)result);
+	_mmcam_dbg_log("result : %llu", result);
+
+	return result;
+}
+
+
+guint64 _mmcamcorder_get_container_size64(const guchar *size)
+{
+	guint64 result = 0;
+	guint64 temp = 0;
+
+	temp = size[0];
+	result = temp << 56;
+	temp = size[1];
+	result = result | (temp << 48);
+	temp = size[2];
+	result = result | (temp << 40);
+	temp = size[3];
+	result = result | (temp << 32);
+	temp = size[4];
+	result = result | (temp << 24);
+	temp = size[5];
+	result = result | (temp << 16);
+	temp = size[6];
+	result = result | (temp << 8);
+	result = result | size[7];
+
+	_mmcam_dbg_log("result : %llu", result);
 
 	return result;
 }

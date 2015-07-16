@@ -2160,6 +2160,8 @@ static gboolean init(int type)
 		                                   MMCAM_TARGET_FILENAME, TARGET_FILENAME_VIDEO, strlen(TARGET_FILENAME_VIDEO),
 		                                   //MMCAM_TARGET_TIME_LIMIT, 360000,
 		                                   //MMCAM_TARGET_MAX_SIZE, 102400,
+		                                   MMCAM_RECORDER_TAG_ENABLE, 1,
+		                                   MMCAM_TAG_VIDEO_ORIENTATION, 1,
 		                                   NULL );
 
 		if (err != MM_ERROR_NONE) {

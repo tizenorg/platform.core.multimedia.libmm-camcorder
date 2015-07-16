@@ -2,7 +2,7 @@
 
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.10.3
+Version:    0.10.4
 Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
@@ -53,6 +53,7 @@ Camera and recorder development library.
 %if %{with wayland}
 export CFLAGS+=" -DHAVE_WAYLAND"
 %endif
+export CFLAGS+=" -D_LARGEFILE64_SOURCE"
 ./autogen.sh
 %configure \
 %if %{with wayland}
