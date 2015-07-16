@@ -121,9 +121,10 @@ static int __gdbus_method_call_sync(const char* bus_name, const char* object, co
 	_mmcam_dbg_log("Dbus call with obj : '%s' iface : '%s' method : '%s'", object, iface, method);
 
 	if (is_sync) {
-		if (dbus_reply = g_dbus_connection_call_sync(conn, bus_name, object, iface, \
-				     method, args,\
-				     NULL, G_DBUS_CALL_FLAGS_NONE, G_DBUS_REPLY_TIMEOUT, NULL, &err )) {
+		dbus_reply = g_dbus_connection_call_sync(conn, bus_name, object, iface,
+							 method, args, NULL, G_DBUS_CALL_FLAGS_NONE,
+							 G_DBUS_REPLY_TIMEOUT, NULL, &err);
+		if (dbus_reply) {
 			_mmcam_dbg_log("Method Call '%s.%s' Success", iface, method);
 			*result = dbus_reply;
 		} else {

@@ -1466,6 +1466,7 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 		unsigned int fourcc = 0;
 		MMCamcorderVideoStreamDataType stream;
 		MMVideoBuffer *mm_buf = NULL;
+		const gchar *string_format = NULL;
 
 		state = _mmcamcorder_get_state((MMHandleType)hcamcorder);
 		if (state < MM_CAMCORDER_STATE_PREPARE) {
@@ -1485,9 +1486,17 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 		structure = gst_caps_get_structure( caps, 0 );
 		gst_structure_get_int(structure, "width", &(stream.width));
 		gst_structure_get_int(structure, "height", &(stream.height));
-		fourcc = _mmcamcorder_convert_fourcc_string_to_value(gst_structure_get_string(structure, "format"));
+		string_format = gst_structure_get_string(structure, "format");
+		if (string_format == NULL) {
+			gst_caps_unref(caps);
+			caps = NULL;
+			_mmcam_dbg_warn("get string error!!");
+			return GST_PAD_PROBE_OK;
+		}
+
+		fourcc = _mmcamcorder_convert_fourcc_string_to_value(string_format);
 		stream.format = _mmcamcorder_get_pixtype(fourcc);
-		gst_caps_unref( caps );
+		gst_caps_unref(caps);
 		caps = NULL;
 
 		/*
