@@ -1806,7 +1806,7 @@ static gboolean __mmcamcorder_add_metadata_mp4(MMHandleType handle)
 
 	info = sc->info_video;
 
-	f = fopen(info->filename, "rb+");
+	f = fopen64(info->filename, "rb+");
 	if (f == NULL) {
 		strerror_r(errno, err_msg, MAX_ERROR_MESSAGE_LEN);
 		_mmcam_dbg_err("file open failed [%s]", err_msg);
@@ -1844,7 +1844,7 @@ static gboolean __mmcamcorder_add_metadata_mp4(MMHandleType handle)
 			goto fail;
 		}
 
-		udta_pos = ftell(f);
+		udta_pos = ftello(f);
 		if (udta_pos < 0) {
 			goto ftell_fail;
 		}
@@ -1872,7 +1872,7 @@ static gboolean __mmcamcorder_add_metadata_mp4(MMHandleType handle)
 			}
 		}
 
-		current_pos = ftell(f);
+		current_pos = ftello(f);
 		if (current_pos < 0) {
 			goto ftell_fail;
 		}
@@ -1894,18 +1894,18 @@ static gboolean __mmcamcorder_add_metadata_mp4(MMHandleType handle)
 
 	/* find moov container.
 	   update moov container size. */
-	if((current_pos = ftell(f))<0)
+	if((current_pos = ftello(f))<0)
 		goto ftell_fail;
 
 	if (_mmcamcorder_find_tag(f, MMCAM_FOURCC('m','o','o','v'), TRUE)) {
-		gint64 internal_pos = ftell(f);
+		gint64 internal_pos = ftello(f);
 
 		_mmcam_dbg_log("found moov container");
 		if (fseek(f, -8L, SEEK_CUR) !=0) {
 			goto fail;
 		}
 
-		moov_pos = ftell(f);
+		moov_pos = ftello(f);
 		if (moov_pos < 0) {
 			goto ftell_fail;
 		}
@@ -1915,7 +1915,7 @@ static gboolean __mmcamcorder_add_metadata_mp4(MMHandleType handle)
 		}
 
 		/* add orientation info */
-		if (fseek(f, internal_pos, SEEK_SET) < 0) {
+		if (fseeko(f, internal_pos, SEEK_SET) < 0) {
 			_mmcam_dbg_err("fseek failed : errno %d", errno);
 			goto fail;
 		}

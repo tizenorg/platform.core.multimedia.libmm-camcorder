@@ -1076,7 +1076,7 @@ static gboolean __mmcamcorder_audio_add_metadata_info_m4a(MMHandleType handle)
 		geo_info.altitude = altitude *10000;
 	}
 
-	f = fopen(info->filename, "rb+");
+	f = fopen64(info->filename, "rb+");
 	if (f == NULL) {
 		strerror_r(errno, err_msg, 128);
 		_mmcam_dbg_err("file open failed [%s]", err_msg);
@@ -1100,7 +1100,7 @@ static gboolean __mmcamcorder_audio_add_metadata_info_m4a(MMHandleType handle)
 			goto fail;
 		}
 
-		udta_pos = ftell(f);
+		udta_pos = ftello(f);
 		if (udta_pos < 0) {
 			goto ftell_fail;
 		}
@@ -1126,7 +1126,7 @@ static gboolean __mmcamcorder_audio_add_metadata_info_m4a(MMHandleType handle)
 			}
 		}
 
-		current_pos = ftell(f);
+		current_pos = ftello(f);
 		if (current_pos < 0) {
 			goto ftell_fail;
 		}
@@ -1147,7 +1147,7 @@ static gboolean __mmcamcorder_audio_add_metadata_info_m4a(MMHandleType handle)
 
 	/* find moov container.
 	   update moov container size. */
-	if((current_pos = ftell(f))<0)
+	if((current_pos = ftello(f))<0)
 		goto ftell_fail;
 
 	if (_mmcamcorder_find_fourcc(f, MMCAM_FOURCC('m','o','o','v'), TRUE)) {
@@ -1157,7 +1157,7 @@ static gboolean __mmcamcorder_audio_add_metadata_info_m4a(MMHandleType handle)
 			goto fail;
 		}
 
-		moov_pos = ftell(f);
+		moov_pos = ftello(f);
 		if (moov_pos < 0) {
 			goto ftell_fail;
 		}
