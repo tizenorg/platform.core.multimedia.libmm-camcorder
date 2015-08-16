@@ -200,6 +200,7 @@ extern "C" {
 
 #define _MM_GST_ELEMENT_LINK_MANY       gst_element_link_many
 #define _MM_GST_ELEMENT_LINK            gst_element_link
+#define _MM_GST_ELEMENT_LINK_FILTERED   gst_element_link_filtered
 #define _MM_GST_ELEMENT_UNLINK          gst_element_unlink
 #define _MM_GST_PAD_LINK                gst_pad_link
 
