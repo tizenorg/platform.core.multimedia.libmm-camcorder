@@ -1421,6 +1421,17 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			FALSE,
 			TRUE,
 			NULL,
+		},
+		{
+			MM_CAM_DISPLAY_SHM_SOCKET_PATH,
+			"display-shm-socket-path",
+			MMF_VALUE_TYPE_STRING,
+			MM_ATTRS_FLAG_RW,
+			{(void*)NULL},
+			MM_ATTRS_VALID_TYPE_NONE,
+			{0},
+			{0},
+			NULL,
 		}
 	};
 
