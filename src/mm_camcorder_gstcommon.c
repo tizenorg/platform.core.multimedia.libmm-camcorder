@@ -35,6 +35,7 @@
 
 #include "mm_camcorder_internal.h"
 #include "mm_camcorder_gstcommon.h"
+#include "mm_camcorder_mused.h"
 
 /*-----------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal				|
@@ -180,6 +181,8 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 	const char *videosrc_name = NULL;
 	const char *videosink_name = NULL;
 	char *err_name = NULL;
+	char *socket_path = NULL;
+	int socket_path_len;
 
 	GList *element_list = NULL;
 
@@ -230,6 +233,7 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 	                                  MMCAM_CAMERA_HDR_CAPTURE, &sc->info_image->hdr_capture_mode,
 	                                  MMCAM_IMAGE_ENCODER, &codectype,
 	                                  MMCAM_IMAGE_ENCODER_QUALITY, &capture_jpg_quality,
+	                                  MMCAM_DISPLAY_SHM_SOCKET_PATH, &socket_path, &socket_path_len,
 	                                  NULL);
 	if (err != MM_ERROR_NONE) {
 		_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, err);
@@ -303,12 +307,21 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 
 	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_SINK, videosink_name, "videosink_sink", element_list, err);
 
-	if (strcmp(videosink_name, "fakesink") != 0) {
+	if (strcmp(videosink_name, "fakesink") != 0 && strcmp(videosink_name, "shmsink") != 0) {
+
 		if (_mmcamcorder_videosink_window_set(handle, sc->VideosinkElement) != MM_ERROR_NONE) {
 			_mmcam_dbg_err("_mmcamcorder_videosink_window_set error");
 			err = MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
 			goto pipeline_creation_error;
 		}
+	} else if ( strcmp(videosink_name, "shmsink") == 0 ) {
+		GstCaps *caps = NULL;
+		_mmcam_dbg_log("socket_path : %s", socket_path);
+		g_object_set(G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst),
+				"socket-path", socket_path,
+				"wait-for-connection", FALSE,
+				"sync", TRUE,
+				NULL);
 	}
 
 	/* Set caps by rotation */

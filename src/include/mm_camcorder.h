@@ -1227,6 +1227,12 @@ extern "C" {
  */
 #define MMCAM_RECORDER_TAG_ENABLE               "recorder-tag-enable"
 
+/**
+ * Determines the socket stream path
+ */
+#define MMCAM_DISPLAY_SHM_SOCKET_PATH		"display-shm-socket-path"
+
+
 /*=======================================================================================
 | ENUM DEFINITIONS									|
 ========================================================================================*/
