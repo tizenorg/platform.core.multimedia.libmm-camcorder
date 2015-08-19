@@ -93,4 +93,5 @@ vconftool set -t int file/camera/shutter_sound_policy 0 -u 5000 -s system::vconf
 %{_includedir}/mmf/mm_camcorder.h
 %{_includedir}/mmf/mm_camcorder_mused.h
 %{_libdir}/pkgconfig/mm-camcorder.pc
+%{_libdir}/pkgconfig/mm-camcorderclient.pc
 %{_libdir}/*.so

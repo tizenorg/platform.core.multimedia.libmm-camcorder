@@ -3536,3 +3536,34 @@ static gint __mmcamcorder_gst_handle_resource_warning(MMHandleType handle, GstMe
 
 	return MM_ERROR_NONE;
 }
+
+int _mmcamcorder_get_video_caps(MMHandleType handle, char **caps)
+{
+	int ret = MM_ERROR_NONE;
+	GstPad *pad = NULL;
+	GstCaps *sink_caps = NULL;
+
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+	_MMCamcorderSubContext *sc = NULL;
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	_mmcam_dbg_warn("Entered ");
+	pad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "sink");
+	if(!pad) {
+		_mmcam_dbg_err("static pad is NULL");
+		return MM_ERROR_CAMCORDER_INVALID_STATE;
+	}
+
+	sink_caps = gst_pad_get_current_caps(pad);
+	gst_object_unref( pad );
+	if(!sink_caps) {
+		_mmcam_dbg_err("fail to get caps");
+		return MM_ERROR_CAMCORDER_INVALID_STATE;
+	}
+
+	*caps = gst_caps_to_string(sink_caps);
+	_mmcam_dbg_err("video caps : %s", *caps);
+	gst_caps_unref(sink_caps);
+
+	return MM_ERROR_NONE;
+}
