@@ -1,7 +1,7 @@
 AC_PREREQ(2.52)
 
 AC_INIT([libmm-camcorder], [0.8.0])
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h:config.hin])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -124,5 +124,6 @@ Makefile
 src/Makefile
 test/Makefile
 mm-camcorder.pc
+mm-camcorderclient.pc
 ])
 AC_OUTPUT

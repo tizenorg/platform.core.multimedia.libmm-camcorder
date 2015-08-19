@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: mm-camcorderclient
+Description: Multimedia Framework Camcorder Library
+Requires: gstreamer-1.0 gstreamer-base-1.0 mm-common mm-log libexif
+Version: $VERSION
+Libs: -L${libdir} -lmmfcamcorderclient
+Cflags: -I${includedir}/ -I${includedir}/mmf

@@ -1154,6 +1154,9 @@ void _mmcamcorder_video_current_framerate_init(MMHandleType handle);
 int _mmcamcorder_video_current_framerate(MMHandleType handle);
 int _mmcamcorder_video_average_framerate(MMHandleType handle);
 
+/* For hand over the server's caps informations to client */
+int _mmcamcorder_get_video_caps(MMHandleType handle, char **caps);
+
 #ifdef __cplusplus
 }
 #endif
