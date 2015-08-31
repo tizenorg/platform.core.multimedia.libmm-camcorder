@@ -3,7 +3,7 @@
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
 Version:    0.10.6
-Release:    0
+Release:    1
 Group:      Multimedia/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
@@ -91,6 +91,8 @@ vconftool set -t int file/camera/shutter_sound_policy 0 -u 5000 -s system::vconf
 %files devel
 %defattr(-,root,root,-)
 %{_includedir}/mmf/mm_camcorder.h
+%if %{with wayland}
 %{_includedir}/mmf/mm_camcorder_mused.h
+%endif
 %{_libdir}/pkgconfig/mm-camcorder.pc
 %{_libdir}/*.so
