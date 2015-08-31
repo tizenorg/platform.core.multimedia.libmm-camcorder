@@ -1,9 +1,9 @@
 /*
  * libmm-camcorder
  *
- * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (c) 2000 - 2015 Samsung Electronics Co., Ltd. All rights reserved.
  *
- * Contact: Jeongmo Yang <jm80.yang@samsung.com>
+ * Contact: Sejong Park <sejong123.park@samsung.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
