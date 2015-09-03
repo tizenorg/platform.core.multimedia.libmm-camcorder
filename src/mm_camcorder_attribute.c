@@ -2921,7 +2921,7 @@ bool _mmcamcorder_commit_target_filename(MMHandleType handle, int attr_idx, cons
 
 	if (sc->encode_element && sc->encode_element[_MMCAMCORDER_ENCSINK_SINK].gst) {
 		_mmcam_dbg_log("new file location set.[%s] filesink %p", filename, sc->encode_element[_MMCAMCORDER_ENCSINK_SINK].gst);
-		MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_SINK].gst, "location", filename);
+		MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_SINK].gst, "location", filename);
 		_mmcam_dbg_log("new file location set.(%s)", filename);
 	} else {
 		_mmcam_dbg_log("element is not created yet. [%s] will be set later...", filename);
@@ -3217,7 +3217,7 @@ bool _mmcamcorder_commit_display_handle(MMHandleType handle, int attr_idx, const
 		} else if (!strcmp(videosink_name, "evasimagesink") ||
 			   !strcmp(videosink_name, "evaspixmapsink")) {
 			_mmcam_dbg_log("Commit : Set evas object [%p]", p_handle);
-			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "evas-object", p_handle);
+			MMCAMCORDER_G_OBJECT_SET_POINTER(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "evas-object", p_handle);
 #ifdef HAVE_WAYLAND
 		} else if (!strcmp(videosink_name, "waylandsink")) {
 			MMCamWaylandInfo *wl_info = (MMCamWaylandInfo *)p_handle;

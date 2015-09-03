@@ -414,7 +414,7 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 
 			_mmcam_dbg_log("Record start : set file name using attribute - %s\n ",info->filename);
 
-			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_SINK].gst, "location", info->filename);
+			MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_SINK].gst, "location", info->filename);
 
 			sc->ferror_send = FALSE;
 			sc->ferror_count = 0;

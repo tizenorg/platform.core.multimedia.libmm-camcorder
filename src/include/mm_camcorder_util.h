@@ -112,7 +112,32 @@ do { \
 #define MMCAMCORDER_G_OBJECT_SET(obj, name, value) \
 do { \
 	if (obj) { \
-		if(g_object_class_find_property(G_OBJECT_GET_CLASS(G_OBJECT(obj)), name)) { \
+		GParamSpec *spec = g_object_class_find_property(G_OBJECT_GET_CLASS(G_OBJECT(obj)), name);\
+		if(spec) { \
+			if (spec->value_type == G_TYPE_INT64) {\
+				g_object_set(G_OBJECT(obj), name, (gint64)value, NULL); \
+			} else if (spec->value_type == G_TYPE_UINT64) { \
+				g_object_set(G_OBJECT(obj), name, (guint64)value, NULL); \
+			} else if (spec->value_type == G_TYPE_FLOAT) { \
+				g_object_set(G_OBJECT(obj), name, (float)value, NULL); \
+			} else if (spec->value_type == G_TYPE_DOUBLE) { \
+				g_object_set(G_OBJECT(obj), name, (double)value, NULL); \
+			} else { \
+				g_object_set(G_OBJECT(obj), name, value, NULL); \
+			} \
+		} else { \
+			_mmcam_dbg_warn ("The object doesn't have a property named(%s)", name); \
+		} \
+	} else { \
+		_mmcam_dbg_err("Null object"); \
+	} \
+} while(0);
+
+#define MMCAMCORDER_G_OBJECT_SET_POINTER(obj, name, value) \
+do { \
+	if (obj) { \
+		GParamSpec *spec = g_object_class_find_property(G_OBJECT_GET_CLASS(G_OBJECT(obj)), name);\
+		if(spec) { \
 			g_object_set(G_OBJECT(obj), name, value, NULL); \
 		} else { \
 			_mmcam_dbg_warn ("The object doesn't have a property named(%s)", name); \

@@ -465,7 +465,7 @@ int _mmcamcorder_create_audiosrc_bin(MMHandleType handle)
 	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->encode_element, _MMCAMCORDER_AUDIOSRC_QUE, "queue", "audiosrc_queue", element_list, err);
 	MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_AUDIOSRC_QUE].gst, "max-size-buffers", 0);
 	MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_AUDIOSRC_QUE].gst, "max-size-bytes", 0);
-	MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_AUDIOSRC_QUE].gst, "max-size-time", (int64_t)0);
+	MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_AUDIOSRC_QUE].gst, "max-size-time", 0);
 
 	if (a_enc != MM_AUDIO_CODEC_VORBIS) {
 		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->encode_element, _MMCAMCORDER_AUDIOSRC_VOL, "volume", "audiosrc_volume", element_list, err);
@@ -511,7 +511,7 @@ int _mmcamcorder_create_audiosrc_bin(MMHandleType handle)
 	}
 
 	if (caps) {
-		MMCAMCORDER_G_OBJECT_SET((sc->encode_element[_MMCAMCORDER_AUDIOSRC_FILT].gst), "caps", caps);
+		MMCAMCORDER_G_OBJECT_SET_POINTER((sc->encode_element[_MMCAMCORDER_AUDIOSRC_FILT].gst), "caps", caps);
 		gst_caps_unref(caps);
 		caps = NULL;
 	} else {
@@ -641,7 +641,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 		/* set appsrc as live source */
 		MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_SRC].gst, "is-live", TRUE);
 		MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_SRC].gst, "format", 3); /* GST_FORMAT_TIME */
-		MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_SRC].gst, "max-bytes", (int64_t)0); /* unlimited */
+		MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_SRC].gst, "max-bytes", 0); /* unlimited */
 
 		/* set capsfilter */
 		if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ENCODED_H264) {
@@ -679,7 +679,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 			free(caps_str);
 			caps_str = NULL;
 
-			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_FILT].gst, "caps", video_caps);
+			MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_FILT].gst, "caps", video_caps);
 			gst_caps_unref(video_caps);
 			video_caps = NULL;
 		} else {
@@ -764,7 +764,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 		if (gst_element_venc_name) {
 			_mmcam_dbg_log("video encoder name [%s]", gst_element_venc_name);
 
-			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "venc-name", gst_element_venc_name);
+			MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "venc-name", gst_element_venc_name);
 			_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_VENC, "video-encode", err);
 		} else {
 			_mmcam_dbg_err("Fail to get video encoder name");
@@ -776,7 +776,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 		if (auto_color_space) {
 			_mmcam_dbg_log("set video convert element [%s]", videoconvert_name);
 
-			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "vconv-name", videoconvert_name);
+			MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "vconv-name", videoconvert_name);
 			_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_VCONV, "video-convert", err);
 
 			/* set colorspace plugin property setting */
@@ -790,7 +790,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 							   NULL);
 
 					if (video_caps) {
-						MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "vcaps", video_caps);
+						MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "vcaps", video_caps);
 						MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_VCONV].gst, "dst-buffer-num", _MMCAMCORDER_CONVERT_OUTPUT_BUFFER_NUM);
 
 						gst_caps_unref(video_caps);
@@ -831,7 +831,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 
 		_mmcamcorder_conf_get_value_element_name(AudioencElement, &gst_element_aenc_name);
 
-		MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "aenc-name", gst_element_aenc_name);
+		MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "aenc-name", gst_element_aenc_name);
 		_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_AENC, "audio-encode", err);
 
 		if (audio_enc == MM_AUDIO_CODEC_AMR && channel == 2) {
@@ -839,7 +839,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 			                           "channels", G_TYPE_INT, 1,
 			                           NULL);
 			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "auto-audio-convert", TRUE);
-			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "acaps", audio_caps);
+			MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "acaps", audio_caps);
 			gst_caps_unref(audio_caps);
 			audio_caps = NULL;
 		}
@@ -847,7 +847,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 		if (audio_enc == MM_AUDIO_CODEC_OGG) {
 			audio_caps = gst_caps_new_empty_simple("audio/x-raw");
 			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "auto-audio-convert", TRUE);
-			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "acaps", audio_caps);
+			MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "acaps", audio_caps);
 			gst_caps_unref(audio_caps);
 			audio_caps = NULL;
 			_mmcam_dbg_log("***** MM_AUDIO_CODEC_OGG : setting audio/x-raw-int ");
@@ -859,7 +859,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 		                                &use_aenc_queue);
 		if (use_aenc_queue) {
 			_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_AENC_QUE, "use-aenc-queue", err);
-			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_AENC_QUE].gst,"max-size-time", (int64_t)0);
+			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_AENC_QUE].gst,"max-size-time", 0);
 			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_AENC_QUE].gst,"max-size-buffers", 0);
 		}
 	}
@@ -874,7 +874,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 
 		_mmcamcorder_conf_get_value_element_name(ImageencElement, &gst_element_ienc_name);
 
-		MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "ienc-name", gst_element_ienc_name);
+		MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "ienc-name", gst_element_ienc_name);
 		_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_IENC, "image-encode", err);
 	}
 
@@ -889,7 +889,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 
 		_mmcamcorder_conf_get_value_element_name(MuxElement, &gst_element_mux_name);
 
-		MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "mux-name", gst_element_mux_name);
+		MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "mux-name", gst_element_mux_name);
 		_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_MUX, "mux", err);
 
 		_mmcamcorder_conf_set_value_element_property(sc->encode_element[_MMCAMCORDER_ENCSINK_MUX].gst, MuxElement);
@@ -919,7 +919,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 		} else {
 			_mmcam_dbg_warn("video bitrate is too small[%d], so skip setting. Use DEFAULT value.", v_bitrate);
 		}
-		/*MMCAMCORDER_G_OBJECT_SET ((sc->encode_element[_MMCAMCORDER_ENCSINK_VENC].gst),"hw-accel", v_hw);*/
+
 		_mmcamcorder_conf_set_value_element_property(sc->encode_element[_MMCAMCORDER_ENCSINK_VENC].gst, VideoencElement);
 	}
 
@@ -1239,7 +1239,7 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 	           !strcmp(videosink_name, "evaspixmapsink")) {
 		_mmcam_dbg_log("videosink : %s, handle : %p", videosink_name, overlay);
 		if (overlay) {
-			MMCAMCORDER_G_OBJECT_SET(vsink, "evas-object", overlay);
+			MMCAMCORDER_G_OBJECT_SET_POINTER(vsink, "evas-object", overlay);
 			MMCAMCORDER_G_OBJECT_SET(vsink, "origin-size", !do_scaling);
 		} else {
 			_mmcam_dbg_err("display handle(eavs object) is NULL");
@@ -1303,7 +1303,7 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 		MMCAMCORDER_G_OBJECT_SET(vsink, "display-geometry-method", display_geometry_method);
 		MMCAMCORDER_G_OBJECT_SET(vsink, "display-mode", display_mode);
 		MMCAMCORDER_G_OBJECT_SET(vsink, "visible", visible);
-		MMCAMCORDER_G_OBJECT_SET(vsink, "zoom", (float)zoom_level);
+		MMCAMCORDER_G_OBJECT_SET(vsink, "zoom", zoom_level);
 
 		if (display_geometry_method == MM_DISPLAY_METHOD_CUSTOM_ROI) {
 			g_object_set(vsink,
@@ -2273,7 +2273,7 @@ bool _mmcamcorder_set_videosrc_caps(MMHandleType handle, unsigned int fourcc, in
 
 		_mmcam_dbg_log("vidoesrc new caps set. %"GST_PTR_FORMAT, caps);
 
-		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_FILT].gst, "caps", caps);
+		MMCAMCORDER_G_OBJECT_SET_POINTER(sc->element[_MMCAMCORDER_VIDEOSRC_FILT].gst, "caps", caps);
 		gst_caps_unref(caps);
 		caps = NULL;
 	}

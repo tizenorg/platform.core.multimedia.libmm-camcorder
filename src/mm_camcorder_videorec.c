@@ -2061,7 +2061,7 @@ int _mmcamcorder_video_prepare_record(MMHandleType handle)
 
 	_mmcam_dbg_log("Record file name [%s]", info->filename);
 
-	MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_SINK].gst, "location", info->filename);
+	MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_SINK].gst, "location", info->filename);
 	MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "block", 0);
 
 	/* Adjust display FPS */

@@ -2123,7 +2123,7 @@ _mmcamcorder_conf_set_value_element_property( GstElement* gst, type_element* ele
 
 		for( i = 0 ; i < element->count_string ; i++ )
 		{
-			MMCAMCORDER_G_OBJECT_SET( gst, element->value_string[i]->name, element->value_string[i]->value );
+			MMCAMCORDER_G_OBJECT_SET_POINTER( gst, element->value_string[i]->name, element->value_string[i]->value );
 
 			_mmcam_dbg_log( "Element[%s] Set[%s] -> string[%s]",
 				element->element_name,
