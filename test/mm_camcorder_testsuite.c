@@ -2303,9 +2303,6 @@ static gboolean msg_callback(int message, void *msg_param, void *user_param)
 				g_print("*******************************************************\n");
 				g_print("[Camcorder Testsuite] Camcorder Captured(filename=%s)\n", report->recording_filename);
 				g_print("*******************************************************\n");
-
-				SAFE_FREE (report->recording_filename);
-				SAFE_FREE (report);
 			} else {
 				g_print( "[Camcorder Testsuite] report is NULL.\n" );
 			}
