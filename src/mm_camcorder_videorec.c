@@ -463,6 +463,7 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 {
 	int size = 0;
 	int fileformat = 0;
+	int count = 0;
 	int ret = MM_ERROR_NONE;
 	double motion_rate = _MMCAMCORDER_DEFAULT_RECORDING_MOTION_RATE;
 	char *err_name = NULL;
@@ -828,8 +829,6 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 		break;
 	case _MMCamcorder_CMD_PAUSE:
 	{
-		int count = 0;
-
 		if (info->b_commiting) {
 			_mmcam_dbg_warn("now on commiting previous file!!(command : %d)", command);
 			return MM_ERROR_CAMCORDER_CMD_IS_RUNNING;
@@ -841,11 +840,11 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 				if (info->video_frame_count >= _MMCAMCORDER_MINIMUM_FRAME) {
 					break;
 				} else if (count == _MMCAMCORDER_RETRIAL_COUNT) {
-					_mmcam_dbg_err("Pause fail, frame count %" G_GUINT64_FORMAT "",
+					_mmcam_dbg_err("Pause fail, frame count %llu",
 					               info->video_frame_count);
 					return MM_ERROR_CAMCORDER_INVALID_CONDITION;
 				} else {
-					_mmcam_dbg_warn("Waiting for enough video frame, retrial[%d], frame %" G_GUINT64_FORMAT "",
+					_mmcam_dbg_warn("Waiting for enough video frame, retrial[%d], frame %llu",
 					                count, info->video_frame_count);
 				}
 
@@ -855,11 +854,11 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 				if (info->video_frame_count >= _MMCAMCORDER_MINIMUM_FRAME && info->audio_frame_count) {
 					break;
 				} else if (count == _MMCAMCORDER_RETRIAL_COUNT) {
-					_mmcam_dbg_err("Pause fail, frame count VIDEO[%" G_GUINT64_FORMAT "], AUDIO [%" G_GUINT64_FORMAT "]",
+					_mmcam_dbg_err("Pause fail, frame count VIDEO[%llu], AUDIO [%llu]",
 					               info->video_frame_count, info->audio_frame_count);
 					return MM_ERROR_CAMCORDER_INVALID_CONDITION;
 				} else {
-					_mmcam_dbg_warn("Waiting for enough frames, retrial [%d], VIDEO[%" G_GUINT64_FORMAT "], AUDIO [%" G_GUINT64_FORMAT "]",
+					_mmcam_dbg_warn("Waiting for enough frames, retrial [%d], VIDEO[%llu], AUDIO [%llu]",
 					                count, info->video_frame_count, info->audio_frame_count);
 				}
 
@@ -876,6 +875,21 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 		if (info->b_commiting) {
 			_mmcam_dbg_warn("now on commiting previous file!!(command : %d)", command);
 			return MM_ERROR_CAMCORDER_CMD_IS_RUNNING;
+		}
+
+		for (count = 0 ; count <= _MMCAMCORDER_RETRIAL_COUNT ; count++) {
+			/* capturing */
+			if (hcamcorder->capture_in_recording == FALSE) {
+				break;
+			} else if (count == _MMCAMCORDER_RETRIAL_COUNT) {
+				_mmcam_dbg_err("Failed to Wait capture data");
+				hcamcorder->capture_in_recording = FALSE;
+				break;
+			} else {
+				_mmcam_dbg_warn("Waiting for capture data - retrial [%d]", count);
+			}
+
+			usleep(_MMCAMCORDER_FRAME_WAIT_TIME);
 		}
 
 		/* block push buffer */
@@ -945,12 +959,11 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 		info->video_frame_count = 0;
 		info->audio_frame_count = 0;
 		info->filesize = 0;
+		hcamcorder->capture_in_recording = FALSE;
 		break;
 	}
 	case _MMCamcorder_CMD_COMMIT:
 	{
-		int count = 0;
-
 		if (info->b_commiting) {
 			_mmcam_dbg_err("now on commiting previous file!!(command : %d)", command);
 			return MM_ERROR_CAMCORDER_CMD_IS_RUNNING;
@@ -963,36 +976,48 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 		for (count = 0 ; count <= _MMCAMCORDER_RETRIAL_COUNT ; count++) {
 			if (sc->audio_disable) {
 				/* check only video frame */
-				if (info->video_frame_count >= _MMCAMCORDER_MINIMUM_FRAME) {
+				if (info->video_frame_count >= _MMCAMCORDER_MINIMUM_FRAME &&
+				    hcamcorder->capture_in_recording == FALSE) {
 					break;
 				} else if (count == _MMCAMCORDER_RETRIAL_COUNT) {
-					_mmcam_dbg_err("Commit fail, frame count is %" G_GUINT64_FORMAT "",
-					               info->video_frame_count);
-					info->b_commiting = FALSE;
-					return MM_ERROR_CAMCORDER_INVALID_CONDITION;
-				} else {
-					_mmcam_dbg_warn("Waiting for enough video frame, retrial [%d], frame %" G_GUINT64_FORMAT "",
-					                count, info->video_frame_count);
-				}
+					_mmcam_dbg_err("Commit fail, frame count is %llu, capturing %d",
+					               info->video_frame_count, hcamcorder->capture_in_recording);
 
-				usleep(_MMCAMCORDER_FRAME_WAIT_TIME);
+					if (info->video_frame_count >= _MMCAMCORDER_MINIMUM_FRAME) {
+						_mmcam_dbg_warn("video frames are enough. keep going...");
+					} else {
+						info->b_commiting = FALSE;
+						return MM_ERROR_CAMCORDER_INVALID_CONDITION;
+					}
+				} else {
+					_mmcam_dbg_warn("Waiting for enough video frame, retrial [%d], frame %llu, capturing %d",
+					                count, info->video_frame_count, hcamcorder->capture_in_recording);
+				}
 			} else {
 				/* check both of video and audio frame */
-				if (info->video_frame_count >= _MMCAMCORDER_MINIMUM_FRAME && info->audio_frame_count) {
+				if (info->video_frame_count >= _MMCAMCORDER_MINIMUM_FRAME &&
+				    info->audio_frame_count &&
+				    hcamcorder->capture_in_recording == FALSE) {
 					break;
 				} else if (count == _MMCAMCORDER_RETRIAL_COUNT) {
-					_mmcam_dbg_err("Commit fail, VIDEO[%" G_GUINT64_FORMAT "], AUDIO [%" G_GUINT64_FORMAT "]",
-					               info->video_frame_count, info->audio_frame_count);
+					_mmcam_dbg_err("Commit fail, VIDEO[%llu], AUDIO [%llu], capturing %d",
+					               info->video_frame_count, info->audio_frame_count, hcamcorder->capture_in_recording);
 
-					info->b_commiting = FALSE;
+					if (info->video_frame_count >= _MMCAMCORDER_MINIMUM_FRAME && info->audio_frame_count) {
+						_mmcam_dbg_warn("video/audio frames are enough. keep going...");
+					} else {
+						info->b_commiting = FALSE;
+						return MM_ERROR_CAMCORDER_INVALID_CONDITION;
+					}
+
 					return MM_ERROR_CAMCORDER_INVALID_CONDITION;
 				} else {
-					_mmcam_dbg_warn("Waiting for enough frames, retrial [%d], VIDEO[%" G_GUINT64_FORMAT "], AUDIO [%" G_GUINT64_FORMAT "]",
-					                count, info->video_frame_count, info->audio_frame_count);
+					_mmcam_dbg_warn("Waiting for enough frames, retrial [%d], VIDEO[%llu], AUDIO [%llu], capturing %d",
+					                count, info->video_frame_count, info->audio_frame_count, hcamcorder->capture_in_recording);
 				}
-
-				usleep(_MMCAMCORDER_FRAME_WAIT_TIME);
 			}
+
+			usleep(_MMCAMCORDER_FRAME_WAIT_TIME);
 		}
 
 		/* block push buffer */
@@ -1039,6 +1064,9 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 			info->b_commiting = FALSE;
 			goto _ERR_CAMCORDER_VIDEO_COMMAND;
 		}
+
+		/* reset flag */
+		hcamcorder->capture_in_recording = FALSE;
 	}
 		break;
 	default:

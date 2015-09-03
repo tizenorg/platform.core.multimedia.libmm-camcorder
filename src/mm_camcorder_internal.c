@@ -1309,7 +1309,19 @@ int _mmcamcorder_capture_start(MMHandleType handle)
 			ret = MM_ERROR_CAMCORDER_DEVICE_BUSY;
 			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 		} else {
-			hcamcorder->capture_in_recording = TRUE;
+			pthread_mutex_lock(&(hcamcorder->task_thread_lock));
+			if (hcamcorder->task_thread_state == _MMCAMCORDER_TASK_THREAD_STATE_NONE) {
+				hcamcorder->capture_in_recording = TRUE;
+				hcamcorder->task_thread_state = _MMCAMCORDER_TASK_THREAD_STATE_CHECK_CAPTURE_IN_RECORDING;
+				_mmcam_dbg_log("send signal for capture in recording");
+				pthread_cond_signal(&(hcamcorder->task_thread_cond));
+				pthread_mutex_unlock(&(hcamcorder->task_thread_lock));
+			} else {
+				_mmcam_dbg_err("task thread busy : %d", hcamcorder->task_thread_state);
+				pthread_mutex_unlock(&(hcamcorder->task_thread_lock));
+				ret = MM_ERROR_CAMCORDER_INVALID_STATE;
+				goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+			}
 		}
 	}
 

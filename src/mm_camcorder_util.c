@@ -47,7 +47,8 @@
 /*-----------------------------------------------------------------------
 |    LOCAL VARIABLE DEFINITIONS for internal				|
 -----------------------------------------------------------------------*/
-#define TIME_STRING_MAX_LEN     64
+#define TIME_STRING_MAX_LEN                     64
+#define __MMCAMCORDER_CAPTURE_WAIT_TIMEOUT      5
 
 #define FPUTC_CHECK(x_char, x_file)\
 {\
@@ -1839,6 +1840,37 @@ void *_mmcamcorder_util_task_thread_func(void *data)
 
 			_mmcam_dbg_log("_mmcamcorder_video_prepare_record return 0x%x", ret);
 			hcamcorder->task_thread_state = _MMCAMCORDER_TASK_THREAD_STATE_NONE;
+			break;
+		case _MMCAMCORDER_TASK_THREAD_STATE_CHECK_CAPTURE_IN_RECORDING:
+			{
+				struct timespec timeout;
+				struct timeval tv;
+
+				gettimeofday(&tv, NULL);
+				timeout.tv_sec = tv.tv_sec + __MMCAMCORDER_CAPTURE_WAIT_TIMEOUT;
+				timeout.tv_nsec = tv.tv_usec * 1000;
+
+				_mmcam_dbg_warn("wait for capture data in recording. wait signal...");
+
+				if (!pthread_cond_timedwait(&(hcamcorder->task_thread_cond), &(hcamcorder->task_thread_lock), &timeout)) {
+					_mmcam_dbg_warn("signal received");
+				} else {
+					_MMCamcorderMsgItem message;
+
+					memset(&message, 0x0, sizeof(_MMCamcorderMsgItem));
+
+					_mmcam_dbg_err("capture data wait time out, send error message");
+
+					message.id = MM_MESSAGE_CAMCORDER_ERROR;
+					message.param.code = MM_ERROR_CAMCORDER_RESPONSE_TIMEOUT;
+
+					_mmcamcorder_send_message((MMHandleType)hcamcorder, &message);
+
+					hcamcorder->capture_in_recording = FALSE;
+				}
+
+				hcamcorder->task_thread_state = _MMCAMCORDER_TASK_THREAD_STATE_NONE;
+			}
 			break;
 		default:
 			_mmcam_dbg_warn("invalid task thread state %d", hcamcorder->task_thread_state);

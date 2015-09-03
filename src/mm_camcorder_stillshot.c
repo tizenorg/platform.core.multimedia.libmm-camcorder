@@ -1190,6 +1190,20 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstSample *sampl
 		} else if (!info->played_capture_sound) {
 			_mmcamcorder_sound_solo_play((MMHandleType)hcamcorder, _MMCAMCORDER_FILEPATH_CAPTURE_SND, FALSE);
 		}
+	} else {
+		/* Handle capture in recording case */
+		hcamcorder->capture_in_recording = FALSE;
+
+		pthread_mutex_lock(&(hcamcorder->task_thread_lock));
+
+		if (hcamcorder->task_thread_state == _MMCAMCORDER_TASK_THREAD_STATE_CHECK_CAPTURE_IN_RECORDING) {
+			_mmcam_dbg_log("send signal for capture in recording");
+			pthread_cond_signal(&(hcamcorder->task_thread_cond));
+		} else {
+			_mmcam_dbg_warn("unexpected task thread state : %d", hcamcorder->task_thread_state);
+		}
+
+		pthread_mutex_unlock(&(hcamcorder->task_thread_lock));
 	}
 
 	/* init capture data */
@@ -1625,11 +1639,6 @@ error:
 			/* send captured message only once in HDR and Original Capture mode */
 			MMCAM_SEND_MESSAGE(hcamcorder, MM_MESSAGE_CAMCORDER_CAPTURED, 1);
 		}
-	}
-
-	/* Handle capture in recording case */
-	if (hcamcorder->capture_in_recording) {
-		hcamcorder->capture_in_recording = FALSE;
 	}
 
 	_mmcam_dbg_err("END");
