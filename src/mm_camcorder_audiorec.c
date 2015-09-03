@@ -351,7 +351,6 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 	int err = 0;
 	int size=0;
 	guint64 free_space = 0;
-	guint64 free_space_exceptsystem = 0;
 	char *dir_name = NULL;
 	char *err_attr_name = NULL;
 
@@ -439,18 +438,9 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 			/* TODO : check free space before recording start */
 			dir_name = g_path_get_dirname(info->filename);
 			if (dir_name) {
-				err = _mmcamcorder_get_freespace(dir_name, &free_space);
-				if(_mmcamcorder_check_file_path(dir_name)) {
-					if (_mmcamcorder_get_freespace_except_system(&free_space_exceptsystem) == MM_ERROR_NONE) {
-						hcamcorder->system_memory = free_space - free_space_exceptsystem;
-						free_space = free_space - hcamcorder->system_memory;
-					} else {
-						hcamcorder->system_memory = 0;
-					}
-				}
+				err = _mmcamcorder_get_freespace(dir_name, hcamcorder->root_directory, &free_space);
 
-				_mmcam_dbg_warn("current space - %s [%" G_GUINT64_FORMAT "], system [%" G_GUINT64_FORMAT "]",
-				                dir_name, free_space, hcamcorder->system_memory);
+				_mmcam_dbg_warn("current space - %s [%" G_GUINT64_FORMAT "]", dir_name, free_space);
 
 				if (_mmcamcorder_get_file_system_type(dir_name, &file_system_type) == 0) {
 					/* MSDOS_SUPER_MAGIC : 0x4d44 */
@@ -892,10 +882,16 @@ static GstPadProbeReturn __mmcamcorder_audio_dataprobe_record(GstPad *pad, GstPa
 	/* to minimizing free space check overhead */
 	count = count % _MMCAMCORDER_FREE_SPACE_CHECK_INTERVAL;
 	if (count++ == 0) {
-		gint free_space_ret = _mmcamcorder_get_freespace(filename, &free_space);
+		char *dir_name = g_path_get_dirname(filename);
+		gint free_space_ret = 0;
 
-		if(_mmcamcorder_check_file_path(filename) && hcamcorder->system_memory) {
-			free_space = free_space - hcamcorder->system_memory;
+		if (dir_name) {
+			free_space_ret = _mmcamcorder_get_freespace(dir_name, hcamcorder->root_directory, &free_space);
+			g_free(dir_name);
+			dir_name = NULL;
+		} else {
+			_mmcam_dbg_err("failed to get dir name from [%s]", filename);
+			free_space_ret = -1;
 		}
 
 		/*_mmcam_dbg_log("check free space for recording");*/

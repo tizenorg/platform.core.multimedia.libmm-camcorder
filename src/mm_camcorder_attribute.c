@@ -1418,8 +1418,8 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			MM_ATTRS_FLAG_RW,
 			{(void*)FALSE},
 			MM_ATTRS_VALID_TYPE_INT_RANGE,
-			FALSE,
-			TRUE,
+			{.int_min = FALSE},
+			{.int_max = TRUE},
 			NULL,
 		},
 		{

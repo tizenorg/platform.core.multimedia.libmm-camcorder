@@ -30,6 +30,7 @@ BuildRequires:  pkgconfig(libpulse)
 BuildRequires:  pkgconfig(vconf)
 BuildRequires:  gstreamer-devel
 BuildRequires:  pkgconfig(libtbm)
+BuildRequires:  pkgconfig(storage)
 
 %description
 Camera and recorder library.

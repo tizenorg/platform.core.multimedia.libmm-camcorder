@@ -247,6 +247,12 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	/* create task thread */
 	pthread_create(&(hcamcorder->task_thread), NULL, _mmcamcorder_util_task_thread_func, (void *)hcamcorder);
 
+	/* get root directory */
+	ret = _mmcamcorder_get_root_directory(&hcamcorder->root_directory);
+	if (ret != MM_ERROR_NONE) {
+		goto _ERR_DEFAULT_VALUE_INIT;
+	}
+
 	if (info->videodev_type < MM_VIDEO_DEVICE_NONE ||
 	    info->videodev_type >= MM_VIDEO_DEVICE_NUM) {
 		_mmcam_dbg_err("_mmcamcorder_create::video device type is out of range.");
@@ -597,6 +603,11 @@ _ERR_DEFAULT_VALUE_INIT:
 	pthread_mutex_destroy(&(hcamcorder->task_thread_lock));
 	pthread_cond_destroy(&(hcamcorder->task_thread_cond));
 
+	if (hcamcorder->root_directory) {
+		free(hcamcorder->root_directory);
+		hcamcorder->root_directory = NULL;
+	}
+
 	/* Release handle */
 	memset(hcamcorder, 0x00, sizeof(mmf_camcorder_t));
 	free(hcamcorder);
@@ -764,6 +775,12 @@ int _mmcamcorder_destroy(MMHandleType handle)
 	pthread_mutex_destroy(&(hcamcorder->restart_preview_lock));
 	pthread_mutex_destroy(&(hcamcorder->task_thread_lock));
 	pthread_cond_destroy(&(hcamcorder->task_thread_cond));
+
+	/* Release internal root directory string */
+	if (hcamcorder->root_directory) {
+		free(hcamcorder->root_directory);
+		hcamcorder->root_directory = NULL;
+	}
 
 	/* Release handle */
 	memset(hcamcorder, 0x00, sizeof(mmf_camcorder_t));

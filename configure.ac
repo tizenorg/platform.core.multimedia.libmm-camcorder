@@ -102,6 +102,10 @@ PKG_CHECK_MODULES(TBM, libtbm)
 AC_SUBST(TBM_CFLAGS)
 AC_SUBST(TBM_LIBS)
 
+PKG_CHECK_MODULES(STORAGE, storage)
+AC_SUBST(STORAGE_CFLAGS)
+AC_SUBST(STORAGE_LIBS)
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([fcntl.h memory.h stdlib.h string.h sys/time.h unistd.h])

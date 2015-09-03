@@ -666,13 +666,12 @@ typedef struct mmf_camcorder {
 	char *model_name;                                       /**< model name from system info */
 	char *software_version;                                 /**< software_version from system info */
 	int capture_sound_count;                                /**< count for capture sound */
+	char *root_directory;                                   /**< Root directory for device */
 
 	_MMCamcorderInfoConverting caminfo_convert[CAMINFO_CONVERT_NUM];        /**< converting structure of camera info */
 	_MMCamcorderEnumConvert enum_conv[ENUM_CONVERT_NUM];                    /**< enum converting list that is modified by ini info */
 
 	gboolean capture_in_recording;                          /**< Flag for capture while recording */
-
-	guint64 system_memory;                                  /* system memory size, do not use this size for recording*/
 
 	gboolean error_occurs;                                  /**< flag for error */
 	int error_code;                                         /**< error code for internal gstreamer error */

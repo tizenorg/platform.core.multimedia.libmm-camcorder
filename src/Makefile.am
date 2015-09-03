@@ -45,6 +45,7 @@ libmmfcamcorder_la_CFLAGS = -I$(srcdir)/include \
 			     $(MMUTIL_IMGP_CFLAGS) \
 			     $(MMUTIL_JPEG_CFLAGS) \
 			     $(TBM_CFLAGS) \
+			     $(STORAGE_CFLAGS) \
 			     $(SYSTEMINFO_CFLAGS)
 
 libmmfcamcorder_la_LIBADD = \
@@ -61,7 +62,8 @@ libmmfcamcorder_la_LIBADD = \
 			    $(VCONF_LIBS) \
 			    $(MMUTIL_IMGP_LIBS) \
 			    $(MMUTIL_JPEG_LIBS) \
-			    $(TBM_LIBS)
+			    $(TBM_LIBS) \
+			    $(STORAGE_LIBS)
 
 libmmfcamcorder_la_CFLAGS += -DMMF_LOG_OWNER=0x010 -D_FILE_OFFSET_BITS=64
 libmmfcamcorder_la_CFLAGS += -fdata-sections -ffunction-sections -Wl,--gc-sections

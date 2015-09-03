@@ -504,7 +504,6 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 			int ret_free_space = 0;
 			char *dir_name = NULL;
 			guint64 free_space = 0;
-			guint64 free_space_exceptsystem = 0;
 			int file_system_type = 0;
 
 			/* Recording */
@@ -554,18 +553,9 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 
 			dir_name = g_path_get_dirname(temp_filename);
 			if (dir_name) {
-				ret_free_space = _mmcamcorder_get_freespace(dir_name, &free_space);
-				if(_mmcamcorder_check_file_path(dir_name)) {
-					if (_mmcamcorder_get_freespace_except_system(&free_space_exceptsystem) == MM_ERROR_NONE) {
-						hcamcorder->system_memory = free_space - free_space_exceptsystem;
-						free_space = free_space - hcamcorder->system_memory;
-					} else {
-						hcamcorder->system_memory = 0;
-					}
-				}
+				ret_free_space = _mmcamcorder_get_freespace(dir_name, hcamcorder->root_directory, &free_space);
 
-				_mmcam_dbg_warn("current space - %s [%" G_GUINT64_FORMAT "], system [%" G_GUINT64_FORMAT "]",
-				                dir_name, free_space, hcamcorder->system_memory);
+				_mmcam_dbg_warn("current space - %s [%" G_GUINT64_FORMAT "]", dir_name, free_space);
 
 				if (_mmcamcorder_get_file_system_type(dir_name, &file_system_type) == 0) {
 					/* MSDOS_SUPER_MAGIC : 0x4d44 */
@@ -1023,9 +1013,6 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 		sc->display_interval = 0;
 		sc->previous_slot_time = 0;
 
-		/* init system memory size */
-		hcamcorder->system_memory = 0;
-
 		/* Wait EOS */
 		_mmcam_dbg_log("Start to wait EOS");
 		ret =_mmcamcorder_get_eos_message(handle);
@@ -1355,7 +1342,7 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPa
 	guint64 buffer_size = 0;
 	guint64 trailer_size = 0;
 	guint64 queued_buffer = 0;
-	char *filename = NULL;
+	char *dir_name = NULL;
 	GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER(info);
 	GstMapInfo mapinfo;
 
@@ -1398,11 +1385,14 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPa
 		trailer_size = 0;
 	}
 
-	filename = videoinfo->filename;
-	ret = _mmcamcorder_get_freespace(filename, &free_space);
-
-	if(_mmcamcorder_check_file_path(filename) && hcamcorder->system_memory) {
-		free_space = free_space - hcamcorder->system_memory;
+	dir_name = g_path_get_dirname(videoinfo->filename);
+	if (dir_name) {
+		ret = _mmcamcorder_get_freespace(dir_name, hcamcorder->root_directory, &free_space);
+		g_free(dir_name);
+		dir_name = NULL;
+	} else {
+		_mmcam_dbg_err("failed to get dir name from [%s]", videoinfo->filename);
+		ret = -1;
 	}
 
 	/*_mmcam_dbg_log("check free space for recording");*/
