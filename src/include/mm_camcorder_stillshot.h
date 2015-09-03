@@ -138,9 +138,9 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle, int image_width, int 
 int __mmcamcorder_update_exif_info(MMHandleType handle,void* imagedata, int imgln);
 void __mmcamcorder_init_stillshot_info(MMHandleType handle);
 void __mmcamcorder_get_capture_data_from_buffer(MMCamcorderCaptureDataType *capture_data, int pixtype, GstSample *sample);
-void __mmcamcorder_release_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest);
-int __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCaptureDataType *original, MMCamcorderCaptureDataType *thumbnail);
-int __mmcamcorder_set_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest, MMCamcorderCaptureDataType *thumbnail);
+void __mmcamcorder_release_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest, int tag_enable, int provide_exif);
+int __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCaptureDataType *original, MMCamcorderCaptureDataType *thumbnail, int provide_exif);
+int __mmcamcorder_set_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest, MMCamcorderCaptureDataType *thumbnail, int provide_exif);
 gboolean __mmcamcorder_handoff_callback(GstElement *fakesink, GstBuffer *buffer, GstPad *pad, gpointer u_data);
 
 #ifdef __cplusplus

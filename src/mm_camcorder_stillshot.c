@@ -917,12 +917,11 @@ void __mmcamcorder_init_stillshot_info (MMHandleType handle)
 }
 
 
-int __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCaptureDataType *original, MMCamcorderCaptureDataType *thumbnail)
+int __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCaptureDataType *original, MMCamcorderCaptureDataType *thumbnail, int provide_exif)
 {
 	int ret = MM_ERROR_NONE;
 	unsigned char *data = NULL;
 	unsigned int datalen = 0;
-	int provide_exif = FALSE;
 	_MMCamcorderSubContext *sc = NULL;
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
@@ -944,8 +943,8 @@ int __mmcamcorder_capture_save_exifinfo(MMHandleType handle, MMCamcorderCaptureD
 		data = original->data;
 		datalen = original->length;
 	}
-	MMCAMCORDER_G_OBJECT_GET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "provide-exif", &provide_exif);
-	if(provide_exif == 0){
+
+	if (provide_exif == FALSE) {
 		if (thumbnail) {
 			if (thumbnail->data && thumbnail->length > 0) {
 				_mmcam_dbg_log("thumbnail is added!thumbnail->data=%p thumbnail->width=%d ,thumbnail->height=%d",
@@ -1024,7 +1023,7 @@ GET_FAILED:
 }
 
 
-int __mmcamcorder_set_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest, MMCamcorderCaptureDataType *thumbnail)
+int __mmcamcorder_set_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest, MMCamcorderCaptureDataType *thumbnail, int provide_exif)
 {
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderSubContext *sc = NULL;
@@ -1039,18 +1038,15 @@ int __mmcamcorder_set_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType 
 	/* if tag enable and doesn't provide exif, we make it */
 	_mmcam_dbg_log("Add exif information if existed(thumbnail[%p])", thumbnail);
 	if (thumbnail && thumbnail->data) {
-		return __mmcamcorder_capture_save_exifinfo(handle, dest, thumbnail);
+		return __mmcamcorder_capture_save_exifinfo(handle, dest, thumbnail, provide_exif);
 	} else {
-		return __mmcamcorder_capture_save_exifinfo(handle, dest, NULL);
+		return __mmcamcorder_capture_save_exifinfo(handle, dest, NULL, provide_exif);
 	}
 }
 
 
-void __mmcamcorder_release_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest)
+void __mmcamcorder_release_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest, int tag_enable, int provide_exif)
 {
-	int tag_enable = 0;
-	int provide_exif = FALSE;
-
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderSubContext *sc = NULL;
 
@@ -1060,10 +1056,7 @@ void __mmcamcorder_release_jpeg_data(MMHandleType handle, MMCamcorderCaptureData
 	sc = MMF_CAMCORDER_SUBCONTEXT(hcamcorder);
 	mmf_return_if_fail(sc);
 
-	_mmcam_dbg_log("");
-
-	mm_camcorder_get_attributes(handle, NULL, MMCAM_TAG_ENABLE, &tag_enable, NULL);
-	MMCAMCORDER_G_OBJECT_GET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "provide-exif", &provide_exif);
+	_mmcam_dbg_log("tag : %d, provide exif : %d", tag_enable, provide_exif);
 
 	/* if dest->data is allocated in MSL, release it */
 	if (tag_enable && !provide_exif) {
@@ -1517,7 +1510,7 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstSample *sampl
 			case MM_IMAGE_CODEC_JPEG:
 			case MM_IMAGE_CODEC_SRW:
 			case MM_IMAGE_CODEC_JPEG_SRW:
-				ret = __mmcamcorder_set_jpeg_data((MMHandleType)hcamcorder, &dest, &thumb);
+				ret = __mmcamcorder_set_jpeg_data((MMHandleType)hcamcorder, &dest, &thumb, provide_exif);
 				if (ret != MM_ERROR_NONE) {
 					_mmcam_dbg_err("Error on setting extra data to jpeg");
 					MMCAM_SEND_MESSAGE(hcamcorder, MM_MESSAGE_CAMCORDER_ERROR, ret);
@@ -1571,7 +1564,7 @@ err_release_exif:
 
 	/* Release jpeg data */
 	if (pixtype_main == MM_PIXEL_FORMAT_ENCODED) {
-		__mmcamcorder_release_jpeg_data((MMHandleType)hcamcorder, &dest);
+		__mmcamcorder_release_jpeg_data((MMHandleType)hcamcorder, &dest, tag_enable, provide_exif);
 	}
 
 error:
