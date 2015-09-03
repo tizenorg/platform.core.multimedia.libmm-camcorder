@@ -668,6 +668,7 @@ typedef struct mmf_camcorder {
 	char *software_version;                                 /**< software_version from system info */
 	int capture_sound_count;                                /**< count for capture sound */
 	char *root_directory;                                   /**< Root directory for device */
+	int resolution_changed;                                 /**< Flag for preview resolution change */
 
 	_MMCamcorderInfoConverting caminfo_convert[CAMINFO_CONVERT_NUM];        /**< converting structure of camera info */
 	_MMCamcorderEnumConvert enum_conv[ENUM_CONVERT_NUM];                    /**< enum converting list that is modified by ini info */

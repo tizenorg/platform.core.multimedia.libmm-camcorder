@@ -2083,6 +2083,13 @@ bool _mmcamcorder_commit_camera_width(MMHandleType handle, int attr_idx, const m
 			                            NULL);
 
 			if (current_state == MM_CAMCORDER_STATE_PREPARE) {
+				if (hcamcorder->resolution_changed == FALSE) {
+					_mmcam_dbg_log("no need to restart preview");
+					return TRUE;
+				}
+
+				hcamcorder->resolution_changed = FALSE;
+
 				if (!pthread_mutex_trylock(&(hcamcorder->restart_preview_lock))) {
 					_mmcam_dbg_log("restart preview");
 
@@ -2141,7 +2148,7 @@ bool _mmcamcorder_commit_camera_height(MMHandleType handle, int attr_idx, const 
 	mmf_return_val_if_fail(attr, FALSE);
 
 	_mmcam_dbg_log("Height(%d)", value->value.i_val);
-	current_state = _mmcamcorder_get_state( handle);
+	current_state = _mmcamcorder_get_state(handle);
 
 	if (current_state > MM_CAMCORDER_STATE_PREPARE) {
 		_mmcam_dbg_log("Resolution can't be changed.(state=%d)", current_state);
@@ -2164,6 +2171,13 @@ bool _mmcamcorder_commit_camera_height(MMHandleType handle, int attr_idx, const 
 		sc->info_video->preview_height = height;
 
 		if (current_state == MM_CAMCORDER_STATE_PREPARE) {
+			if (hcamcorder->resolution_changed == FALSE) {
+				_mmcam_dbg_log("no need to restart preview");
+				return TRUE;
+			}
+
+			hcamcorder->resolution_changed = FALSE;
+
 			if (!pthread_mutex_trylock(&(hcamcorder->restart_preview_lock))) {
 				_mmcam_dbg_log("restart preview");
 
@@ -4166,17 +4180,17 @@ static bool __mmcamcorder_set_capture_resolution(MMHandleType handle, int width,
 }
 
 
-static int
-__mmcamcorder_check_valid_pair( MMHandleType handle, char **err_attr_name, const char *attribute_name, va_list var_args )
+static int __mmcamcorder_check_valid_pair(MMHandleType handle, char **err_attr_name, const char *attribute_name, va_list var_args)
 {
 	#define INIT_VALUE            -1
 	#define CHECK_COUNT           3
 
-	mmf_camcorder_t *hcamcorder= MMF_CAMCORDER(handle);
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	MMHandleType attrs = 0;
 
 	int ret = MM_ERROR_NONE;
-	int  i = 0, j = 0;
+	int i = 0;
+	int j = 0;
 	const char *name = NULL;
 	const char *check_pair_name[CHECK_COUNT][3] = {
 		{MMCAM_CAMERA_WIDTH,  MMCAM_CAMERA_HEIGHT,  "MMCAM_CAMERA_WIDTH and HEIGHT"},
@@ -4324,6 +4338,25 @@ __mmcamcorder_check_valid_pair( MMHandleType handle, char **err_attr_name, const
 				}
 
 				return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
+			}
+
+			if (!strcmp(check_pair_name[i][0], MMCAM_CAMERA_WIDTH)) {
+				int current_width = 0;
+				int current_height = 0;
+
+				mm_camcorder_get_attributes(handle, NULL,
+				                            MMCAM_CAMERA_WIDTH, &current_width,
+				                            MMCAM_CAMERA_HEIGHT, &current_height,
+				                            NULL);
+
+				if (current_width != check_pair_value[i][0] ||
+				    current_height != check_pair_value[i][1]) {
+					hcamcorder->resolution_changed = TRUE;
+				} else {
+					hcamcorder->resolution_changed = FALSE;
+				}
+
+				_mmcam_dbg_log("resolution changed : %d", hcamcorder->resolution_changed);
 			}
 
 			if (err_name) {
