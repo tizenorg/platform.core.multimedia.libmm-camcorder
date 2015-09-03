@@ -2019,6 +2019,11 @@ bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate)
 	if (sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst) {
 		/* Get videosink name */
 		_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+		if (videosink_name == NULL) {
+			_mmcam_dbg_err("Please check videosink element in configuration file");
+			return FALSE;
+		}
+
 		if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "evasimagesink") ||
 		    !strcmp(videosink_name, "evaspixmapsink")) {
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst,
@@ -2053,6 +2058,11 @@ bool _mmcamcorder_set_display_flip(MMHandleType handle, int display_flip)
 	if (sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst) {
 		/* Get videosink name */
 		_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+		if (videosink_name == NULL) {
+			_mmcam_dbg_err("Please check videosink element in configuration file");
+			return FALSE;
+		}
+
 		if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "evasimagesink") ||
 		    !strcmp(videosink_name, "evaspixmapsink")) {
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst,

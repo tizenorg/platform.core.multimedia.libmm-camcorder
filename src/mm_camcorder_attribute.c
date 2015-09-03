@@ -3189,6 +3189,11 @@ bool _mmcamcorder_commit_display_handle(MMHandleType handle, int attr_idx, const
 	if (p_handle) {
 		/* get videosink name */
 		_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+		if (videosink_name == NULL) {
+			_mmcam_dbg_err("Please check videosink element in configuration file");
+			return FALSE;
+		}
+
 		_mmcam_dbg_log("Commit : videosinkname[%s]", videosink_name);
 
 		if (!strcmp(videosink_name, "xvimagesink") ||
@@ -3257,6 +3262,11 @@ bool _mmcamcorder_commit_display_mode(MMHandleType handle, int attr_idx, const m
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
 
 	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	if (videosink_name == NULL) {
+		_mmcam_dbg_err("Please check videosink element in configuration file");
+		return FALSE;
+	}
+
 	_mmcam_dbg_log("Commit : videosinkname[%s]", videosink_name);
 
 	if (!strcmp(videosink_name, "xvimagesink")) {
@@ -3347,6 +3357,11 @@ bool _mmcamcorder_commit_display_visible(MMHandleType handle, int attr_idx, cons
 
 	/* Get videosink name */
 	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	if (videosink_name == NULL) {
+		_mmcam_dbg_err("Please check videosink element in configuration file");
+		return FALSE;
+	}
+
 	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "evasimagesink") ||
 	    !strcmp(videosink_name, "evaspixmapsink")) {
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "visible", value->value.i_val);
@@ -3387,6 +3402,11 @@ bool _mmcamcorder_commit_display_geometry_method (MMHandleType handle, int attr_
 
 	/* Get videosink name */
 	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	if (videosink_name == NULL) {
+		_mmcam_dbg_err("Please check videosink element in configuration file");
+		return FALSE;
+	}
+
 	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "evasimagesink") ||
 	    !strcmp(videosink_name, "evaspixmapsink")) {
 		method = value->value.i_val;
@@ -3436,6 +3456,11 @@ bool _mmcamcorder_commit_display_rect(MMHandleType handle, int attr_idx, const m
 
 	/* Get videosink name */
 	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	if (videosink_name == NULL) {
+		_mmcam_dbg_err("Please check videosink element in configuration file");
+		return FALSE;
+	}
+
 	if (!strcmp(videosink_name, "xvimagesink") ||
 	    !strcmp(videosink_name, "evaspixmapsink")) {
 		int rect_x = 0;
@@ -3535,6 +3560,11 @@ bool _mmcamcorder_commit_display_scale(MMHandleType handle, int attr_idx, const 
 
 	/* Get videosink name */
 	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	if (videosink_name == NULL) {
+		_mmcam_dbg_err("Please check videosink element in configuration file");
+		return FALSE;
+	}
+
 	zoom = value->value.i_val;
 	if (!strcmp(videosink_name, "xvimagesink")) {
 		vs_element = sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst;
@@ -3580,6 +3610,11 @@ bool _mmcamcorder_commit_display_evas_do_scaling(MMHandleType handle, int attr_i
 
 	/* Get videosink name */
 	_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
+	if (videosink_name == NULL) {
+		_mmcam_dbg_err("Please check videosink element in configuration file");
+		return FALSE;
+	}
+
 	if (!strcmp(videosink_name, "evaspixmapsink")) {
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "origin-size", !do_scaling);
 		_mmcam_dbg_log("Set origin-size to %d", !(value->value.i_val));
