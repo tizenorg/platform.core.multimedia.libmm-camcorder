@@ -195,6 +195,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	int rcmd_dpy_rotation = MM_DISPLAY_ROTATION_270;
 	int play_capture_sound = TRUE;
 	int camera_device_count = MM_VIDEO_DEVICE_NUM;
+	int camera_default_flip = MM_FLIP_NONE;
 	int camera_facing_direction = MM_CAMCORDER_CAMERA_FACING_DIRECTION_REAR;
 	int resource_fd = -1;
 	char *err_attr_name = NULL;
@@ -427,6 +428,15 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			_mmcam_dbg_log("SupportMediaPacketPreviewCb : %d", hcamcorder->support_media_packet_preview_cb);
 			_mmcam_dbg_log("res : %d X %d, Default FPS by resolution  : %d", resolution_width, resolution_height, fps_info.int_array.def);
 
+			if (camera_facing_direction == 1) {
+				if (rcmd_dpy_rotation == MM_DISPLAY_ROTATION_270 || rcmd_dpy_rotation == MM_DISPLAY_ROTATION_90) {
+					camera_default_flip = MM_FLIP_VERTICAL;
+				} else {
+					camera_default_flip = MM_FLIP_HORIZONTAL;
+				}
+				_mmcam_dbg_log("camera_default_flip : [%d]",camera_default_flip);
+			}
+
 			mm_camcorder_set_attributes((MMHandleType)hcamcorder, &err_attr_name,
 			                            MMCAM_CAMERA_DEVICE_COUNT, camera_device_count,
 			                            MMCAM_CAMERA_FACING_DIRECTION, camera_facing_direction,
@@ -437,6 +447,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			                            MMCAM_SUPPORT_ZERO_COPY_FORMAT, hcamcorder->use_zero_copy_format,
 			                            MMCAM_SUPPORT_MEDIA_PACKET_PREVIEW_CB, hcamcorder->support_media_packet_preview_cb,
 			                            MMCAM_CAMERA_FPS, fps_info.int_array.def,
+			                            MMCAM_DISPLAY_FLIP, camera_default_flip,
 			                            "capture-sound-enable", play_capture_sound,
 			                            NULL);
 			if (err_attr_name) {
