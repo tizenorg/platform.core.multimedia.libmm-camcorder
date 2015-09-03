@@ -1060,10 +1060,23 @@ MSG_CALLBACK_DONE:
 			SAFE_FREE(cam_fd_info->face_info);
 			free(cam_fd_info);
 			cam_fd_info = NULL;
-		}
 
-		item->param.data = NULL;
-		item->param.size = 0;
+			item->param.data = NULL;
+			item->param.size = 0;
+		}
+	} else if (item->id == MM_MESSAGE_CAMCORDER_VIDEO_CAPTURED ||
+	           item->id == MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED) {
+		MMCamRecordingReport *report = (MMCamRecordingReport *)item->param.data;
+		if (report) {
+			if (report->recording_filename) {
+				free(report->recording_filename);
+				report->recording_filename = NULL;
+			}
+			free(report);
+			report = NULL;
+
+			item->param.data = NULL;
+		}
 	}
 
 	pthread_mutex_unlock(&(item->lock));
@@ -1183,10 +1196,23 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 							SAFE_FREE(cam_fd_info->face_info);
 							free(cam_fd_info);
 							cam_fd_info = NULL;
-						}
 
-						item->param.data = NULL;
-						item->param.size = 0;
+							item->param.data = NULL;
+							item->param.size = 0;
+						}
+					} else if (item->id == MM_MESSAGE_CAMCORDER_VIDEO_CAPTURED ||
+					           item->id == MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED) {
+						MMCamRecordingReport *report = (MMCamRecordingReport *)item->param.data;
+						if (report) {
+							if (report->recording_filename) {
+								free(report->recording_filename);
+								report->recording_filename = NULL;
+							}
+							free(report);
+							report = NULL;
+
+							item->param.data = NULL;
+						}
 					}
 
 					hcamcorder->msg_data = g_list_remove(hcamcorder->msg_data, item);
