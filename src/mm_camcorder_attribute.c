@@ -3211,7 +3211,7 @@ bool _mmcamcorder_commit_display_handle(MMHandleType handle, int attr_idx, const
 
 			context = gst_wayland_display_handle_context_new((struct wl_display *)wl_info->display);
 			if (context) {
-				gst_element_set_context(GST_VIDEO_OVERLAY(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst), context);
+				gst_element_set_context(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, context);
 			} else {
 				_mmcam_dbg_warn("gst_wayland_display_handle_context_new failed");
 			}

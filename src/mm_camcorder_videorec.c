@@ -1000,13 +1000,32 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 		_mmcam_dbg_log("block push buffer to appsrc");
 
 		if (sc->encode_element[_MMCAMCORDER_ENCSINK_SRC].gst != NULL) {
-			ret = gst_element_send_event(sc->encode_element[_MMCAMCORDER_ENCSINK_SRC].gst, gst_event_new_eos());
-			_mmcam_dbg_warn("send eos to appsrc result : %d", ret);
+			if (gst_element_send_event(sc->encode_element[_MMCAMCORDER_ENCSINK_SRC].gst, gst_event_new_eos())) {
+				_mmcam_dbg_warn("VIDEO: send eos to appsrc done");
+			} else {
+				_mmcam_dbg_err("VIDEO: send EOS failed");
+				info->b_commiting = FALSE;
+				ret = MM_ERROR_CAMCORDER_INTERNAL;
+				goto _ERR_CAMCORDER_VIDEO_COMMAND;
+			}
+		} else {
+			_mmcam_dbg_err("No video stream source");
+			info->b_commiting = FALSE;
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_CAMCORDER_VIDEO_COMMAND;
 		}
 
 		if (sc->encode_element[_MMCAMCORDER_AUDIOSRC_SRC].gst != NULL) {
-			ret = gst_element_send_event(sc->encode_element[_MMCAMCORDER_AUDIOSRC_SRC].gst, gst_event_new_eos());
-			_mmcam_dbg_warn("send eos to audiosrc result : %d", ret);
+			if (gst_element_send_event(sc->encode_element[_MMCAMCORDER_AUDIOSRC_SRC].gst, gst_event_new_eos())) {
+				_mmcam_dbg_warn("AUDIO: send eos to audiosrc done");
+			} else {
+				_mmcam_dbg_err("AUDIO: send EOS failed");
+				info->b_commiting = FALSE;
+				ret = MM_ERROR_CAMCORDER_INTERNAL;
+				goto _ERR_CAMCORDER_VIDEO_COMMAND;
+			}
+		} else {
+			_mmcam_dbg_log("No audio stream");
 		}
 
 		/* sc */

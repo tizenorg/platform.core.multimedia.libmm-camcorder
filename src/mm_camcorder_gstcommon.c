@@ -315,7 +315,6 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 			goto pipeline_creation_error;
 		}
 	} else if ( strcmp(videosink_name, "shmsink") == 0 ) {
-		GstCaps *caps = NULL;
 		_mmcam_dbg_log("socket_path : %s", socket_path);
 		g_object_set(G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst),
 				"socket-path", socket_path,
@@ -1690,7 +1689,6 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_push_buffer_to_record(Gst
 	    sc->encode_element[_MMCAMCORDER_ENCSINK_SRC].gst) {
 		int ret = 0;
 		GstClock *clock = NULL;
-		GstPad *capsfilter_pad = NULL;
 
 		/*
 		_mmcam_dbg_log("GST_BUFFER_FLAG_DELTA_UNIT is set : %d",

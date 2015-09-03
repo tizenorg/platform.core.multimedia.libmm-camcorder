@@ -573,7 +573,15 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 		}
 
 		if (audioSrc) {
-			ret = gst_element_send_event(audioSrc, gst_event_new_eos());
+			if (gst_element_send_event(audioSrc, gst_event_new_eos()) == FALSE) {
+				_mmcam_dbg_err("send EOS failed");
+				info->b_commiting = FALSE;
+				ret = MM_ERROR_CAMCORDER_INTERNAL;
+				goto _ERR_CAMCORDER_AUDIO_COMMAND;
+			}
+
+			_mmcam_dbg_log("send EOS done");
+
 			/* for pause -> commit case */
 			if (_mmcamcorder_get_state((MMHandleType)hcamcorder) == MM_CAMCORDER_STATE_PAUSED) {
 				ret = _mmcamcorder_gst_set_state(handle, pipeline, GST_STATE_PLAYING);
@@ -582,6 +590,11 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 					goto _ERR_CAMCORDER_AUDIO_COMMAND;
 				}
 			}
+		} else {
+			_mmcam_dbg_err("No audio stream source");
+			info->b_commiting = FALSE;
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_CAMCORDER_AUDIO_COMMAND;
 		}
 
 		/* wait until finishing EOS */
