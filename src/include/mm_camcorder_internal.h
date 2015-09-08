@@ -669,6 +669,11 @@ typedef struct mmf_camcorder {
 	int capture_sound_count;                                /**< count for capture sound */
 	char *root_directory;                                   /**< Root directory for device */
 	int resolution_changed;                                 /**< Flag for preview resolution change */
+	int sound_focus_register;                               /**< Use sound focus internally */
+	int sound_focus_id;                                     /**< id for sound focus */
+	int sound_focus_watch_id;                               /**< id for sound focus watch */
+	int session_type;                                       /**< Session type */
+	int session_flags;                                      /**< Session flags */
 
 	_MMCamcorderInfoConverting caminfo_convert[CAMINFO_CONVERT_NUM];        /**< converting structure of camera info */
 	_MMCamcorderEnumConvert enum_conv[ENUM_CONVERT_NUM];                    /**< enum converting list that is modified by ini info */

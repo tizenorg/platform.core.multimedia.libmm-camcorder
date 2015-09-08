@@ -39,6 +39,11 @@
 #include <asm/types.h>
 
 #include <system_info.h>
+#include <mm_session.h>
+#include <mm_session_private.h>
+#include <mm_sound_focus.h>
+
+#include <cynara-client.h>
 
 /*---------------------------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal						|
@@ -55,6 +60,8 @@ struct sigaction mm_camcorder_sys_old_action;
 ---------------------------------------------------------------------------------------*/
 #define __MMCAMCORDER_CMD_ITERATE_MAX           3
 #define __MMCAMCORDER_SET_GST_STATE_TIMEOUT     3
+#define __MMCAMCORDER_FORCE_STOP_TRY_COUNT      30
+#define __MMCAMCORDER_FORCE_STOP_WAIT_TIME      100000  /* us */
 #define __MMCAMCORDER_SOUND_WAIT_TIMEOUT        3
 #define __MMCAMCORDER_PATH_CAMERA_RESOURCE      "/usr/share/sounds/mm-camcorder/camera_resource"
 #define __MMCAMCORDER_PATH_RECORDER_RESOURCE    "/usr/share/sounds/mm-camcorder/recorder_resource"
@@ -73,6 +80,14 @@ static gint     __mmcamcorder_gst_handle_library_error(MMHandleType handle, int 
 static gint     __mmcamcorder_gst_handle_core_error(MMHandleType handle, int code, GstMessage *message);
 static gint     __mmcamcorder_gst_handle_resource_warning(MMHandleType handle, GstMessage *message , GError *error);
 static gboolean __mmcamcorder_handle_gst_warning(MMHandleType handle, GstMessage *message, GError *error);
+
+/* sound focus related function */
+static void     __mmcamcorder_force_stop(mmf_camcorder_t *hcamcorder);
+void _mmcamcorder_sound_focus_cb(int id, mm_sound_focus_type_e focus_type,
+                                 mm_sound_focus_state_e focus_state, const char *reason_for_change,
+                                 const char *additional_info, void *user_data);
+void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_sound_focus_state_e focus_state,
+                                       const char *reason_for_change, const char *additional_info, void *user_data);
 
 
 #ifdef _MMCAMCORDER_USE_SET_ATTR_CB
@@ -219,6 +234,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	hcamcorder->sub_context = NULL;
 	hcamcorder->target_state = MM_CAMCORDER_STATE_NULL;
 	hcamcorder->capture_in_recording = FALSE;
+	hcamcorder->session_type = MM_SESSION_TYPE_MEDIA;
 
 	pthread_mutex_init(&((hcamcorder->mtsafe).lock), NULL);
 	pthread_cond_init(&((hcamcorder->mtsafe).cond), NULL);
@@ -264,7 +280,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	/* set device type */
 	hcamcorder->device_type = info->videodev_type;
 	_mmcam_dbg_warn("Device Type : %d", hcamcorder->device_type);
-
+#if 0
 	if (hcamcorder->device_type == MM_VIDEO_DEVICE_NONE) {
 		resource_fd = open(__MMCAMCORDER_PATH_RECORDER_RESOURCE, O_RDONLY);
 	} else {
@@ -284,6 +300,99 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		resource_fd = -1;
 		_mmcam_dbg_warn("permission check done");
 	}
+#else
+	{
+		FILE *fp = NULL;;
+		int length_read = 0;
+		int priv_check = FALSE;
+		uid_t my_uid = 0;
+		char *client_session = "";
+		char *smack_string = NULL;
+		char uid_string[50];
+		size_t buffer_length = 0;
+		cynara *p_cynara = NULL;
+
+		if (cynara_initialize(&p_cynara, NULL) != CYNARA_API_SUCCESS) {
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_DEFAULT_VALUE_INIT;
+		}
+
+		fp = fopen("/proc/self/attr/current", "r");
+		if (fp == NULL) {
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_DEFAULT_VALUE_INIT;
+		}
+
+		length_read = getline(&smack_string, &buffer_length, fp);
+		if (length_read > 0) {
+			int cynara_ret = 0;
+
+			my_uid = getuid();
+			snprintf(uid_string, 50, "%d", my_uid);
+			_mmcam_dbg_log("label %s, uid %u, %s", smack_string, my_uid, uid_string);
+
+			if (hcamcorder->device_type == MM_VIDEO_DEVICE_NONE) {
+				cynara_ret = cynara_check(p_cynara, smack_string, client_session, uid_string,
+				                          "http://tizen.org/privilege/recorder");
+			} else {
+				cynara_ret = cynara_check(p_cynara, smack_string, client_session, uid_string,
+				                          "http://tizen.org/privilege/camera");
+			}
+			if (cynara_ret == CYNARA_API_ACCESS_ALLOWED) {
+				priv_check = TRUE;
+				_mmcam_dbg_err("privilege check done");
+			} else {
+				ret = MM_ERROR_COMMON_INVALID_PERMISSION;
+				_mmcam_dbg_err("permission denied");
+			}
+		} else {
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			_mmcam_dbg_err("getline failed");
+		}
+
+		if (smack_string) {
+			free(smack_string);
+			smack_string = NULL;
+		}
+
+		fclose(fp);
+		fp = NULL;
+
+		cynara_finish(p_cynara);
+		p_cynara = NULL;
+
+		if (priv_check == FALSE) {
+			goto _ERR_DEFAULT_VALUE_INIT;
+		}
+	}
+#endif
+
+	/* Check session */
+	if (MM_ERROR_NONE == _mm_session_util_read_information(-1, &hcamcorder->session_type, &hcamcorder->session_flags)) {
+		_mmcam_dbg_log("use sound focus function.");
+		hcamcorder->sound_focus_register = TRUE;
+	} else {
+		_mmcam_dbg_log("_mm_session_util_read_information failed. skip sound focus function.");
+		hcamcorder->sound_focus_register = FALSE;
+	}
+
+	/* register sound focus */
+	if (hcamcorder->sound_focus_register) {
+		if (MM_ERROR_NONE != mm_sound_focus_get_id(&hcamcorder->sound_focus_id)) {
+			_mmcam_dbg_err("mm_sound_focus_get_uniq failed");
+			ret = MM_ERROR_POLICY_BLOCKED;
+			goto _ERR_DEFAULT_VALUE_INIT;
+		}
+
+		if (MM_ERROR_NONE != mm_sound_register_focus_for_session(hcamcorder->sound_focus_id, "media", _mmcamcorder_sound_focus_cb, hcamcorder)) {
+			_mmcam_dbg_err("mm_sound_register_focus failed");
+			ret = MM_ERROR_POLICY_BLOCKED;
+			goto _ERR_DEFAULT_VALUE_INIT;
+		}
+
+		_mmcam_dbg_log("mm_sound_register_focus done - id %d, session type %d, flags 0x%x",
+			       hcamcorder->sound_focus_id, hcamcorder->session_type, hcamcorder->session_flags);
+	}
 
 	/* Get Camera Configure information from Camcorder INI file */
 	_mmcamcorder_conf_get_info((MMHandleType)hcamcorder, CONFIGURE_TYPE_MAIN, CONFIGURE_MAIN_FILE, &hcamcorder->conf_main);
@@ -292,7 +401,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		_mmcam_dbg_err( "Failed to get configure(main) info." );
 
 		ret = MM_ERROR_CAMCORDER_CREATE_CONFIGURE;
-		goto _ERR_AFTER_ASM_REGISTER;
+		goto _ERR_SOUND_FOCUS_REGISTER;
 	}
 
 	hcamcorder->attributes = _mmcamcorder_alloc_attribute((MMHandleType)hcamcorder, info);
@@ -300,7 +409,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		_mmcam_dbg_err("_mmcamcorder_create::alloc attribute error.");
 
 		ret = MM_ERROR_CAMCORDER_RESOURCE_CREATION;
-		goto _ERR_AFTER_ASM_REGISTER;
+		goto _ERR_SOUND_FOCUS_REGISTER;
 	}
 
 	if (info->videodev_type != MM_VIDEO_DEVICE_NONE) {
@@ -329,7 +438,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			default:
 				_mmcam_dbg_err( "Not supported camera type." );
 				ret = MM_ERROR_CAMCORDER_NOT_SUPPORTED;
-				goto _ERR_AFTER_ASM_REGISTER;
+				goto _ERR_SOUND_FOCUS_REGISTER;
 			}
 
 			_mmcam_dbg_log("videodev_type : [%d], ConfCtrlPath : [%s]", info->videodev_type, ConfCtrlFile);
@@ -342,21 +451,21 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			if (!(hcamcorder->conf_ctrl)) {
 				_mmcam_dbg_err( "Failed to get configure(control) info." );
 				ret = MM_ERROR_CAMCORDER_CREATE_CONFIGURE;
-				goto _ERR_AFTER_ASM_REGISTER;
+				goto _ERR_SOUND_FOCUS_REGISTER;
 			}
 
 			ret = _mmcamcorder_init_convert_table((MMHandleType)hcamcorder);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("converting table initialize error!!");
 				ret = MM_ERROR_CAMCORDER_INTERNAL;
-				goto _ERR_AFTER_ASM_REGISTER;
+				goto _ERR_SOUND_FOCUS_REGISTER;
 			}
 
 			ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, info->videodev_type);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("converting table initialize error!!");
 				ret = MM_ERROR_CAMCORDER_INTERNAL;
-				goto _ERR_AFTER_ASM_REGISTER;
+				goto _ERR_SOUND_FOCUS_REGISTER;
 			}
 
 			/* Get device info, recommend preview fmt and display rotation from INI */
@@ -455,7 +564,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 				free(err_attr_name);
 				err_attr_name = NULL;
 				ret = MM_ERROR_CAMCORDER_INTERNAL;
-				goto _ERR_AFTER_ASM_REGISTER;
+				goto _ERR_SOUND_FOCUS_REGISTER;
 			}
 
 			/* Get default value of brightness */
@@ -467,7 +576,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 				free(err_attr_name);
 				err_attr_name = NULL;
 				ret = MM_ERROR_CAMCORDER_INTERNAL;
-				goto _ERR_AFTER_ASM_REGISTER;
+				goto _ERR_SOUND_FOCUS_REGISTER;
 			}
 			_mmcam_dbg_log("Default brightness : %d", hcamcorder->brightness_default);
 		} else {
@@ -487,14 +596,14 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			free(err_attr_name);
 			err_attr_name = NULL;
 			ret = MM_ERROR_CAMCORDER_INTERNAL;
-			goto _ERR_AFTER_ASM_REGISTER;
+			goto _ERR_SOUND_FOCUS_REGISTER;
 		}
 
 		ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, info->videodev_type);
 		if (ret != MM_ERROR_NONE) {
 			_mmcam_dbg_warn("init attribute from configure error : 0x%x", ret);
 			ret = MM_ERROR_CAMCORDER_INTERNAL;
-			goto _ERR_AFTER_ASM_REGISTER;
+			goto _ERR_SOUND_FOCUS_REGISTER;
 		}
 	}
 
@@ -502,7 +611,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	if (!ret) {
 		_mmcam_dbg_err( "Failed to initialize gstreamer!!" );
 		ret = MM_ERROR_CAMCORDER_NOT_INITIALIZED;
-		goto _ERR_AFTER_ASM_REGISTER;
+		goto _ERR_SOUND_FOCUS_REGISTER;
 	}
 
 	/* Make some attributes as read-only type */
@@ -563,9 +672,21 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 
 	return MM_ERROR_NONE;
 
-_ERR_AFTER_ASM_REGISTER:
+_ERR_SOUND_FOCUS_REGISTER:
+	/* unregister sound focus */
+	if(hcamcorder->sound_focus_register) {
+		if (MM_ERROR_NONE != mm_sound_unregister_focus(hcamcorder->sound_focus_id)) {
+			_mmcam_dbg_err("mm_sound_unregister_focus[id %d] failed", hcamcorder->sound_focus_id);
+		}
+	}
 
 _ERR_DEFAULT_VALUE_INIT:
+	/* Remove attributes */
+	if (hcamcorder->attributes) {
+		_mmcamcorder_dealloc_attribute((MMHandleType)hcamcorder, hcamcorder->attributes);
+		hcamcorder->attributes = 0;
+	}
+
 	/* Release lock, cond */
 	pthread_mutex_destroy(&((hcamcorder->mtsafe).lock));
 	pthread_cond_destroy(&((hcamcorder->mtsafe).cond));
@@ -749,6 +870,13 @@ int _mmcamcorder_destroy(MMHandleType handle)
 	/* Remove messages which are not called yet */
 	_mmcamcorder_remove_message_all(handle);
 
+	/* unregister sound focus */
+	if(hcamcorder->sound_focus_register) {
+		if (MM_ERROR_NONE != mm_sound_unregister_focus(hcamcorder->sound_focus_id)) {
+			_mmcam_dbg_err("mm_sound_unregister_focus[id %d] failed", hcamcorder->sound_focus_id);
+		}
+	}
+
 	/* release model_name */
 	if (hcamcorder->model_name) {
 		free(hcamcorder->model_name);
@@ -816,6 +944,7 @@ _ERR_CAMCORDER_CMD_PRECON:
 int _mmcamcorder_realize(MMHandleType handle)
 {
 	int ret = MM_ERROR_NONE;
+	int ret_sound = MM_ERROR_NONE;
 	int state = MM_CAMCORDER_STATE_NONE;
 	int state_FROM = MM_CAMCORDER_STATE_NULL;
 	int state_TO = MM_CAMCORDER_STATE_READY;
@@ -889,6 +1018,46 @@ int _mmcamcorder_realize(MMHandleType handle)
 
 		_mmcam_dbg_log("VCONFKEY_RECORDER_STATE prev %d -> cur %d",
 		               vconf_recorder_state, VCONFKEY_RECORDER_STATE_CREATED);
+	}
+
+	/* acquire sound focus or set sound focus watch callback */
+	if(hcamcorder->sound_focus_register) {
+		/* check session flags */
+		if (hcamcorder->session_flags & MM_SESSION_OPTION_PAUSE_OTHERS) {
+			/* acquire sound focus */
+			_mmcam_dbg_log("PAUSE_OTHERS - acquire sound focus");
+
+			ret_sound = mm_sound_acquire_focus(0, FOCUS_FOR_BOTH, NULL);
+			if (ret_sound != MM_ERROR_NONE) {
+				_mmcam_dbg_err("mm_sound_acquire_focus failed [0x%x]", ret_sound);
+
+				/* TODO: MM_ERROR_POLICY_BLOCKED_BY_CALL, MM_ERROR_POLICY_BLOCKED_BY_ALARM*/
+				ret = MM_ERROR_POLICY_BLOCKED;
+
+				goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+			}
+		} else if (hcamcorder->session_flags & MM_SESSION_OPTION_UNINTERRUPTIBLE) {
+			/* do nothing */
+			_mmcam_dbg_log("SESSION_UNINTERRUPTIBLE - do nothing for sound focus");
+		} else {
+			/* set sound focus watch callback */
+			_mmcam_dbg_log("ETC - set sound focus watch callback");
+
+			ret_sound = mm_sound_set_focus_watch_callback(FOCUS_FOR_BOTH,
+								      (mm_sound_focus_changed_watch_cb)_mmcamcorder_sound_focus_watch_cb,
+								      hcamcorder,
+								      &hcamcorder->sound_focus_watch_id);
+			if (ret_sound != MM_ERROR_NONE) {
+				_mmcam_dbg_err("mm_sound_set_focus_watch_callback failed [0x%x]", ret_sound);
+
+				/* TODO: MM_ERROR_POLICY_BLOCKED_BY_CALL, MM_ERROR_POLICY_BLOCKED_BY_ALARM*/
+				ret = MM_ERROR_POLICY_BLOCKED;
+
+				goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+			}
+
+			_mmcam_dbg_log("sound focus watch cb id %d", hcamcorder->sound_focus_watch_id);
+		}
 	}
 
 	/* alloc sub context */
@@ -1024,6 +1193,15 @@ _ERR_CAMCORDER_CMD:
 _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK:
 	_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
 
+	if (hcamcorder->sound_focus_watch_id > 0) {
+		ret_sound = mm_sound_unset_focus_watch_callback(hcamcorder->sound_focus_watch_id);
+		if (ret_sound != MM_ERROR_NONE) {
+			_mmcam_dbg_warn("mm_sound_unset_focus_watch_callback failed [0x%x]", ret_sound);
+		}
+
+		hcamcorder->sound_focus_watch_id = 0;
+	}
+
 _ERR_CAMCORDER_CMD_PRECON:
 	_mmcam_dbg_err("Realize fail (type %d, state %d, ret %x)",
 	               hcamcorder->type, state, ret);
@@ -1074,6 +1252,41 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 	/* Deinitialize main context member */
 	hcamcorder->command = NULL;
 
+	/* check who calls unrealize. it's no need to do nothing if caller is sound focus callback */
+	if (hcamcorder->state_change_by_system != _MMCAMCORDER_STATE_CHANGE_BY_ASM) {
+		/* release sound focus or unset sound focus watch callback */
+		if(hcamcorder->sound_focus_register) {
+			int ret_sound = MM_ERROR_NONE;
+
+			/* check session flags */
+			if (hcamcorder->session_flags & MM_SESSION_OPTION_PAUSE_OTHERS) {
+				/* release sound focus */
+				_mmcam_dbg_log("PAUSE_OTHERS - release sound focus");
+
+				ret_sound = mm_sound_release_focus(0, FOCUS_FOR_BOTH, NULL);
+				if (ret_sound != MM_ERROR_NONE) {
+					_mmcam_dbg_warn("mm_sound_release_focus failed [0x%x]", ret_sound);
+				}
+			} else if (hcamcorder->session_flags & MM_SESSION_OPTION_UNINTERRUPTIBLE) {
+				/* do nothing */
+				_mmcam_dbg_log("SESSION_UNINTERRUPTIBLE - do nothing for sound focus");
+			} else {
+				/* unset sound focus watch callback */
+				_mmcam_dbg_log("ETC - unset sound focus watch callback - id %d", hcamcorder->sound_focus_watch_id);
+
+				if (hcamcorder->sound_focus_watch_id > 0) {
+					ret_sound = mm_sound_unset_focus_watch_callback(hcamcorder->sound_focus_watch_id);
+					if (ret_sound != MM_ERROR_NONE) {
+						_mmcam_dbg_warn("mm_sound_unset_focus_watch_callback failed [0x%x]", ret_sound);
+					}
+				} else {
+					_mmcam_dbg_warn("invalid sound focus id %d", hcamcorder->sound_focus_watch_id);
+				}
+
+				hcamcorder->sound_focus_watch_id = 0;
+			}
+		}
+	}
 
 	/* set camera state to vconf key */
 	if (hcamcorder->type != MM_CAMCORDER_MODE_AUDIO) {
@@ -2936,6 +3149,119 @@ GstBusSyncReply _mmcamcorder_audio_pipeline_bus_sync_callback(GstBus *bus, GstMe
 }
 
 
+void _mmcamcorder_sound_focus_cb(int id, mm_sound_focus_type_e focus_type,
+                                 mm_sound_focus_state_e focus_state, const char *reason_for_change,
+                                 const char *additional_info, void *user_data)
+{
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(user_data);
+	int current_state = MM_CAMCORDER_STATE_NONE;
+
+	mmf_return_if_fail((MMHandleType)hcamcorder);
+
+	current_state = _mmcamcorder_get_state((MMHandleType)hcamcorder);
+	if (current_state <= MM_CAMCORDER_STATE_NONE ||
+	    current_state >= MM_CAMCORDER_STATE_NUM) {
+		_mmcam_dbg_err("Abnormal state. Or null handle. (%p, %d)", hcamcorder, current_state);
+		return;
+	}
+
+	/* set value to inform a status is changed by asm */
+	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_ASM;
+
+	_mmcam_dbg_log("sound focus callback : focus state %d, reason %s",
+		       focus_state, reason_for_change ? reason_for_change : "N/A");
+
+	if (hcamcorder->session_flags & MM_SESSION_OPTION_UNINTERRUPTIBLE) {
+		_mmcam_dbg_warn("session flag is UNINTERRUPTIBLE. do nothing.");
+		return;
+	}
+
+	_MMCAMCORDER_LOCK_ASM(hcamcorder);
+
+	if (focus_state == FOCUS_IS_RELEASED) {
+		_mmcam_dbg_log("FOCUS is released : Stop pipeline[state:%d]", current_state);
+
+		__mmcamcorder_force_stop(hcamcorder);
+
+		_mmcam_dbg_log("Finish opeartion. Pipeline is released");
+	} else if (focus_state == FOCUS_IS_ACQUIRED) {
+		_MMCamcorderMsgItem msg;
+
+		_mmcam_dbg_log("FOCUS is acquired");
+
+		msg.id = MM_MESSAGE_READY_TO_RESUME;
+		_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
+
+		_mmcam_dbg_log("Finish opeartion");
+	} else {
+		_mmcam_dbg_log("unknown focus state %d", focus_state);
+	}
+
+	/* restore value */
+	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_NORMAL;
+
+	_MMCAMCORDER_UNLOCK_ASM(hcamcorder);
+
+	return;
+}
+
+
+void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_sound_focus_state_e focus_state,
+                                       const char *reason_for_change, const char *additional_info, void *user_data)
+{
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(user_data);
+	int current_state = MM_CAMCORDER_STATE_NONE;
+
+	mmf_return_if_fail((MMHandleType)hcamcorder);
+
+	current_state = _mmcamcorder_get_state((MMHandleType)hcamcorder);
+	if (current_state <= MM_CAMCORDER_STATE_NONE ||
+	    current_state >= MM_CAMCORDER_STATE_NUM) {
+		_mmcam_dbg_err("Abnormal state. Or null handle. (%p, %d)", hcamcorder, current_state);
+		return;
+	}
+
+	/* set value to inform a status is changed by asm */
+	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_ASM;
+
+	_mmcam_dbg_log("sound focus watch callback : focus state %d, reason %s",
+		       focus_state, reason_for_change ? reason_for_change : "N/A");
+
+	if (hcamcorder->session_flags & MM_SESSION_OPTION_UNINTERRUPTIBLE) {
+		_mmcam_dbg_warn("session flag is UNINTERRUPTIBLE. do nothing.");
+		return;
+	}
+
+	_MMCAMCORDER_LOCK_ASM(hcamcorder);
+
+	if (focus_state == FOCUS_IS_RELEASED) {
+		_MMCamcorderMsgItem msg;
+
+		_mmcam_dbg_log("other process's FOCUS is acquired");
+
+		msg.id = MM_MESSAGE_READY_TO_RESUME;
+		_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
+
+		_mmcam_dbg_log("Finish opeartion");
+	} else if (focus_state == FOCUS_IS_ACQUIRED) {
+		_mmcam_dbg_log("other process's FOCUS is released : Stop pipeline[state:%d]", current_state);
+
+		__mmcamcorder_force_stop(hcamcorder);
+
+		_mmcam_dbg_log("Finish opeartion. Pipeline is released");
+	} else {
+		_mmcam_dbg_log("unknown focus state %d", focus_state);
+	}
+
+	/* restore value */
+	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_NORMAL;
+
+	_MMCAMCORDER_UNLOCK_ASM(hcamcorder);
+
+	return;
+}
+
+
 int _mmcamcorder_create_pipeline(MMHandleType handle, int type)
 {
 	int ret = MM_ERROR_NONE;
@@ -3214,6 +3540,112 @@ void _mmcamcorder_video_current_framerate_init(MMHandleType handle)
 	mmf_return_if_fail(sc);
 
 	memset(&(sc->kpi), 0x00, sizeof(_MMCamcorderKPIMeasure));
+
+	return;
+}
+
+
+static void __mmcamcorder_force_stop(mmf_camcorder_t *hcamcorder)
+{
+	int i = 0;
+	int loop = 0;
+	int itr_cnt = 0;
+	int result = MM_ERROR_NONE;
+	int cmd_try_count = 0;
+	int current_state = MM_CAMCORDER_STATE_NONE;
+
+	mmf_return_if_fail(hcamcorder);
+
+	/* check command running */
+	do {
+		if (!_MMCAMCORDER_TRYLOCK_CMD(hcamcorder)) {
+			if (cmd_try_count++ < __MMCAMCORDER_FORCE_STOP_TRY_COUNT) {
+				_mmcam_dbg_warn("Another command is running. try again after %d ms", __MMCAMCORDER_FORCE_STOP_WAIT_TIME/1000);
+				usleep(__MMCAMCORDER_FORCE_STOP_WAIT_TIME);
+			} else {
+				_mmcam_dbg_err("wait timeout");
+				break;
+			}
+		} else {
+			_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
+			break;
+		}
+	} while (TRUE);
+
+	current_state = _mmcamcorder_get_state((MMHandleType)hcamcorder);
+
+	_mmcam_dbg_warn("Force STOP MMFW Camcorder");
+
+	for (loop = 0 ; current_state > MM_CAMCORDER_STATE_NULL && loop < __MMCAMCORDER_CMD_ITERATE_MAX * 3 ; loop++) {
+		itr_cnt = __MMCAMCORDER_CMD_ITERATE_MAX;
+		switch (current_state) {
+		case MM_CAMCORDER_STATE_CAPTURING:
+		{
+			_MMCamcorderSubContext *sc = MMF_CAMCORDER_SUBCONTEXT(hcamcorder);
+			_MMCamcorderImageInfo *info = NULL;
+
+			mmf_return_if_fail(sc);
+			mmf_return_if_fail((info = sc->info_image));
+
+			_mmcam_dbg_warn("Stop capturing.");
+
+			/* if caturing isn't finished, waiting for 2 sec to finish real capture operation. check 'info->capturing'. */
+			mm_camcorder_set_attributes((MMHandleType)hcamcorder, NULL,
+			                            MMCAM_CAPTURE_BREAK_CONTINUOUS_SHOT, TRUE,
+			                            NULL);
+
+			for (i = 0; i < 20 && info->capturing; i++) {
+				usleep(100000);
+			}
+
+			if (i == 20) {
+				_mmcam_dbg_err("Timeout. Can't check stop capturing.");
+			}
+
+			while ((itr_cnt--) && ((result = _mmcamcorder_capture_stop((MMHandleType)hcamcorder)) != MM_ERROR_NONE)) {
+					_mmcam_dbg_warn("Can't stop capturing.(%x)", result);
+			}
+
+			break;
+		}
+		case MM_CAMCORDER_STATE_RECORDING:
+		case MM_CAMCORDER_STATE_PAUSED:
+		{
+			_mmcam_dbg_warn("Stop recording.");
+
+			while ((itr_cnt--) && ((result = _mmcamcorder_commit((MMHandleType)hcamcorder)) != MM_ERROR_NONE)) {
+				_mmcam_dbg_warn("Can't commit.(%x)", result);
+			}
+			break;
+		}
+		case MM_CAMCORDER_STATE_PREPARE:
+		{
+			_mmcam_dbg_warn("Stop preview.");
+
+			while ((itr_cnt--) && ((result = _mmcamcorder_stop((MMHandleType)hcamcorder)) != MM_ERROR_NONE)) {
+				_mmcam_dbg_warn("Can't stop preview.(%x)", result);
+			}
+			break;
+		}
+		case MM_CAMCORDER_STATE_READY:
+		{
+			_mmcam_dbg_warn("unrealize");
+
+			if ((result = _mmcamcorder_unrealize((MMHandleType)hcamcorder)) != MM_ERROR_NONE) {
+				_mmcam_dbg_warn("Can't unrealize.(%x)", result);
+			}
+			break;
+		}
+		case MM_CAMCORDER_STATE_NULL:
+		default:
+			_mmcam_dbg_warn("Already stopped.");
+			break;
+		}
+
+		current_state = _mmcamcorder_get_state((MMHandleType)hcamcorder);
+	}
+
+	_mmcam_dbg_warn( "Done." );
 
 	return;
 }
