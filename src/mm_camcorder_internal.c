@@ -384,7 +384,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			goto _ERR_DEFAULT_VALUE_INIT;
 		}
 
-		if (MM_ERROR_NONE != mm_sound_register_focus_for_session(hcamcorder->sound_focus_id, "media", _mmcamcorder_sound_focus_cb, hcamcorder)) {
+		if (MM_ERROR_NONE != mm_sound_register_focus_for_session(hcamcorder->sound_focus_id, getpid(), "media", _mmcamcorder_sound_focus_cb, hcamcorder)) {
 			_mmcam_dbg_err("mm_sound_register_focus failed");
 			ret = MM_ERROR_POLICY_BLOCKED;
 			goto _ERR_DEFAULT_VALUE_INIT;
@@ -1043,10 +1043,11 @@ int _mmcamcorder_realize(MMHandleType handle)
 			/* set sound focus watch callback */
 			_mmcam_dbg_log("ETC - set sound focus watch callback");
 
-			ret_sound = mm_sound_set_focus_watch_callback(FOCUS_FOR_BOTH,
-								      (mm_sound_focus_changed_watch_cb)_mmcamcorder_sound_focus_watch_cb,
-								      hcamcorder,
-								      &hcamcorder->sound_focus_watch_id);
+			ret_sound = mm_sound_set_focus_watch_callback_for_session(getpid(),
+										  FOCUS_FOR_BOTH,
+										  (mm_sound_focus_changed_watch_cb)_mmcamcorder_sound_focus_watch_cb,
+										  hcamcorder,
+										  &hcamcorder->sound_focus_watch_id);
 			if (ret_sound != MM_ERROR_NONE) {
 				_mmcam_dbg_err("mm_sound_set_focus_watch_callback failed [0x%x]", ret_sound);
 
