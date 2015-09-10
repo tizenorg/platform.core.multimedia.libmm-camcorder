@@ -41,7 +41,6 @@
 #include <system_info.h>
 #include <mm_session.h>
 #include <mm_session_private.h>
-#include <mm_sound_focus.h>
 
 #include <cynara-client.h>
 
@@ -80,15 +79,6 @@ static gint     __mmcamcorder_gst_handle_library_error(MMHandleType handle, int 
 static gint     __mmcamcorder_gst_handle_core_error(MMHandleType handle, int code, GstMessage *message);
 static gint     __mmcamcorder_gst_handle_resource_warning(MMHandleType handle, GstMessage *message , GError *error);
 static gboolean __mmcamcorder_handle_gst_warning(MMHandleType handle, GstMessage *message, GError *error);
-
-/* sound focus related function */
-static void     __mmcamcorder_force_stop(mmf_camcorder_t *hcamcorder);
-void _mmcamcorder_sound_focus_cb(int id, mm_sound_focus_type_e focus_type,
-                                 mm_sound_focus_state_e focus_state, const char *reason_for_change,
-                                 const char *additional_info, void *user_data);
-void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_sound_focus_state_e focus_state,
-                                       const char *reason_for_change, const char *additional_info, void *user_data);
-
 
 #ifdef _MMCAMCORDER_USE_SET_ATTR_CB
 static gboolean __mmcamcorder_set_attr_to_camsensor_cb(gpointer data);
@@ -212,7 +202,9 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	int camera_device_count = MM_VIDEO_DEVICE_NUM;
 	int camera_default_flip = MM_FLIP_NONE;
 	int camera_facing_direction = MM_CAMCORDER_CAMERA_FACING_DIRECTION_REAR;
+#if 0
 	int resource_fd = -1;
+#endif
 	char *err_attr_name = NULL;
 	const char *ConfCtrlFile = NULL;
 	mmf_camcorder_t *hcamcorder = NULL;
@@ -367,33 +359,6 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	}
 #endif
 
-	/* Check session */
-	if (MM_ERROR_NONE == _mm_session_util_read_information(-1, &hcamcorder->session_type, &hcamcorder->session_flags)) {
-		_mmcam_dbg_log("use sound focus function.");
-		hcamcorder->sound_focus_register = TRUE;
-	} else {
-		_mmcam_dbg_log("_mm_session_util_read_information failed. skip sound focus function.");
-		hcamcorder->sound_focus_register = FALSE;
-	}
-
-	/* register sound focus */
-	if (hcamcorder->sound_focus_register) {
-		if (MM_ERROR_NONE != mm_sound_focus_get_id(&hcamcorder->sound_focus_id)) {
-			_mmcam_dbg_err("mm_sound_focus_get_uniq failed");
-			ret = MM_ERROR_POLICY_BLOCKED;
-			goto _ERR_DEFAULT_VALUE_INIT;
-		}
-
-		if (MM_ERROR_NONE != mm_sound_register_focus_for_session(hcamcorder->sound_focus_id, "media", _mmcamcorder_sound_focus_cb, hcamcorder)) {
-			_mmcam_dbg_err("mm_sound_register_focus failed");
-			ret = MM_ERROR_POLICY_BLOCKED;
-			goto _ERR_DEFAULT_VALUE_INIT;
-		}
-
-		_mmcam_dbg_log("mm_sound_register_focus done - id %d, session type %d, flags 0x%x",
-			       hcamcorder->sound_focus_id, hcamcorder->session_type, hcamcorder->session_flags);
-	}
-
 	/* Get Camera Configure information from Camcorder INI file */
 	_mmcamcorder_conf_get_info((MMHandleType)hcamcorder, CONFIGURE_TYPE_MAIN, CONFIGURE_MAIN_FILE, &hcamcorder->conf_main);
 
@@ -401,7 +366,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		_mmcam_dbg_err( "Failed to get configure(main) info." );
 
 		ret = MM_ERROR_CAMCORDER_CREATE_CONFIGURE;
-		goto _ERR_SOUND_FOCUS_REGISTER;
+		goto _ERR_DEFAULT_VALUE_INIT;
 	}
 
 	hcamcorder->attributes = _mmcamcorder_alloc_attribute((MMHandleType)hcamcorder, info);
@@ -409,7 +374,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		_mmcam_dbg_err("_mmcamcorder_create::alloc attribute error.");
 
 		ret = MM_ERROR_CAMCORDER_RESOURCE_CREATION;
-		goto _ERR_SOUND_FOCUS_REGISTER;
+		goto _ERR_DEFAULT_VALUE_INIT;
 	}
 
 	if (info->videodev_type != MM_VIDEO_DEVICE_NONE) {
@@ -438,7 +403,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			default:
 				_mmcam_dbg_err( "Not supported camera type." );
 				ret = MM_ERROR_CAMCORDER_NOT_SUPPORTED;
-				goto _ERR_SOUND_FOCUS_REGISTER;
+				goto _ERR_DEFAULT_VALUE_INIT;
 			}
 
 			_mmcam_dbg_log("videodev_type : [%d], ConfCtrlPath : [%s]", info->videodev_type, ConfCtrlFile);
@@ -451,21 +416,21 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			if (!(hcamcorder->conf_ctrl)) {
 				_mmcam_dbg_err( "Failed to get configure(control) info." );
 				ret = MM_ERROR_CAMCORDER_CREATE_CONFIGURE;
-				goto _ERR_SOUND_FOCUS_REGISTER;
+				goto _ERR_DEFAULT_VALUE_INIT;
 			}
 
 			ret = _mmcamcorder_init_convert_table((MMHandleType)hcamcorder);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("converting table initialize error!!");
 				ret = MM_ERROR_CAMCORDER_INTERNAL;
-				goto _ERR_SOUND_FOCUS_REGISTER;
+				goto _ERR_DEFAULT_VALUE_INIT;
 			}
 
 			ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, info->videodev_type);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("converting table initialize error!!");
 				ret = MM_ERROR_CAMCORDER_INTERNAL;
-				goto _ERR_SOUND_FOCUS_REGISTER;
+				goto _ERR_DEFAULT_VALUE_INIT;
 			}
 
 			/* Get device info, recommend preview fmt and display rotation from INI */
@@ -564,7 +529,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 				free(err_attr_name);
 				err_attr_name = NULL;
 				ret = MM_ERROR_CAMCORDER_INTERNAL;
-				goto _ERR_SOUND_FOCUS_REGISTER;
+				goto _ERR_DEFAULT_VALUE_INIT;
 			}
 
 			/* Get default value of brightness */
@@ -576,7 +541,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 				free(err_attr_name);
 				err_attr_name = NULL;
 				ret = MM_ERROR_CAMCORDER_INTERNAL;
-				goto _ERR_SOUND_FOCUS_REGISTER;
+				goto _ERR_DEFAULT_VALUE_INIT;
 			}
 			_mmcam_dbg_log("Default brightness : %d", hcamcorder->brightness_default);
 		} else {
@@ -596,14 +561,14 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			free(err_attr_name);
 			err_attr_name = NULL;
 			ret = MM_ERROR_CAMCORDER_INTERNAL;
-			goto _ERR_SOUND_FOCUS_REGISTER;
+			goto _ERR_DEFAULT_VALUE_INIT;
 		}
 
 		ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, info->videodev_type);
 		if (ret != MM_ERROR_NONE) {
 			_mmcam_dbg_warn("init attribute from configure error : 0x%x", ret);
 			ret = MM_ERROR_CAMCORDER_INTERNAL;
-			goto _ERR_SOUND_FOCUS_REGISTER;
+			goto _ERR_DEFAULT_VALUE_INIT;
 		}
 	}
 
@@ -611,7 +576,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	if (!ret) {
 		_mmcam_dbg_err( "Failed to initialize gstreamer!!" );
 		ret = MM_ERROR_CAMCORDER_NOT_INITIALIZED;
-		goto _ERR_SOUND_FOCUS_REGISTER;
+		goto _ERR_DEFAULT_VALUE_INIT;
 	}
 
 	/* Make some attributes as read-only type */
@@ -671,14 +636,6 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	*handle = (MMHandleType)hcamcorder;
 
 	return MM_ERROR_NONE;
-
-_ERR_SOUND_FOCUS_REGISTER:
-	/* unregister sound focus */
-	if(hcamcorder->sound_focus_register) {
-		if (MM_ERROR_NONE != mm_sound_unregister_focus(hcamcorder->sound_focus_id)) {
-			_mmcam_dbg_err("mm_sound_unregister_focus[id %d] failed", hcamcorder->sound_focus_id);
-		}
-	}
 
 _ERR_DEFAULT_VALUE_INIT:
 	/* Remove attributes */
@@ -949,6 +906,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 	int state_FROM = MM_CAMCORDER_STATE_NULL;
 	int state_TO = MM_CAMCORDER_STATE_READY;
 	int display_surface_type = MM_DISPLAY_SURFACE_X;
+	int pid_for_sound_focus = 0;
 	double motion_rate = _MMCAMCORDER_DEFAULT_RECORDING_MOTION_RATE;
 	char *videosink_element_type = NULL;
 	const char *videosink_name = NULL;
@@ -986,6 +944,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 	mm_camcorder_get_attributes(handle, NULL,
 	                            MMCAM_DISPLAY_SURFACE, &display_surface_type,
 	                            MMCAM_CAMERA_RECORDING_MOTION_RATE, &motion_rate,
+	                            MMCAM_PID_FOR_SOUND_FOCUS, &pid_for_sound_focus,
 	                            NULL);
 
 	/* set camera/recorder state to vconf key */
@@ -1041,12 +1000,18 @@ int _mmcamcorder_realize(MMHandleType handle)
 			_mmcam_dbg_log("SESSION_UNINTERRUPTIBLE - do nothing for sound focus");
 		} else {
 			/* set sound focus watch callback */
-			_mmcam_dbg_log("ETC - set sound focus watch callback");
+			if (pid_for_sound_focus == 0) {
+				_mmcam_dbg_warn("pid for sound focus is not set, so call getpid");
+				pid_for_sound_focus = getpid();
+			}
 
-			ret_sound = mm_sound_set_focus_watch_callback(FOCUS_FOR_BOTH,
-								      (mm_sound_focus_changed_watch_cb)_mmcamcorder_sound_focus_watch_cb,
-								      hcamcorder,
-								      &hcamcorder->sound_focus_watch_id);
+			_mmcam_dbg_log("ETC - set sound focus watch callback - pid %d", pid_for_sound_focus);
+
+			ret_sound = mm_sound_set_focus_watch_callback_for_session(pid_for_sound_focus,
+										  FOCUS_FOR_BOTH,
+										  (mm_sound_focus_changed_watch_cb)_mmcamcorder_sound_focus_watch_cb,
+										  hcamcorder,
+										  &hcamcorder->sound_focus_watch_id);
 			if (ret_sound != MM_ERROR_NONE) {
 				_mmcam_dbg_err("mm_sound_set_focus_watch_callback failed [0x%x]", ret_sound);
 
@@ -3545,7 +3510,7 @@ void _mmcamcorder_video_current_framerate_init(MMHandleType handle)
 }
 
 
-static void __mmcamcorder_force_stop(mmf_camcorder_t *hcamcorder)
+void __mmcamcorder_force_stop(mmf_camcorder_t *hcamcorder)
 {
 	int i = 0;
 	int loop = 0;

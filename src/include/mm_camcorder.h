@@ -1232,6 +1232,11 @@ extern "C" {
  */
 #define MMCAM_DISPLAY_SHM_SOCKET_PATH		"display-shm-socket-path"
 
+/**
+ * PID for sound focus
+ */
+#define MMCAM_PID_FOR_SOUND_FOCUS               "pid-for-sound-focus"
+
 
 /*=======================================================================================
 | ENUM DEFINITIONS									|
