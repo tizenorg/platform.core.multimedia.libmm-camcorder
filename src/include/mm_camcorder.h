@@ -3227,6 +3227,24 @@ gboolean stop_autofocus()
 int mm_camcorder_stop_focusing(MMHandleType camcorder);
 
 /**
+ *    mm_camcorder_get_video_caps:\n
+ *  Stop focusing. This function halts focusing operation.\n
+ *  This is the function to stop focusing in the middle of the operation. So if focusing is already finished or not started yet,
+ *  this function will do nothing.
+ *
+ *	@param[in]	camcorder	A handle of camcorder.
+ *	@return		This function returns zero(MM_ERROR_NONE) on success, or negative value with error code.\n
+ *			Please refer 'mm_error.h' to know the exact meaning of the error.
+ *	@see		mm_camcorder_create
+ *	@pre		mm_camcorder_realize() should be called before calling this function. 
+ *	@post		None
+ *	@remarks	None
+ *	@par example
+ *	@code
+ */
+int mm_camcorder_get_video_caps(MMHandleType handle, char **caps);
+
+/**
 	@}
  */
 
