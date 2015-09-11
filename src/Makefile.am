@@ -74,12 +74,12 @@ libmmfcamcorder_la_LDFLAGS = -Wl,--gc-sections \
 libmmfcamcorder_la_LIBADD += $(SYSTEMINFO_LIBS)
 
 if WAYLAND_SUPPORT
-includelibmmfcamcorder_HEADERS += include/mm_camcorder_mused.h
-libmmfcamcorder_la_SOURCES += mm_camcorder_mused.c
+includelibmmfcamcorder_HEADERS += include/mm_camcorder_client.h
+libmmfcamcorder_la_SOURCES += mm_camcorder_client.c
 libmmfcamcorder_la_CFLAGS += $(GST_WAYLAND_CFLAGS)
 libmmfcamcorder_la_LIBADD += $(GST_WAYLAND_LIBS)
 else
-noinst_HEADERS += include/mm_camcorder_mused.h
+noinst_HEADERS += include/mm_camcorder_client.h
 endif
 
 install-exec-hook:

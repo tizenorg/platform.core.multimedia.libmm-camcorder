@@ -35,6 +35,7 @@
 #include <mm_attrs.h>
 #include <mm_attrs_private.h>
 #include <mm_message.h>
+#include <mm_sound_focus.h>
 #include <sndfile.h>
 #include <vconf.h>
 #include <gst/video/video-format.h>
@@ -459,7 +460,6 @@ typedef enum {
 
 	/* Pipeline element of Video output */
 	_MMCAMCORDER_VIDEOSINK_QUE,
-	_MMCAMCORDER_VIDEOSINK_CLS,
 	_MMCAMCORDER_VIDEOSINK_SINK,
 
 	_MMCAMCORDER_PIPELINE_ELEMENT_NUM,
@@ -1159,6 +1159,14 @@ int _mmcamcorder_read_vidsrc_info(int videodevidx, camera_conf **configure_info)
 void _mmcamcorder_video_current_framerate_init(MMHandleType handle);
 int _mmcamcorder_video_current_framerate(MMHandleType handle);
 int _mmcamcorder_video_average_framerate(MMHandleType handle);
+
+/* sound focus related function */
+void __mmcamcorder_force_stop(mmf_camcorder_t *hcamcorder);
+void _mmcamcorder_sound_focus_cb(int id, mm_sound_focus_type_e focus_type,
+                                 mm_sound_focus_state_e focus_state, const char *reason_for_change,
+                                 const char *additional_info, void *user_data);
+void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_sound_focus_state_e focus_state,
+                                       const char *reason_for_change, const char *additional_info, void *user_data);
 
 #ifdef __cplusplus
 }
