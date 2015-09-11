@@ -56,6 +56,12 @@ typedef enum {
 	/* Pipeline element of Video input */
 	_MMCAMCORDER_CLIENT_VIDEOSRC_SRC,
 
+	/* Pipeline element of Video Sink Queue */
+	_MMCAMCORDER_CLIENT_VIDEOSINK_QUE,
+
+	/* Pipeline element of Video Sink CLS */
+	_MMCAMCORDER_CLIENT_VIDEOSINK_CLS,
+
 	/* Pipeline element of Video output */
 	_MMCAMCORDER_CLIENT_VIDEOSINK_SINK,
 
@@ -63,11 +69,11 @@ typedef enum {
 	_MMCAMCORDER_CLIENT_PIPELINE_ELEMENT_NUM
 } _MMCAMCORDER_PREVIEW_CLIENT_PIPELINE_ELELMENT;
 
-int mm_camcorder_mused_create(MMHandleType *handle);
-void mm_camcorder_mused_destroy(MMHandleType handle);
-int mm_camcorder_mused_realize(MMHandleType handle, char *caps);
-int mm_camcorder_mused_unrealize(MMHandleType handle);
-int mm_camcorder_mused_pre_unrealize(MMHandleType handle);
+int mm_camcorder_client_create(MMHandleType *handle);
+void mm_camcorder_client_destroy(MMHandleType handle);
+int mm_camcorder_client_realize(MMHandleType handle, char *caps);
+int mm_camcorder_client_unrealize(MMHandleType handle);
+int mm_camcorder_client_pre_unrealize(MMHandleType handle);
 /**
  * This function get string of raw video caps.
  * To be used by server.
@@ -80,7 +86,7 @@ int mm_camcorder_mused_pre_unrealize(MMHandleType handle);
  * @see
  * @since
  */
-int mm_camcorder_mused_get_video_caps(MMHandleType handle, char **caps);
+int mm_camcorder_client_get_video_caps(MMHandleType handle, char **caps);
 
 /**
  * This function set "socket-path" element property of shmsink/src.
@@ -94,24 +100,24 @@ int mm_camcorder_mused_get_video_caps(MMHandleType handle, char **caps);
  * @see
  * @since
  */
-int mm_camcorder_mused_set_shm_socket_path(MMHandleType handle, const char *path);
+int mm_camcorder_client_set_shm_socket_path(MMHandleType handle, const char *path);
 
 
 /**
  * Determines the shm stream path
  */
-#define MMCAM_MUSED_DISPLAY_SHM_SOCKET_PATH		"mused-display-shm-socket-path"
+#define MMCAM_DISPLAY_SHM_SOCKET_PATH		"display-shm-socket-path"
 
 /**
  * Surface of display.
  * @see		MMDisplaySurfaceType (in mm_types.h)
  */
-#define MMCAM_MUSED_DISPLAY_SURFACE                    "mused-display-surface"
+#define MMCAM_DISPLAY_SURFACE                    "display-surface"
 
 /**
  * Pointer of display buffer or ID of xwindow.
  */
-#define MMCAM_MUSED_DISPLAY_HANDLE                    "mused-display-handle"
+#define MMCAM_DISPLAY_HANDLE                    "display-handle"
 
 #define SOCKET_PATH_LENGTH 32
 #define SOCKET_PATH_BASE "/tmp/mused_gst.%d"

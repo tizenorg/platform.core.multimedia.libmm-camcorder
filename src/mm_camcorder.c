@@ -396,3 +396,8 @@ int mm_camcorder_stop_focusing(MMHandleType camcorder)
 
 	return error;
 }
+
+int mm_camcorder_get_video_caps(MMHandleType handle, char **caps)
+{
+	return _mmcamcorder_get_video_caps(handle, caps);
+}
