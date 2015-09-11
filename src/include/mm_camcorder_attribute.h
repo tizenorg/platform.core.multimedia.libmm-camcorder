@@ -173,6 +173,7 @@ typedef enum
 	MM_CAM_SUPPORT_MEDIA_PACKET_PREVIEW_CB,
 	MM_CAM_RECORDER_TAG_ENABLE,
 	MM_CAM_DISPLAY_SHM_SOCKET_PATH,
+	MM_CAM_PID_FOR_SOUND_FOCUS,
 	MM_CAM_ATTRIBUTE_NUM
 }MMCamcorderAttrsID;
 
@@ -364,6 +365,7 @@ bool _mmcamcorder_commit_strobe(MMHandleType handle, int attr_idx, const mmf_val
 bool _mmcamcorder_commit_detect(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_flip(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_hdr_capture(MMHandleType handle, int attr_idx, const mmf_value_t *value);
+bool _mmcamcorder_commit_pid_for_sound_focus(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 
 /**
  * This function initialize effect setting.
