@@ -459,7 +459,6 @@ typedef enum {
 
 	/* Pipeline element of Video output */
 	_MMCAMCORDER_VIDEOSINK_QUE,
-	_MMCAMCORDER_VIDEOSINK_CLS,
 	_MMCAMCORDER_VIDEOSINK_SINK,
 
 	_MMCAMCORDER_PIPELINE_ELEMENT_NUM,
@@ -1159,6 +1158,9 @@ int _mmcamcorder_read_vidsrc_info(int videodevidx, camera_conf **configure_info)
 void _mmcamcorder_video_current_framerate_init(MMHandleType handle);
 int _mmcamcorder_video_current_framerate(MMHandleType handle);
 int _mmcamcorder_video_average_framerate(MMHandleType handle);
+
+/* For hand over the server's caps informations to client */
+int _mmcamcorder_get_video_caps(MMHandleType handle, char **caps);
 
 #ifdef __cplusplus
 }

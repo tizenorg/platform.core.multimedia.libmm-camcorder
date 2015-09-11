@@ -35,7 +35,7 @@
 
 #include "mm_camcorder_internal.h"
 #include "mm_camcorder_gstcommon.h"
-#include "mm_camcorder_mused.h"
+#include "mm_camcorder_client.h"
 
 /*-----------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal				|
@@ -300,33 +300,18 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 
 	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_QUE, "queue", "videosink_queue", element_list, err);
 
-	/* Add color converting element */
-	if (!strcmp(videosink_name, "evasimagesink") || !strcmp(videosink_name, "ximagesink")) {
-		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_CLS, "videoconvert", "videosrc_convert", element_list, err);
-	}
-
-	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_SINK, videosink_name, "videosink_sink", element_list, err);
-
-	if (strcmp(videosink_name, "fakesink") != 0 && strcmp(videosink_name, "shmsink") != 0) {
-
-		if (_mmcamcorder_videosink_window_set(handle, sc->VideosinkElement) != MM_ERROR_NONE) {
-			_mmcam_dbg_err("_mmcamcorder_videosink_window_set error");
-			err = MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
-			goto pipeline_creation_error;
-		}
-	} else if ( strcmp(videosink_name, "shmsink") == 0 ) {
-		_mmcam_dbg_log("socket_path : %s", socket_path);
-		g_object_set(G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst),
-				"socket-path", socket_path,
-				"wait-for-connection", FALSE,
-				"sync", TRUE,
-				NULL);
-	}
+	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_SINK, "shm_sink", "ipc_sink", element_list, err);
+	
+	_mmcam_dbg_log("socket_path : %s", socket_path);
+	g_object_set(G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst),
+			"socket-path", socket_path,
+			"wait-for-connection", FALSE,
+			"perms", 0777,
+			"sync", TRUE,
+			NULL);
 
 	/* Set caps by rotation */
 	_mmcamcorder_set_videosrc_rotation(handle, camera_rotate);
-
-	_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, sc->VideosinkElement);
 
 	/* add elements to main pipeline */
 	if (!_mmcamcorder_add_elements_to_bin(GST_BIN(sc->element[_MMCAMCORDER_MAIN_PIPE].gst), element_list)) {
@@ -358,7 +343,6 @@ pipeline_creation_error:
 	_MMCAMCORDER_ELEMENT_REMOVE(sc->element, _MMCAMCORDER_VIDEOSRC_QUE);
 	_MMCAMCORDER_ELEMENT_REMOVE(sc->element, _MMCAMCORDER_VIDEOSRC_DECODE);
 	_MMCAMCORDER_ELEMENT_REMOVE(sc->element, _MMCAMCORDER_VIDEOSINK_QUE);
-	_MMCAMCORDER_ELEMENT_REMOVE(sc->element, _MMCAMCORDER_VIDEOSINK_CLS);
 	_MMCAMCORDER_ELEMENT_REMOVE(sc->element, _MMCAMCORDER_VIDEOSINK_SINK);
 
 	if (element_list) {
