@@ -1,9 +1,9 @@
 /*
  * libmm-camcorder
  *
- * Copyright (c) 2000 - 2015 Samsung Electronics Co., Ltd. All rights reserved.
+ * Copyright (c) 2000 - 2011 Samsung Electronics Co., Ltd. All rights reserved.
  *
- * Contact: Sejong Park <sejong123.park@samsung.com>
+ * Contact: Jeongmo Yang <jm80.yang@samsung.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ typedef enum
 MMHandleType
 _mmcamcorder_mused_alloc_attribute(MMHandleType handle)
 {
-	_mmcam_dbg_log( "" );
+	_mmcam_dbg_warn( "" );
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	MMHandleType attrs = 0;
@@ -76,7 +76,7 @@ _mmcamcorder_mused_alloc_attribute(MMHandleType handle)
 	}
 
 	/* Create attribute constructor */
-	_mmcam_dbg_log("start");
+	_mmcam_dbg_warn("start");
 
 	/* alloc 'mmf_attrs_construct_info_t' */
 	attr_count = MM_CAM_MUSED_CLIENT_ATTRIBUTE_NUM;
@@ -152,7 +152,7 @@ _mmcamcorder_mused_alloc_attribute(MMHandleType handle)
 	}
 
 	/* Camcorder Attributes */
-	_mmcam_dbg_log("Create Camcorder Attributes[%p, %d]", attrs_const_info, attr_count);
+	_mmcam_dbg_warn("Create Camcorder Attributes[%p, %d]", attrs_const_info, attr_count);
 
 	attrs = mmf_attrs_new_from_data("Camcorder_Mused_Attributes",
 	                                attrs_const_info,
@@ -172,7 +172,7 @@ _mmcamcorder_mused_alloc_attribute(MMHandleType handle)
 
 	for (idx = 0; idx < attr_count; idx++)
 	{
-		_mmcam_dbg_log("Valid type [%s]", hcamcorder->cam_attrs_const_info[idx].name);
+		_mmcam_dbg_warn("Valid type [%s]", hcamcorder->cam_attrs_const_info[idx].name);
 
 		mmf_attrs_set_valid_type (attrs, idx, hcamcorder->cam_attrs_const_info[idx].validity_type);
 
@@ -221,6 +221,97 @@ _mmcamcorder_mused_alloc_attribute(MMHandleType handle)
 	return attrs;
 }
 
+static gboolean __mmcamcorder_mused_gstreamer_init(void)
+{
+	static const int max_argc = 10;
+	int i = 0;
+	int cnt_str = 0;
+	gint *argc = NULL;
+	gchar **argv = NULL;
+	GError *err = NULL;
+	gboolean ret = FALSE;
+	type_string_array *GSTInitOption = NULL;
+
+	_mmcam_dbg_log("");
+
+	/* alloc */
+	argc = malloc(sizeof(int));
+	argv = malloc(sizeof(gchar *) * max_argc);
+
+	if (!argc || !argv) {
+		goto ERROR;
+	}
+
+	memset(argv, 0, sizeof(gchar *) * max_argc);
+
+	/* add initial */
+	*argc = 1;
+	argv[0] = g_strdup("mmcamcorder_client");
+
+	_mmcam_dbg_log("initializing gstreamer with following parameter[argc:%d]", *argc);
+
+	argv[*argc] = g_strdup("--gst-disable-registry-fork");
+	(*argc)++;
+
+	argv[*argc] = g_strdup("--gst-enable-tiny-registry");
+	(*argc)++;
+
+	argv[*argc] = g_strdup("--gst-disable-segtrap");
+	(*argc)++;
+
+	argv[*argc] = g_strdup("--gst-debug=3");
+	(*argc)++;
+
+	for (i = 0; i < *argc; i++) {
+		_mmcam_dbg_log("argv[%d] : %s", i, argv[i]);
+	}
+
+	/* initializing gstreamer */
+	ret = gst_init_check (argc, &argv, &err);
+	if (!ret) {
+		_mmcam_dbg_err("Could not initialize GStreamer: %s ",
+		               err ? err->message : "unknown error occurred");
+		if (err) {
+			g_error_free (err);
+		}
+	}
+
+	/* release */
+	for (i = 0; i < *argc; i++) {
+		if (argv[i]) {
+			free(argv[i]);
+			argv[i] = NULL;
+		}
+	}
+
+	if (argv) {
+		free(argv);
+		argv = NULL;
+	}
+
+	if (argc) {
+		free(argc);
+		argc = NULL;
+	}
+
+	return ret;
+
+ERROR:
+	_mmcam_dbg_err("failed to initialize gstreamer");
+
+	if (argv) {
+		free(argv);
+		argv = NULL;
+	}
+
+	if (argc) {
+		free(argc);
+		argc = NULL;
+	}
+
+	return FALSE;
+}
+
 int mm_camcorder_mused_create(MMHandleType *handle)
 {
 	int ret = MM_ERROR_NONE;
@@ -237,7 +328,7 @@ int mm_camcorder_mused_create(MMHandleType *handle)
 	mmf_camcorder_t *hcamcorder = NULL;
 	type_element *EvasSurfaceElement = NULL;
 
-	_mmcam_dbg_log("Enter");
+	_mmcam_dbg_warn("Enter");
 
 	mmf_return_val_if_fail(handle, MM_ERROR_CAMCORDER_INVALID_ARGUMENT);
 
@@ -270,7 +361,7 @@ int mm_camcorder_mused_create(MMHandleType *handle)
 		ret = MM_ERROR_CAMCORDER_CREATE_CONFIGURE;
 		goto _ERR_AFTER_ASM_REGISTER;
 	}
-	_mmcam_dbg_log("aloc attribute handle : 0x%x", (MMHandleType)hcamcorder);
+	_mmcam_dbg_warn("aloc attribute handle : 0x%x", (MMHandleType)hcamcorder);
 	hcamcorder->attributes = _mmcamcorder_mused_alloc_attribute((MMHandleType)hcamcorder);
 	if (!(hcamcorder->attributes)) {
 		_mmcam_dbg_err("_mmcamcorder_create::alloc attribute error.");
@@ -278,14 +369,18 @@ int mm_camcorder_mused_create(MMHandleType *handle)
 		ret = MM_ERROR_CAMCORDER_RESOURCE_CREATION;
 		goto _ERR_AFTER_ASM_REGISTER;
 	}
+	/*
+	if (FALSE == __mmcamcorder_mused_gstreamer_init()) {
+		_mmcam_dbg_warn("gst init failed");
+	}*/
 
 	/* Set initial state */
 	_mmcamcorder_set_state((MMHandleType)hcamcorder, MM_CAMCORDER_STATE_NULL);
 
-	_mmcam_dbg_log("created handle %p", hcamcorder);
+	_mmcam_dbg_warn("created handle %p", hcamcorder);
 
 	*handle = (MMHandleType)hcamcorder;
-	_mmcam_dbg_log("created client handle : 0x%x", *handle);
+	_mmcam_dbg_warn("created client handle : 0x%x", *handle);
 
 	return MM_ERROR_NONE;
 
@@ -332,7 +427,7 @@ int _mmcamcorder_mused_videosink_window_set(MMHandleType handle)
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderSubContext *sc = NULL;
 
-	_mmcam_dbg_log("Enter");
+	_mmcam_dbg_warn("Enter");
 
 	mmf_return_val_if_fail(hcamcorder, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
 
@@ -388,9 +483,19 @@ void __mmcamcorder_mused_gst_destroy_pipeline(MMHandleType handle)
 	_MMCamcorderSubContext *sc;
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
 
-	_MMCAMCORDER_ELEMENT_REMOVE(sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_SRC);
-	_MMCAMCORDER_ELEMENT_REMOVE(sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_SINK);
-	_MMCAMCORDER_ELEMENT_REMOVE(sc->element, _MMCAMCORDER_CLIENT_MAIN_PIPE);
+	if (sc->element[_MMCAMCORDER_CLIENT_MAIN_PIPE].gst) {
+		_mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_CLIENT_MAIN_PIPE].gst, GST_STATE_NULL);
+
+		_mmcamcorder_remove_all_handlers(handle, _MMCAMCORDER_HANDLER_CATEGORY_ALL);
+
+		gst_object_unref(sc->element[_MMCAMCORDER_CLIENT_MAIN_PIPE].gst);
+
+		/* NULL initialization will be done in _mmcamcorder_element_release_noti */
+	}
+
+	//_MMCAMCORDER_ELEMENT_REMOVE(sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_SRC);
+	//_MMCAMCORDER_ELEMENT_REMOVE(sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_SINK);
+	//_MMCAMCORDER_ELEMENT_REMOVE(sc->element, _MMCAMCORDER_CLIENT_MAIN_PIPE);
 	return;
 }
 
@@ -399,13 +504,26 @@ void mm_camcorder_mused_destroy(MMHandleType handle)
 	int result = MM_ERROR_NONE;
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
+	_mmcam_dbg_warn("try lock");
 	_MMCAMCORDER_TRYLOCK_CMD(hcamcorder);
+	if (hcamcorder->attributes) {
+		_mmcamcorder_dealloc_attribute(handle, hcamcorder->attributes);
+	}
 
-	__mmcamcorder_mused_gst_destroy_pipeline(handle);
-	_mmcamcorder_dealloc_attribute(handle, hcamcorder->attributes);
-	g_free(handle);
-
+	_mmcam_dbg_warn("unlock");
 	_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
+
+	pthread_mutex_destroy(&((hcamcorder->mtsafe).lock));
+	pthread_cond_destroy(&((hcamcorder->mtsafe).cond));
+	pthread_mutex_destroy(&((hcamcorder->mtsafe).cmd_lock));
+	pthread_mutex_destroy(&((hcamcorder->mtsafe).state_lock));
+	pthread_mutex_destroy(&((hcamcorder->mtsafe).gst_state_lock));
+	pthread_mutex_destroy(&((hcamcorder->mtsafe).message_cb_lock));
+	pthread_mutex_destroy(&(hcamcorder->restart_preview_lock));
+	_mmcamcorder_set_state((MMHandleType)hcamcorder, MM_CAMCORDER_STATE_NONE);
+	/* Release handle */
+	memset(hcamcorder, 0x00, sizeof(mmf_camcorder_t));
+	free(hcamcorder);
 
 	return;
 }
@@ -481,6 +599,8 @@ int _mmcamcorder_mused_realize(MMHandleType handle, char *string_caps)
 	mm_camcorder_get_attributes(handle, NULL,
 	                            MMCAM_MUSED_DISPLAY_SHM_SOCKET_PATH, &socket_path, &socket_path_length,
 	                            NULL);
+
+	_mmcam_dbg_err("shm src socket path : %s", socket_path);
 
 	g_object_set(sc->element[_MMCAMCORDER_CLIENT_VIDEOSRC_SRC].gst,
 			"socket-path", socket_path,
@@ -559,7 +679,7 @@ int _mmcamcorder_mused_unrealize(MMHandleType handle)
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
-	_mmcam_dbg_log("");
+	_mmcam_dbg_warn("");
 
 	if (!hcamcorder) {
 		_mmcam_dbg_err("Not initialized");
@@ -567,22 +687,24 @@ int _mmcamcorder_mused_unrealize(MMHandleType handle)
 		return ret;
 	}
 
+	_mmcam_dbg_warn("try lock");
 	if (!_MMCAMCORDER_TRYLOCK_CMD(hcamcorder)) {
 		_mmcam_dbg_err("Another command is running.");
 		ret = MM_ERROR_CAMCORDER_CMD_IS_RUNNING;
 		goto _ERR_CAMCORDER_CMD_PRECON;
 	}
-
+	_mmcam_dbg_warn(" ");
 	state = _mmcamcorder_get_state(handle);
 	if (state != state_FROM) {
 		_mmcam_dbg_err("Wrong state(%d)", state);
 		ret = MM_ERROR_CAMCORDER_INVALID_STATE;
 		goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 	}
-
+	_mmcam_dbg_warn(" ");
 	/* Release SubContext */
 	if (hcamcorder->sub_context) {
 		/* destroy pipeline */
+		_mmcam_dbg_warn(" ");
 		__mmcamcorder_mused_gst_destroy_pipeline(handle);
 		/* Deallocate SubContext */
 		_mmcamcorder_dealloc_subcontext(hcamcorder->sub_context);
@@ -592,6 +714,7 @@ int _mmcamcorder_mused_unrealize(MMHandleType handle)
 	/* Deinitialize main context member */
 	hcamcorder->command = NULL;
 
+	_mmcam_dbg_warn("un lock");
 	_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
 
 	_mmcamcorder_set_state(handle, state_TO);
@@ -599,6 +722,7 @@ int _mmcamcorder_mused_unrealize(MMHandleType handle)
 	return MM_ERROR_NONE;
 
 _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK:
+	_mmcam_dbg_warn("un lock");
 	_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
 
 _ERR_CAMCORDER_CMD_PRECON:
@@ -618,64 +742,15 @@ int mm_camcorder_mused_unrealize(MMHandleType handle)
 	return ret;
 }
 
-static int _mmcamcorder_get_video_caps(MMHandleType handle, char **caps)
-{
-	int ret = MM_ERROR_NONE;
-	GstPad *pad = NULL;
-	GstCaps *sink_caps = NULL;
-
-	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
-	_MMCamcorderSubContext *sc = NULL;
-
-	if (!_MMCAMCORDER_TRYLOCK_CMD(hcamcorder)) {
-		_mmcam_dbg_err("Another command is running.");
-		return MM_ERROR_CAMCORDER_CMD_IS_RUNNING;
-	}
-
-	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
-	_mmcam_dbg_log("Entered ");
-	pad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_CLIENT_VIDEOSINK_SINK].gst, "sink");
-	if(!pad) {
-		_mmcam_dbg_err("static pad is NULL");
-		_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
-		return MM_ERROR_CAMCORDER_INVALID_STATE;
-	}
-
-	sink_caps = gst_pad_get_current_caps(pad);
-	gst_object_unref( pad );
-	if(!sink_caps) {
-		_mmcam_dbg_err("fail to get caps");
-		_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
-		return MM_ERROR_CAMCORDER_INVALID_STATE;
-	}
-
-	*caps = gst_caps_to_string(sink_caps);
-	_mmcam_dbg_err("video caps : %s", *caps);
-	gst_caps_unref(sink_caps);
-
-	_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
-
-	return MM_ERROR_NONE;
-}
-
-int mm_camcorder_mused_get_video_caps(MMHandleType handle, char **caps)
-{
-	return _mmcamcorder_get_video_caps(handle, caps);
-}
-
 static int _mmcamcorder_mused_set_shm_socket_path(MMHandleType handle, const char *path)
 {
 	int ret = MM_ERROR_NONE;
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
-	_mmcam_dbg_log("aloc attribute handle : 0x%x, path:%s", handle, path);
-
-	_MMCAMCORDER_TRYLOCK_CMD(hcamcorder);
+	_mmcam_dbg_warn("handle : 0x%x, path:%s", handle, path);
 
 	mm_camcorder_set_attributes(handle, NULL,
 	                            MMCAM_MUSED_DISPLAY_SHM_SOCKET_PATH, path, strlen(path),
 	                            NULL);
-
-	_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
 
 	return ret;
 }
@@ -687,7 +762,7 @@ int mm_camcorder_mused_set_shm_socket_path(MMHandleType handle, const char *path
 {
 	int result = MM_ERROR_NONE;
 
-	_mmcam_dbg_log("Entered ");
+	_mmcam_dbg_warn("Entered ");
 	result = _mmcamcorder_mused_set_shm_socket_path(handle, path);
 
 	return result;

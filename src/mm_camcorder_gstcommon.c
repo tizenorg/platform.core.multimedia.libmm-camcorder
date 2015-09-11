@@ -319,6 +319,7 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 		g_object_set(G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst),
 				"socket-path", socket_path,
 				"wait-for-connection", FALSE,
+				"perms", 0777,
 				"sync", TRUE,
 				NULL);
 	}

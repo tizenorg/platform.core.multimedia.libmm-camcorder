@@ -4,7 +4,8 @@ lib_LTLIBRARIES = libmmfcamcorder.la
 
 includelibmmfcamcorderdir = $(includedir)/mmf
 
-includelibmmfcamcorder_HEADERS = include/mm_camcorder.h
+includelibmmfcamcorder_HEADERS = include/mm_camcorder.h \
+				 include/mm_camcorder_mused.h
 
 noinst_HEADERS = include/mm_camcorder_audiorec.h \
 		 include/mm_camcorder_attribute.h \
@@ -75,7 +76,7 @@ libmmfcamcorder_la_LIBADD += $(SYSTEMINFO_LIBS)
 
 if WAYLAND_SUPPORT
 includelibmmfcamcorder_HEADERS += include/mm_camcorder_mused.h
-libmmfcamcorder_la_SOURCES += mm_camcorder_mused.c
+libmmfcamcorder_la_SOURCES += mm_camcorder_client.c
 libmmfcamcorder_la_CFLAGS += $(GST_WAYLAND_CFLAGS)
 libmmfcamcorder_la_LIBADD += $(GST_WAYLAND_LIBS)
 else
