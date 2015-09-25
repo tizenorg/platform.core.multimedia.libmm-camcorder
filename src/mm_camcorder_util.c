@@ -636,8 +636,15 @@ gboolean _mmcamcorder_update_composition_matrix(FILE *f, int orientation)
 int _mmcamcorder_get_freespace(const gchar *path, const gchar *root_directory, guint64 *free_space)
 {
 	int ret = 0;
-	int is_internal = 0;
 	struct statvfs vfs;
+
+	/*
+	* TEMPORARILY disabled (The internal / external storage distinguisher codes)
+	* : Since the camera / recorder module is working through the Muse Daemon Process,
+	*   There is an user's root path issue by the different process from the client's.
+	*/
+#if 0
+	int is_internal = 0;
 	struct stat stat_path;
 	struct stat stat_root;
 
@@ -669,6 +676,9 @@ int _mmcamcorder_get_freespace(const gchar *path, const gchar *root_directory, g
 	} else {
 		ret = storage_get_external_memory_size(&vfs);
 	}
+#else
+	ret = storage_get_internal_memory_size(&vfs);
+#endif
 
 	if (ret < 0) {
 		*free_space = 0;
