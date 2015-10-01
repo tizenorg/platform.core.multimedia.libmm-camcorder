@@ -910,6 +910,8 @@ int _mmcamcorder_realize(MMHandleType handle)
 	double motion_rate = _MMCAMCORDER_DEFAULT_RECORDING_MOTION_RATE;
 	char *videosink_element_type = NULL;
 	const char *videosink_name = NULL;
+	char *socket_path = NULL;
+	int socket_path_len;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
@@ -945,6 +947,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 	                            MMCAM_DISPLAY_SURFACE, &display_surface_type,
 	                            MMCAM_CAMERA_RECORDING_MOTION_RATE, &motion_rate,
 	                            MMCAM_PID_FOR_SOUND_FOCUS, &pid_for_sound_focus,
+	                            MMCAM_DISPLAY_SHM_SOCKET_PATH, &socket_path, &socket_path_len,
 	                            NULL);
 
 	/* set camera/recorder state to vconf key */
@@ -1068,6 +1071,11 @@ int _mmcamcorder_realize(MMHandleType handle)
 	default:
 		videosink_element_type = strdup("VideosinkElementX");
 		break;
+	}
+
+	if (socket_path == NULL) {
+		_mmcam_dbg_warn("Socket Path is not properly set, -> to NullSink.");
+		videosink_element_type = strdup("VideosinkElementNull");
 	}
 
 	/* check string of videosink element */

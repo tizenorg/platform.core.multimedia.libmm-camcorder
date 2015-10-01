@@ -579,7 +579,7 @@ _mmcamcorder_client_alloc_attribute(MMHandleType handle)
 	mm_cam_attr_construct_info temp_info[] = {
 		{
 			MM_CAM_CLIENT_DISPLAY_SHM_SOCKET_PATH,
-			"mused-display-shm-socket-path",
+			MMCAM_DISPLAY_SHM_SOCKET_PATH,
 			MMF_VALUE_TYPE_STRING,
 			MM_ATTRS_FLAG_RW,
 			{(void*)NULL},
