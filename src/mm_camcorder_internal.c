@@ -910,6 +910,8 @@ int _mmcamcorder_realize(MMHandleType handle)
 	double motion_rate = _MMCAMCORDER_DEFAULT_RECORDING_MOTION_RATE;
 	char *videosink_element_type = NULL;
 	const char *videosink_name = NULL;
+	char *socket_path = NULL;
+	int socket_path_len;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
@@ -945,6 +947,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 	                            MMCAM_DISPLAY_SURFACE, &display_surface_type,
 	                            MMCAM_CAMERA_RECORDING_MOTION_RATE, &motion_rate,
 	                            MMCAM_PID_FOR_SOUND_FOCUS, &pid_for_sound_focus,
+	                            MMCAM_DISPLAY_SHM_SOCKET_PATH, &socket_path, &socket_path_len,
 	                            NULL);
 
 	/* set camera/recorder state to vconf key */
@@ -1068,6 +1071,11 @@ int _mmcamcorder_realize(MMHandleType handle)
 	default:
 		videosink_element_type = strdup("VideosinkElementX");
 		break;
+	}
+
+	if (socket_path == NULL) {
+		_mmcam_dbg_warn("Socket Path is not properly set, -> to NullSink.");
+		videosink_element_type = strdup("VideosinkElementNull");
 	}
 
 	/* check string of videosink element */
@@ -3970,6 +3978,34 @@ static gint __mmcamcorder_gst_handle_resource_warning(MMHandleType handle, GstMe
 		_mmcam_dbg_warn("General GST warning(%d)", error->code);
 		break;
 	}
+
+	return MM_ERROR_NONE;
+}
+
+int _mmcamcorder_get_video_caps(MMHandleType handle, char **caps)
+{
+	GstPad *pad = NULL;
+	GstCaps *sink_caps = NULL;
+	_MMCamcorderSubContext *sc = NULL;
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	_mmcam_dbg_warn("Entered ");
+	pad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "sink");
+	if(!pad) {
+		_mmcam_dbg_err("static pad is NULL");
+		return MM_ERROR_CAMCORDER_INVALID_STATE;
+	}
+
+	sink_caps = gst_pad_get_current_caps(pad);
+	gst_object_unref( pad );
+	if(!sink_caps) {
+		_mmcam_dbg_err("fail to get caps");
+		return MM_ERROR_CAMCORDER_INVALID_STATE;
+	}
+
+	*caps = gst_caps_to_string(sink_caps);
+	_mmcam_dbg_err("video caps : %s", *caps);
+	gst_caps_unref(sink_caps);
 
 	return MM_ERROR_NONE;
 }
