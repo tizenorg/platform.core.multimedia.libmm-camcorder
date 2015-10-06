@@ -16,7 +16,7 @@ noinst_HEADERS = include/mm_camcorder_audiorec.h \
 		 include/mm_camcorder_stillshot.h \
 		 include/mm_camcorder_videorec.h \
 		 include/mm_camcorder_util.h \
-		 include/mm_camcorder_exifinfo.h\
+		 include/mm_camcorder_exifinfo.h \
 		 include/mm_camcorder_exifdef.h \
 		 include/mm_camcorder_sound.h
 
