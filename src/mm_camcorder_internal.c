@@ -42,7 +42,6 @@
 #include <mm_session.h>
 #include <mm_session_private.h>
 
-#include <cynara-client.h>
 
 /*---------------------------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal						|
@@ -62,8 +61,6 @@ struct sigaction mm_camcorder_sys_old_action;
 #define __MMCAMCORDER_FORCE_STOP_TRY_COUNT      30
 #define __MMCAMCORDER_FORCE_STOP_WAIT_TIME      100000  /* us */
 #define __MMCAMCORDER_SOUND_WAIT_TIMEOUT        3
-#define __MMCAMCORDER_PATH_CAMERA_RESOURCE      "/usr/share/sounds/mm-camcorder/camera_resource"
-#define __MMCAMCORDER_PATH_RECORDER_RESOURCE    "/usr/share/sounds/mm-camcorder/recorder_resource"
 
 
 /*---------------------------------------------------------------------------------------
@@ -202,9 +199,6 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	int camera_device_count = MM_VIDEO_DEVICE_NUM;
 	int camera_default_flip = MM_FLIP_NONE;
 	int camera_facing_direction = MM_CAMCORDER_CAMERA_FACING_DIRECTION_REAR;
-#if 0
-	int resource_fd = -1;
-#endif
 	char *err_attr_name = NULL;
 	const char *ConfCtrlFile = NULL;
 	mmf_camcorder_t *hcamcorder = NULL;
@@ -272,92 +266,6 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	/* set device type */
 	hcamcorder->device_type = info->videodev_type;
 	_mmcam_dbg_warn("Device Type : %d", hcamcorder->device_type);
-#if 0
-	if (hcamcorder->device_type == MM_VIDEO_DEVICE_NONE) {
-		resource_fd = open(__MMCAMCORDER_PATH_RECORDER_RESOURCE, O_RDONLY);
-	} else {
-		resource_fd = open(__MMCAMCORDER_PATH_CAMERA_RESOURCE, O_RDONLY);
-	}
-
-	if (resource_fd < 0) {
-		_mmcam_dbg_log("open error %s : cur %d",strerror(errno),errno);
-		if(errno == EPERM || errno == EACCES) {
-			ret = MM_ERROR_COMMON_INVALID_PERMISSION;
-		} else {
-			ret = MM_ERROR_CAMCORDER_INTERNAL;
-		}
-		goto _ERR_DEFAULT_VALUE_INIT;
-	} else {
-		close(resource_fd);
-		resource_fd = -1;
-		_mmcam_dbg_warn("permission check done");
-	}
-#else
-	{
-		FILE *fp = NULL;;
-		int length_read = 0;
-		int priv_check = FALSE;
-		uid_t my_uid = 0;
-		char *client_session = "";
-		char *smack_string = NULL;
-		char uid_string[50];
-		size_t buffer_length = 0;
-		cynara *p_cynara = NULL;
-
-		if (cynara_initialize(&p_cynara, NULL) != CYNARA_API_SUCCESS) {
-			ret = MM_ERROR_CAMCORDER_INTERNAL;
-			goto _ERR_DEFAULT_VALUE_INIT;
-		}
-
-		fp = fopen("/proc/self/attr/current", "r");
-		if (fp == NULL) {
-			ret = MM_ERROR_CAMCORDER_INTERNAL;
-			goto _ERR_DEFAULT_VALUE_INIT;
-		}
-
-		length_read = getline(&smack_string, &buffer_length, fp);
-		if (length_read > 0) {
-			int cynara_ret = 0;
-
-			my_uid = getuid();
-			snprintf(uid_string, 50, "%d", my_uid);
-			_mmcam_dbg_log("label %s, uid %u, %s", smack_string, my_uid, uid_string);
-
-			if (hcamcorder->device_type == MM_VIDEO_DEVICE_NONE) {
-				cynara_ret = cynara_check(p_cynara, smack_string, client_session, uid_string,
-				                          "http://tizen.org/privilege/recorder");
-			} else {
-				cynara_ret = cynara_check(p_cynara, smack_string, client_session, uid_string,
-				                          "http://tizen.org/privilege/camera");
-			}
-			if (cynara_ret == CYNARA_API_ACCESS_ALLOWED) {
-				priv_check = TRUE;
-				_mmcam_dbg_err("privilege check done");
-			} else {
-				ret = MM_ERROR_COMMON_INVALID_PERMISSION;
-				_mmcam_dbg_err("permission denied");
-			}
-		} else {
-			ret = MM_ERROR_CAMCORDER_INTERNAL;
-			_mmcam_dbg_err("getline failed");
-		}
-
-		if (smack_string) {
-			free(smack_string);
-			smack_string = NULL;
-		}
-
-		fclose(fp);
-		fp = NULL;
-
-		cynara_finish(p_cynara);
-		p_cynara = NULL;
-
-		if (priv_check == FALSE) {
-			goto _ERR_DEFAULT_VALUE_INIT;
-		}
-	}
-#endif
 
 	/* Get Camera Configure information from Camcorder INI file */
 	_mmcamcorder_conf_get_info((MMHandleType)hcamcorder, CONFIGURE_TYPE_MAIN, CONFIGURE_MAIN_FILE, &hcamcorder->conf_main);

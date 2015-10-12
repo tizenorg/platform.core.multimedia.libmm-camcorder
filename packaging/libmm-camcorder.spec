@@ -2,7 +2,7 @@
 
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.10.11
+Version:    0.10.12
 Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
@@ -31,7 +31,6 @@ BuildRequires:  pkgconfig(vconf)
 BuildRequires:  gstreamer-devel
 BuildRequires:  pkgconfig(libtbm)
 BuildRequires:  pkgconfig(storage)
-BuildRequires:  pkgconfig(cynara-client)
 
 %description
 Camera and recorder library.
