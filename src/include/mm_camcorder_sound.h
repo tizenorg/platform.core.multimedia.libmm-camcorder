@@ -26,7 +26,6 @@
 | INCLUDE FILES										|
 ========================================================================================*/
 #include <pulse/pulseaudio.h>
-#include <pulse/ext-policy.h>
 
 #ifdef __cplusplus
 extern "C" {
