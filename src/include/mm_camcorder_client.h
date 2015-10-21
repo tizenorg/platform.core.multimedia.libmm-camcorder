@@ -144,6 +144,14 @@ int mm_camcorder_client_get_video_caps(MMHandleType handle, char **caps);
  */
 int mm_camcorder_client_set_shm_socket_path(MMHandleType handle, const char *path);
 
+/**
+ * This function get root directory of current process.
+ *
+ * @param	root_directory    [out] Root directory.
+ * @return	This function returns zero on success, or negative value with error code.
+ */
+int mm_camcorder_client_get_root_directory(char **root_directory);
+
 #ifdef __cplusplus
 	}
 #endif

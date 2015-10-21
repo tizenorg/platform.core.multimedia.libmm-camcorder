@@ -506,6 +506,7 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 			char *dir_name = NULL;
 			guint64 free_space = 0;
 			int file_system_type = 0;
+			int root_directory_length = 0;
 
 			/* Recording */
 			_mmcam_dbg_log("Record Start - dual stream %d", info->support_dual_stream);
@@ -525,6 +526,7 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 			                                  MMCAM_TARGET_TIME_LIMIT, &imax_time,
 			                                  MMCAM_FILE_FORMAT, &(info->fileformat),
 			                                  MMCAM_CAMERA_RECORDING_MOTION_RATE, &motion_rate,
+			                                  MMCAM_ROOT_DIRECTORY, &hcamcorder->root_directory, &root_directory_length,
 			                                  NULL);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, ret);

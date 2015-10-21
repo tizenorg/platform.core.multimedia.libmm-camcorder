@@ -44,6 +44,39 @@
 #include "mm_camcorder_internal.h"
 #include <sched.h>
 
+#include <storage.h>
+
+
+static int _storage_device_supported_cb(int storage_id, storage_type_e type, storage_state_e state, const char *path, void *user_data)
+{
+	char **root_directory = (char **)user_data;
+
+	if (root_directory == NULL) {
+		_mmcam_dbg_warn("user data is NULL");
+		return FALSE;
+	}
+
+	_mmcam_dbg_log("storage id %d, type %d, state %d, path %s",
+	               storage_id, type, state, path ? path : "NULL");
+
+	if (type == STORAGE_TYPE_INTERNAL && path) {
+		if (*root_directory) {
+			free(*root_directory);
+			*root_directory = NULL;
+		}
+
+		*root_directory = strdup(path);
+		if (*root_directory) {
+			_mmcam_dbg_log("get root directory %s", *root_directory);
+			return FALSE;
+		} else {
+			_mmcam_dbg_warn("strdup %s failed");
+		}
+	}
+
+	return TRUE;
+}
+
 bool _mmcamcorder_client_commit_display_handle(MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
 	int current_state = MM_CAMCORDER_STATE_NONE;
@@ -1561,4 +1594,22 @@ int mm_camcorder_client_set_shm_socket_path(MMHandleType handle, const char *pat
 	_mmcam_dbg_log("Entered ");
 	ret = _mm_camcorder_client_set_shm_socket_path(handle, path);
 	return ret;
+}
+
+int mm_camcorder_client_get_root_directory(char **root_directory)
+{
+	int ret = STORAGE_ERROR_NONE;
+
+	if (root_directory == NULL) {
+		_mmcam_dbg_warn("user data is NULL");
+		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
+	}
+
+	ret = storage_foreach_device_supported((storage_device_supported_cb)_storage_device_supported_cb, root_directory);
+	if (ret != STORAGE_ERROR_NONE) {
+		_mmcam_dbg_err("storage_foreach_device_supported failed 0x%x", ret);
+		return MM_ERROR_CAMCORDER_INTERNAL;
+	}
+
+	return MM_ERROR_NONE;
 }

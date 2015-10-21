@@ -146,37 +146,6 @@ static int __gdbus_method_call_sync(const char* bus_name, const char* object, co
 }
 
 
-static int __storage_device_supported_cb(int storage_id, storage_type_e type, storage_state_e state, const char *path, void *user_data)
-{
-	char **root_directory = (char **)user_data;
-
-	if (root_directory == NULL) {
-		_mmcam_dbg_warn("user data is NULL");
-		return FALSE;
-	}
-
-	_mmcam_dbg_log("storage id %d, type %d, state %d, path %s",
-	               storage_id, type, state, path ? path : "NULL");
-
-	if (type == STORAGE_TYPE_INTERNAL && path) {
-		if (*root_directory) {
-			free(*root_directory);
-			*root_directory = NULL;
-		}
-
-		*root_directory = strdup(path);
-		if (*root_directory) {
-			_mmcam_dbg_log("get root directory %s", *root_directory);
-			return FALSE;
-		} else {
-			_mmcam_dbg_warn("strdup %s failed");
-		}
-	}
-
-	return TRUE;
-}
-
-
 gint32 _mmcamcorder_double_to_fix(gdouble d_number)
 {
 	return (gint32) (d_number * 65536.0);
@@ -638,37 +607,33 @@ int _mmcamcorder_get_freespace(const gchar *path, const gchar *root_directory, g
 	int ret = 0;
 	struct statvfs vfs;
 
-	/*
-	* TEMPORARILY disabled (The internal / external storage distinguisher codes)
-	* : Since the camera / recorder module is working through the Muse Daemon Process,
-	*   There is an user's root path issue by the different process from the client's.
-	*/
-#if 0
-	int is_internal = 0;
+	int is_internal = TRUE;
 	struct stat stat_path;
 	struct stat stat_root;
 
-	if (path == NULL || root_directory == NULL || free_space == NULL) {
-		_mmcam_dbg_err("invalid parameter %p, %p, %p", path, root_directory, free_space);
+	if (path == NULL || free_space == NULL) {
+		_mmcam_dbg_err("invalid parameter %p, %p", path, free_space);
 		return -1;
 	}
 
-	if (stat(path, &stat_path) != 0) {
-		*free_space = 0;
-		_mmcam_dbg_err("failed to stat for [%s][errno %d]", path, errno);
-		return -1;
-	}
+	if (root_directory && strlen(root_directory) > 0) {
+		if (stat(path, &stat_path) != 0) {
+			*free_space = 0;
+			_mmcam_dbg_err("failed to stat for [%s][errno %d]", path, errno);
+			return -1;
+		}
 
-	if (stat(root_directory, &stat_root) != 0) {
-		*free_space = 0;
-		_mmcam_dbg_err("failed to stat for [%s][errno %d]", path, errno);
-		return -1;
-	}
+		if (stat(root_directory, &stat_root) != 0) {
+			*free_space = 0;
+			_mmcam_dbg_err("failed to stat for [%s][errno %d]", path, errno);
+			return -1;
+		}
 
-	if (stat_path.st_dev == stat_root.st_dev) {
-		is_internal = TRUE;
+		if (stat_path.st_dev != stat_root.st_dev) {
+			is_internal = FALSE;
+		}
 	} else {
-		is_internal = FALSE;
+		_mmcam_dbg_warn("root_directory is NULL, assume that it's internal storage.");
 	}
 
 	if (is_internal) {
@@ -676,9 +641,6 @@ int _mmcamcorder_get_freespace(const gchar *path, const gchar *root_directory, g
 	} else {
 		ret = storage_get_external_memory_size(&vfs);
 	}
-#else
-	ret = storage_get_internal_memory_size(&vfs);
-#endif
 
 	if (ret < 0) {
 		*free_space = 0;
@@ -2157,23 +2119,3 @@ static gboolean _mmcamcorder_convert_NV12_to_I420(unsigned char *src, guint widt
 
 	return TRUE;
 }
-
-
-int _mmcamcorder_get_root_directory(char **root_directory)
-{
-	int ret = STORAGE_ERROR_NONE;
-
-	if (root_directory == NULL) {
-		_mmcam_dbg_warn("user data is NULL");
-		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
-	}
-
-	ret = storage_foreach_device_supported((storage_device_supported_cb)__storage_device_supported_cb, root_directory);
-	if (ret != STORAGE_ERROR_NONE) {
-		_mmcam_dbg_err("storage_foreach_device_supported failed 0x%x", ret);
-		return MM_ERROR_CAMCORDER_INTERNAL;
-	}
-
-	return MM_ERROR_NONE;
-}
-

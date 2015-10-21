@@ -1237,6 +1237,11 @@ extern "C" {
  */
 #define MMCAM_PID_FOR_SOUND_FOCUS               "pid-for-sound-focus"
 
+/**
+ * Root directory of application
+ */
+#define MMCAM_ROOT_DIRECTORY                    "root-directory"
+
 
 /*=======================================================================================
 | ENUM DEFINITIONS									|

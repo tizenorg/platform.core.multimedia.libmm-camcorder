@@ -1443,6 +1443,17 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			{.int_min = 0},
 			{.int_max = _MMCAMCORDER_MAX_INT},
 			_mmcamcorder_commit_pid_for_sound_focus,
+		},
+		{
+			MM_CAM_ROOT_DIRECTORY,
+			"root-directory",
+			MMF_VALUE_TYPE_STRING,
+			MM_ATTRS_FLAG_RW,
+			{(void*)NULL},
+			MM_ATTRS_VALID_TYPE_NONE,
+			{0},
+			{0},
+			NULL,
 		}
 	};
 

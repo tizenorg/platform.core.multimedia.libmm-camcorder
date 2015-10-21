@@ -271,7 +271,6 @@ gboolean _mmcamcorder_update_composition_matrix(FILE *f, int orientation);
 int _mmcamcorder_get_freespace(const gchar *path, const gchar *root_directory, guint64 *free_space);
 int _mmcamcorder_get_file_size(const char *filename, guint64 *size);
 int _mmcamcorder_get_file_system_type(const gchar *path, int *file_system_type);
-int _mmcamcorder_get_root_directory(char **root_directory);
 
 /* Task */
 void *_mmcamcorder_util_task_thread_func(void *data);

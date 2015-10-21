@@ -349,9 +349,7 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 	int cmd = command;
 	int ret = MM_ERROR_NONE;
 	int err = 0;
-	int size=0;
 	guint64 free_space = 0;
-	char *dir_name = NULL;
 	char *err_attr_name = NULL;
 
 	GstElement *pipeline = NULL;
@@ -381,7 +379,10 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 			guint imax_size = 0;
 			guint imax_time = 0;
 			char *temp_filename = NULL;
+			char *dir_name = NULL;
 			int file_system_type = 0;
+			int filename_length = 0;
+			int root_directory_length = 0;
 
 			if(sc->pipeline_time) {
 				gst_element_set_start_time(pipeline, sc->pipeline_time);
@@ -392,7 +393,8 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 			                                  MMCAM_TARGET_MAX_SIZE, &imax_size,
 			                                  MMCAM_TARGET_TIME_LIMIT, &imax_time,
 			                                  MMCAM_FILE_FORMAT, &(info->fileformat),
-			                                  MMCAM_TARGET_FILENAME, &temp_filename, &size,
+			                                  MMCAM_TARGET_FILENAME, &temp_filename, &filename_length,
+			                                  MMCAM_ROOT_DIRECTORY, &hcamcorder->root_directory, &root_directory_length,
 			                                  NULL);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("failed to get attribute. (%s:%x)", err_attr_name, ret);
