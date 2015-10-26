@@ -1753,6 +1753,7 @@ typedef struct {
   */
 typedef struct {
 	enum MMVideoDeviceType videodev_type;	/**< Video device type */
+	GMainLoop *g_loop_ptr;
 	/* For future use */
 	int reserved[4];			/**< reserved fields */
 } MMCamPreset;
