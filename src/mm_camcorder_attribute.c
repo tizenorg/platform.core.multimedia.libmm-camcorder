@@ -3991,9 +3991,6 @@ bool _mmcamcorder_commit_detect(MMHandleType handle, int attr_idx, const mmf_val
 
 bool _mmcamcorder_commit_pid_for_sound_focus(MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
-	bool bret = FALSE;
-	int pid_current = 0;
-	int pid_new = 0;
 	int current_state = MM_CAMCORDER_STATE_NONE;
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
@@ -4009,58 +4006,7 @@ bool _mmcamcorder_commit_pid_for_sound_focus(MMHandleType handle, int attr_idx, 
 		return FALSE;
 	}
 
-	pid_new = value->value.i_val;
-
-	mm_camcorder_get_attributes(handle, NULL,
-	                            MMCAM_PID_FOR_SOUND_FOCUS, &pid_current,
-	                            NULL);
-
-	_mmcam_dbg_log("Commit : pid_for_sound_focus - pid new %dm current %d", pid_new, pid_current);
-
-	/* unregister sound focus before set new one */
-	if (pid_current > 0) {
-		if (hcamcorder->sound_focus_register) {
-			if (MM_ERROR_NONE != mm_sound_unregister_focus(hcamcorder->sound_focus_id)) {
-				_mmcam_dbg_err("mm_sound_unregister_focus[id %d] failed", hcamcorder->sound_focus_id);
-			} else {
-				_mmcam_dbg_log("mm_sound_unregister_focus[id %d] done", hcamcorder->sound_focus_id);
-			}
-		} else {
-			_mmcam_dbg_log("no need to unregister sound focus");
-		}
-	}
-
-	/* register sound focus */
-	if (MM_ERROR_NONE == _mm_session_util_read_information(-1, &hcamcorder->session_type, &hcamcorder->session_flags)) {
-		_mmcam_dbg_log("use sound focus function.");
-		hcamcorder->sound_focus_register = TRUE;
-	} else {
-		_mmcam_dbg_log("_mm_session_util_read_information failed. skip sound focus function.");
-		hcamcorder->sound_focus_register = FALSE;
-	}
-
-	if (hcamcorder->sound_focus_register) {
-		if (MM_ERROR_NONE != mm_sound_focus_get_id(&hcamcorder->sound_focus_id)) {
-			_mmcam_dbg_err("mm_sound_focus_get_uniq failed");
-			hcamcorder->error_code = MM_ERROR_POLICY_BLOCKED;
-			return FALSE;
-		}
-
-		if (MM_ERROR_NONE != mm_sound_register_focus_for_session(hcamcorder->sound_focus_id,
-		                                                         pid_new,
-		                                                         "media",
-		                                                         _mmcamcorder_sound_focus_cb,
-		                                                         hcamcorder)) {
-			_mmcam_dbg_err("mm_sound_register_focus failed");
-			hcamcorder->error_code = MM_ERROR_POLICY_BLOCKED;
-			return FALSE;
-		}
-
-		_mmcam_dbg_log("mm_sound_register_focus done - id %d, session type %d, flags 0x%x",
-			       hcamcorder->sound_focus_id, hcamcorder->session_type, hcamcorder->session_flags);
-	} else {
-		_mmcam_dbg_log("no need to register sound focus");
-	}
+	_mmcam_dbg_log("set pid %d done", value->value.i_val);
 
 	return TRUE;
 }
