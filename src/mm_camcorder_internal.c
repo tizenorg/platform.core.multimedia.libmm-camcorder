@@ -42,6 +42,7 @@
 #include <mm_session.h>
 #include <mm_session_private.h>
 
+#include <murphy/common/glib-glue.h>
 
 /*---------------------------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal						|
@@ -184,7 +185,6 @@ static void _mmcamcorder_constructor()
 
 	return;
 }
-
 
 /* Internal command functions {*/
 int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
@@ -501,6 +501,15 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		}
 	}
 
+
+	/* initialize resource manager */
+	ret = _mmcamcorder_resource_manager_init(&hcamcorder->resource_manager, (void *)hcamcorder);
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("failed to initialize resource manager");
+		ret = MM_ERROR_CAMCORDER_INTERNAL;
+                goto _ERR_DEFAULT_VALUE_INIT;
+        }
+
 	ret = __mmcamcorder_gstreamer_init(hcamcorder->conf_main);
 	if (!ret) {
 		_mmcam_dbg_err( "Failed to initialize gstreamer!!" );
@@ -709,6 +718,12 @@ int _mmcamcorder_destroy(MMHandleType handle)
 		hcamcorder->sub_context = NULL;
 	}
 
+	/* de-initialize resource manager */
+	ret = _mmcamcorder_resource_manager_deinit(&hcamcorder->resource_manager);
+	if (!ret) {
+		_mmcam_dbg_err("failed to de-initialize resource manager");
+        }
+
 	/* Remove idle function which is not called yet */
 	if (hcamcorder->setting_event_id) {
 		_mmcam_dbg_log("Remove remaining idle function");
@@ -839,6 +854,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 {
 	int ret = MM_ERROR_NONE;
 	int ret_sound = MM_ERROR_NONE;
+	int ret_resource = MM_ERROR_NONE;
 	int state = MM_CAMCORDER_STATE_NONE;
 	int state_FROM = MM_CAMCORDER_STATE_NULL;
 	int state_TO = MM_CAMCORDER_STATE_READY;
@@ -1058,6 +1074,33 @@ int _mmcamcorder_realize(MMHandleType handle)
 	                                &(hcamcorder->sub_context->SensorEncodedCapture));
 	_mmcam_dbg_log("Support sensor encoded capture : %d", hcamcorder->sub_context->SensorEncodedCapture);
 
+	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
+		/* prepare resource manager for camera */
+		if((_mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, RESOURCE_TYPE_CAMERA))) {
+			_mmcam_dbg_err("could not prepare for camera resource");
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+		}
+
+		/* prepare resource manager for "video_overlay only if display surface is X" */
+		mm_camcorder_get_attributes(handle, NULL,
+                                            MMCAM_DISPLAY_SURFACE, &display_surface_type,
+                                            NULL);
+		if(display_surface_type == MM_DISPLAY_SURFACE_X) {
+			if((_mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, RESOURCE_TYPE_VIDEO_OVERLAY))) {
+				_mmcam_dbg_err("could not prepare for video overlay resource");
+				ret = MM_ERROR_CAMCORDER_INTERNAL;
+				goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+			}
+		}
+		/* acquire resources */
+		if((hcamcorder->resource_manager.rset && _mmcamcorder_resource_manager_acquire(&hcamcorder->resource_manager))) {
+			_mmcam_dbg_err("could not acquire resources");
+			_mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
+			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+		}
+	}
+
 	/* create pipeline */
 	ret = _mmcamcorder_create_pipeline(handle, hcamcorder->type);
 	if (ret != MM_ERROR_NONE) {
@@ -1089,6 +1132,20 @@ int _mmcamcorder_realize(MMHandleType handle)
 	return MM_ERROR_NONE;
 
 _ERR_CAMCORDER_CMD:
+	/* release hw resources */
+	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
+		ret_resource = _mmcamcorder_resource_manager_release(&hcamcorder->resource_manager);
+		if (ret_resource == MM_ERROR_RESOURCE_INVALID_STATE) {
+			_mmcam_dbg_warn("it could be in the middle of resource callback or there's no acquired resource");
+		}
+		else if (ret_resource != MM_ERROR_NONE) {
+			_mmcam_dbg_err("failed to release resource, ret_resource(0x%x)", ret_resource);
+		}
+		ret_resource = _mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
+		if (ret_resource != MM_ERROR_NONE) {
+			_mmcam_dbg_err("failed to unprepare resource manager, ret_resource(0x%x)", ret_resource);
+		}
+	}
 	/* rollback camera state to vconf key */
 	if (hcamcorder->type != MM_CAMCORDER_MODE_AUDIO) {
 		int vconf_camera_state = 0;
@@ -1180,6 +1237,23 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 		/* Deallocate SubContext */
 		_mmcamcorder_dealloc_subcontext(hcamcorder->sub_context);
 		hcamcorder->sub_context = NULL;
+	}
+
+	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
+		ret = _mmcamcorder_resource_manager_release(&hcamcorder->resource_manager);
+		if (ret == MM_ERROR_RESOURCE_INVALID_STATE) {
+			_mmcam_dbg_warn("it could be in the middle of resource callback or there's no acquired resource");
+			ret = MM_ERROR_NONE;
+		}
+		else if (ret != MM_ERROR_NONE) {
+			_mmcam_dbg_err("failed to release resource, ret(0x%x)", ret);
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+		}
+		ret = _mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
+		if (ret != MM_ERROR_NONE) {
+			_mmcam_dbg_err("failed to unprepare resource manager, ret(0x%x)", ret);
+		}
 	}
 
 	/* Deinitialize main context member */
@@ -2429,8 +2503,23 @@ void _mmcamcorder_set_state(MMHandleType handle, int state)
 
 		_mmcam_dbg_log("set state[%d] and send state-changed message", state);
 
-		msg.id = MM_MESSAGE_CAMCORDER_STATE_CHANGED;
-		msg.param.state.code = MM_ERROR_NONE;
+		/* To discern who changes the state */
+		switch (hcamcorder->state_change_by_system) {
+		case _MMCAMCORDER_STATE_CHANGE_BY_ASM:
+			msg.id = MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_ASM;
+			msg.param.state.code = MM_ERROR_NONE;
+			break;
+		case _MMCAMCORDER_STATE_CHANGE_BY_RM:
+			msg.id = MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_RM;
+			msg.param.state.code = MM_ERROR_NONE;
+			break;
+		case _MMCAMCORDER_STATE_CHANGE_NORMAL:
+		default:
+			msg.id = MM_MESSAGE_CAMCORDER_STATE_CHANGED;
+			msg.param.state.code = MM_ERROR_NONE;
+			break;
+		}
+
 		msg.param.state.previous = old_state;
 		msg.param.state.current = state;
 
