@@ -3991,7 +3991,6 @@ bool _mmcamcorder_commit_detect(MMHandleType handle, int attr_idx, const mmf_val
 
 bool _mmcamcorder_commit_pid_for_sound_focus(MMHandleType handle, int attr_idx, const mmf_value_t *value)
 {
-	bool bret = FALSE;
 	int pid_current = 0;
 	int pid_new = 0;
 	int current_state = MM_CAMCORDER_STATE_NONE;
@@ -4031,14 +4030,6 @@ bool _mmcamcorder_commit_pid_for_sound_focus(MMHandleType handle, int attr_idx, 
 	}
 
 	/* register sound focus */
-	if (MM_ERROR_NONE == _mm_session_util_read_information(-1, &hcamcorder->session_type, &hcamcorder->session_flags)) {
-		_mmcam_dbg_log("use sound focus function.");
-		hcamcorder->sound_focus_register = TRUE;
-	} else {
-		_mmcam_dbg_log("_mm_session_util_read_information failed. skip sound focus function.");
-		hcamcorder->sound_focus_register = FALSE;
-	}
-
 	if (hcamcorder->sound_focus_register) {
 		if (MM_ERROR_NONE != mm_sound_focus_get_id(&hcamcorder->sound_focus_id)) {
 			_mmcam_dbg_err("mm_sound_focus_get_uniq failed");
