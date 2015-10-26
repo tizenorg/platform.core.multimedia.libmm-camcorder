@@ -42,6 +42,9 @@
 #include <mm_session.h>
 #include <mm_session_private.h>
 
+//#include <murphy/plugins/resource-native/libmurphy-resource/resource-api.h>
+//#include <murphy/common/mainloop.h>
+#include <murphy/common/glib-glue.h>
 
 /*---------------------------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal						|
@@ -83,6 +86,15 @@ static gboolean __mmcamcorder_set_attr_to_camsensor_cb(gpointer data);
 
 static void __mm_camcorder_signal_handler(int signo);
 static void _mmcamcorder_constructor() __attribute__((constructor));
+
+/* state callback for murphy connection */
+static void __mmcamcorder_murphy_state_callback(mrp_res_context_t *context, mrp_res_error_t err, void *user_data);
+/* callback for resource set update */
+static void __mmcamcorder_murphy_resource_callback(mrp_res_context_t *cx, const mrp_res_resource_set_t *rs, void *user_data);
+/* synchronus callback for resource conflict scenario */
+static void __mmcamcorder_murphy_resource_release_cb (mrp_res_context_t *cx, const mrp_res_resource_set_t *rs, void *user_data);
+/* thread for murphy resource manager initialization */
+static gboolean __mmcamcorder_murphy_common_routine(void *user_data);
 
 /*=======================================================================================
 |  FUNCTION DEFINITIONS									|
@@ -185,6 +197,165 @@ static void _mmcamcorder_constructor()
 	return;
 }
 
+static void __mmcamcorder_murphy_state_callback(mrp_res_context_t *context, mrp_res_error_t err, void *user_data)
+{
+	mmf_camcorder_t *hcamcorder = (mmf_camcorder_t *)user_data;
+
+	_mmcam_dbg_warn("start");
+
+	if (!hcamcorder) {
+		_mmcam_dbg_err("Not initialized");
+		return;
+	}
+
+	if (err != MRP_RES_ERROR_NONE) {
+		_mmcam_dbg_err("Error message received from Murphy");
+		return;
+	}
+
+	switch(context->state) {
+		case MRP_RES_CONNECTED:
+			_mmcam_dbg_log("Connected to Murphy Successfully");
+			mrp_mainloop_quit(hcamcorder->mrp_data.main_loop_ptr,0);
+			break;
+
+		case MRP_RES_DISCONNECTED:
+			_mmcam_dbg_log("Disconnected from murphy");
+			mrp_res_delete_resource_set(hcamcorder->mrp_data.rs);
+			mrp_res_destroy(hcamcorder->mrp_data.cx);
+
+		default:
+			_mmcam_dbg_err("Invalid state");
+			break;
+		}
+
+	_mmcam_dbg_warn("done");
+
+	return;
+}
+
+static void __mmcamcorder_murphy_resource_callback(mrp_res_context_t *cx, const mrp_res_resource_set_t *rs, void *user_data)
+{
+	mmf_camcorder_t *hcamcorder = (mmf_camcorder_t *)user_data;
+	mrp_res_string_array_t *resource_names = NULL;
+	mrp_res_resource_t *resource = NULL;
+	int i = 0;
+
+	_mmcam_dbg_warn("start");
+
+	if (!hcamcorder) {
+		_mmcam_dbg_err("Not initialized");
+		return;
+	}
+
+/*
+	if(!mrp_res_equal_resource_set(rs, hcamcorder->mrp_data.rs)) {
+	return;
+	}
+*/
+	resource_names = mrp_res_list_resource_names(rs);
+
+	if (!resource_names) {
+		_mmcam_dbg_log("resource_callback: Empty resource set !");
+		return;
+	}
+
+	_mmcam_dbg_log("Resource : ");
+	for (i = 0; i < resource_names->num_strings;i++) {
+		resource = mrp_res_get_resource_by_name(rs, resource_names->strings[i]);
+		if (!resource) {
+			continue;
+		}
+		_mmcam_dbg_log("%s ", resource->name);
+	}
+
+	mrp_res_delete_resource_set(hcamcorder->mrp_data.rs);
+	hcamcorder->mrp_data.rs = mrp_res_copy_resource_set(rs);
+
+	mrp_res_free_string_array(resource_names);
+
+	_mmcam_dbg_warn("done");
+
+	return;
+}
+
+static void __mmcamcorder_murphy_resource_release_cb (mrp_res_context_t *cx, const mrp_res_resource_set_t *rs, void *user_data)
+{
+	int i = 0;
+	int ret = MM_ERROR_NONE;
+	mrp_res_resource_t *res = NULL;
+	mmf_camcorder_t *hcamcorder = (mmf_camcorder_t *)user_data;
+
+	/* TODO: Make a link list of resources, no need of specifying here */
+	static char* resource_str_arr[MM_CAMCORDER_MAX_RESOURCE_NUM] = {"video_overlay", "camera"};
+
+	_mmcam_dbg_warn("start");
+
+	if (!hcamcorder) {
+		_mmcam_dbg_err("Not initialized");
+		return;
+	}
+
+	/* If any of the resource in resource set is about to loose then release all resources in resource set
+	and stop the camera preview */
+	for (i = 0; i < MM_CAMCORDER_MAX_RESOURCE_NUM; i++) {
+		res = mrp_res_get_resource_by_name(rs, resource_str_arr[i]);
+		if (res) {
+			if (MRP_RES_RESOURCE_ABOUT_TO_LOOSE == res->state) {
+				if ((ret = _mmcamcorder_stop((MMHandleType)hcamcorder)) != MM_ERROR_NONE) {
+					_mmcam_dbg_warn("resource_release_cb:Can't stop preview.(%x)", ret);
+				}
+				if ((ret = _mmcamcorder_unrealize((MMHandleType)hcamcorder)) != MM_ERROR_NONE) {
+					_mmcam_dbg_warn("resource_release_cb:Cant't unrealize camera.(%x)", ret);
+				}
+				if (hcamcorder->mrp_data.rs) {
+					if ((ret = mrp_res_release_resource_set(hcamcorder->mrp_data.rs)) != MM_ERROR_NONE) {
+						_mmcam_dbg_warn("resource_release_cb:Resource set fail to release.(%x)", ret);
+					}
+				}
+				break;
+			/* Murphy requests to free the resource. The app should stop all the operations that use
+			this resource. E.g. stop playing audio or close opened files. */
+			}
+		}
+	}
+
+	_mmcam_dbg_warn("done");
+	return;
+}
+
+static gboolean __mmcamcorder_murphy_common_routine(void* user_data)
+{
+	mrp_mainloop_t *ml = NULL;
+	mrp_res_context_t *cx = NULL;
+	mmf_camcorder_t *hcamcorder = (mmf_camcorder_t *)user_data;
+
+	if(!hcamcorder) {
+		_mmcam_dbg_err("Not initialized");
+		return FALSE;
+	}
+
+	if(!(ml = mrp_mainloop_glib_get(hcamcorder->g_loopptr))) {
+		_mmcam_dbg_err("Mainloop of murphy creation failed");
+		return FALSE;
+	}
+
+	hcamcorder->mrp_data.main_loop_ptr = ml;
+	hcamcorder->mrp_data.rs = NULL;
+	hcamcorder->mrp_data.cx = mrp_res_create(ml, __mmcamcorder_murphy_state_callback, (void*)(hcamcorder));
+
+	if(!(hcamcorder->mrp_data.cx))
+	{
+		_mmcam_dbg_err("Connection to Murphy failed");
+		mrp_mainloop_destroy(ml);
+		hcamcorder->mrp_data.main_loop_ptr = NULL;
+		return FALSE;
+	}
+	else {
+		mrp_mainloop_run(hcamcorder->mrp_data.main_loop_ptr);
+	}
+	return TRUE;
+}
 
 /* Internal command functions {*/
 int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
@@ -474,6 +645,14 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		}
 	}
 
+	hcamcorder->g_loopptr = info->g_loop_ptr;
+	ret = __mmcamcorder_murphy_common_routine((void *)hcamcorder);
+	if (!ret) {
+		_mmcam_dbg_err( "Failed to connect to murphy!!" );
+		ret = MM_ERROR_CAMCORDER_INTERNAL;
+		goto _ERR_DEFAULT_VALUE_INIT;
+	}
+
 	ret = __mmcamcorder_gstreamer_init(hcamcorder->conf_main);
 	if (!ret) {
 		_mmcam_dbg_err( "Failed to initialize gstreamer!!" );
@@ -670,6 +849,17 @@ int _mmcamcorder_destroy(MMHandleType handle)
 		hcamcorder->sub_context = NULL;
 	}
 
+	/* Exit the mainloop of murphy */
+	if (hcamcorder->mrp_data.cx) {
+		mrp_res_destroy(hcamcorder->mrp_data.cx);
+		hcamcorder->mrp_data.cx = NULL;
+		hcamcorder->mrp_data.rs = NULL;
+	}
+	if (hcamcorder->mrp_data.main_loop_ptr) {
+		mrp_mainloop_unregister_from_glib(hcamcorder->mrp_data.main_loop_ptr);
+		mrp_mainloop_destroy(hcamcorder->mrp_data.main_loop_ptr);
+	}
+
 	/* Remove idle function which is not called yet */
 	if (hcamcorder->setting_event_id) {
 		_mmcam_dbg_log("Remove remaining idle function");
@@ -803,6 +993,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 	const char *videosink_name = NULL;
 	char *socket_path = NULL;
 	int socket_path_len;
+	mrp_res_resource_t *resource = NULL;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
@@ -1002,6 +1193,81 @@ int _mmcamcorder_realize(MMHandleType handle)
 	                                &(hcamcorder->sub_context->SensorEncodedCapture));
 	_mmcam_dbg_log("Support sensor encoded capture : %d", hcamcorder->sub_context->SensorEncodedCapture);
 
+	/* Create the empty resource set */
+	hcamcorder->mrp_data.rs = mrp_res_create_resource_set(hcamcorder->mrp_data.cx, "media",
+								__mmcamcorder_murphy_resource_callback,
+								(void*)(hcamcorder));
+	if (!(hcamcorder->mrp_data.rs)) {
+		_mmcam_dbg_err("Couldn't create resource set");
+		/* TODO: Return proper error code or create a new error code specific to murphy */
+		ret = MM_ERROR_CAMCORDER_NOT_INITIALIZED;
+		goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+	}
+	/* TODO: Auto release callback functionality */
+/*
+	if (!mrp_res_set_autorelease(TRUE, hcamcorder->mrp_data.rs)) {
+		g_print("Could not set autorelease flag!\n");
+	}
+*/
+
+	/* TODO: Create a link list of resources and do a single call of mrp_res_create_resource */
+	/* Add the required resources in resource set before creating the pipeline. Check for resources
+	"camera" and "video-overlay" only if selected mode is MM_CAMCORDER_MODE_VIDEO_CAPTURE*/
+
+	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
+		resource = mrp_res_create_resource(hcamcorder->mrp_data.rs, "camera",
+						true, false);
+		if (resource == NULL) {
+			_mmcam_dbg_err("Couldn't create \"camera\" resource");
+			/* TODO: Decide whether to call release_resource_set or delete_resource_set */
+			mrp_res_delete_resource_set(hcamcorder->mrp_data.rs);
+			/* TODO: Return proper error code or create a new error code specific to murphy */
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+		}
+
+		/* Create resource "video_overlay only if display surface is X" */
+		mm_camcorder_get_attributes(handle, NULL,
+                                            MMCAM_DISPLAY_SURFACE, &display_surface_type,
+                                            NULL);
+		if(display_surface_type == MM_DISPLAY_SURFACE_X) {
+			resource = mrp_res_create_resource(hcamcorder->mrp_data.rs, "video_overlay",
+							true, false);
+			if (resource == NULL) {
+				_mmcam_dbg_err("Couldn't create \"video_overlay\" resource");
+				/* TODO: Decide whether to call release_resource_set or delete_resource_set */
+				mrp_res_delete_resource_set(hcamcorder->mrp_data.rs);
+				/* TODO: Return proper error code or create a new error code specific to murphy */
+				ret = MM_ERROR_CAMCORDER_INTERNAL;
+				goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+			}
+		}
+	}
+
+	if (hcamcorder->mrp_data.rs) {
+		ret = mrp_res_set_release_callback(hcamcorder->mrp_data.rs,
+						__mmcamcorder_murphy_resource_release_cb,
+						(void*)&hcamcorder->mrp_data);
+		_mmcam_dbg_log("Return value for setting release_callback : %d", ret);
+	}
+
+	/* Acquire the resource set */
+	if (hcamcorder->mrp_data.rs) {
+		if (mrp_res_acquire_resource_set(hcamcorder->mrp_data.rs) != MM_ERROR_NONE) {
+			_mmcam_dbg_err("Resource set acquire failed");
+			/* TODO: Decide what action need to take if acquire fails:  wait or exit */
+			/* TODO: Return proper error code or create a new error code specific to murphy */
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+		}
+	}
+	else {
+		_mmcam_dbg_err("No resource set created yet!");
+		/* TODO: Return proper error code or create a new error code specific to murphy */
+		ret = MM_ERROR_CAMCORDER_INTERNAL;
+		goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+	}
+
 	/* create pipeline */
 	ret = _mmcamcorder_create_pipeline(handle, hcamcorder->type);
 	if (ret != MM_ERROR_NONE) {
@@ -1104,6 +1370,21 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 		goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 	}
 
+	/* Release the resource set */
+	if (hcamcorder->mrp_data.rs) {
+		if (mrp_res_release_resource_set(hcamcorder->mrp_data.rs) != MM_ERROR_NONE) {
+			_mmcam_dbg_err("Resource set release failed");
+			/* TODO: Return proper error code or create a new error code specific to murphy */
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+		}
+	}
+	/* Delete the resource set */
+	if(hcamcorder->mrp_data.rs) {
+		mrp_res_delete_resource_set(hcamcorder->mrp_data.rs);
+		hcamcorder->mrp_data.rs = NULL;
+	}
+
 	/* Release SubContext */
 	if (hcamcorder->sub_context) {
 		/* destroy pipeline */
@@ -1196,6 +1477,7 @@ int _mmcamcorder_start(MMHandleType handle)
 	int state = MM_CAMCORDER_STATE_NONE;
 	int state_FROM = MM_CAMCORDER_STATE_READY;
 	int state_TO =MM_CAMCORDER_STATE_PREPARE;
+	int display_surface_type = MM_DISPLAY_SURFACE_X;
 
 	_MMCamcorderSubContext *sc = NULL;
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
@@ -1496,6 +1778,13 @@ int _mmcamcorder_record(MMHandleType handle)
 	int state_FROM2 = MM_CAMCORDER_STATE_PAUSED;
 	int state_TO = MM_CAMCORDER_STATE_RECORDING;
 
+	//TODO: Future task, you may need encoder in recording pipeline. Actually
+	/*_mmcamcorder_start() API gets call before this API and hence application
+	already owns the resources "camera" and "video-overlay", so no need to
+	request it again, just add new resources in current resource set specific
+	to recording pipeline like h264 encoder.
+	*/
+	//mrp_res_resource_t *resource = NULL;
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
 	_mmcam_dbg_log("");
@@ -1521,6 +1810,58 @@ int _mmcamcorder_record(MMHandleType handle)
 
 	/* initialize error code */
 	hcamcorder->error_code = MM_ERROR_NONE;
+
+	//TODO: Discuss encoder is required as hw resource or not, if yes then add it here
+	/* As we know before recorder pipeline gets start, preview pipeline gets created
+	that means that the resource set already have "camera" and "video-overlay" resources
+	so now you just need "h264 encoder".
+	*/
+
+	/*
+	resource = mrp_res_create_resource(hcamcorder->mrp_data.rs, "camera",
+					   true, false);
+	if (resource == NULL) {
+		_mmcam_dbg_err("Couldn't create \"camera\" resource");
+		//TODO: Decide whether to call release_resource_set or delete_resource_set
+		mrp_res_delete_resource_set(hcamcorder->mrp_data.rs);
+		//TODO: Return proper error code or create a new error code specific to murphy
+		ret = MM_ERROR_CAMCORDER_INTERNAL;
+		goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+	}
+	*/
+
+	//TODO: Decide whether there is a need to set callback again. We think no need.
+	/* Because it is already set in _mmcamcorder_start(). _mmcamcorder_start() gets call before
+	_mmcamcorder_record()
+	*/
+
+	/*
+	if (hcamcorder->mrp_data.rs) {
+		ret = mrp_res_set_release_callback(hcamcorder->mrp_data.rs,
+						__mmcamcorder_murphy_resource_release_cb,
+						(void*)&hcamcorder->mrp_data);
+		_mmcam_dbg_log("Return value for setting release_callback : %d", ret);
+	}
+	*/
+
+	//TODO: Acquire the resource set again if you have added some resources
+	/*
+	if (hcamcorder->mrp_data.rs) {
+		if (ret = mrp_res_acquire_resource_set(hcamcorder->mrp_data.rs) != MM_ERROR_NONE) {
+			_mmcam_dbg_err("Resource set acquire failed");
+			//TODO: Decide what action need to take if acquire fails:  wait or exit
+			//TODO: Return proper error code or create a new error code specific to murphy
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+		}
+	}
+	else {
+		_mmcam_dbg_err("No resource set created yet!");
+		//TODO: Return proper error code or create a new error code specific to murphy
+		ret = MM_ERROR_CAMCORDER_INTERNAL;
+		goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+	}
+	*/
 
 	ret = hcamcorder->command((MMHandleType)hcamcorder, _MMCamcorder_CMD_RECORD);
 	if (ret != MM_ERROR_NONE) {

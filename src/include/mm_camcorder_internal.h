@@ -54,6 +54,7 @@
 #include "mm_camcorder_util.h"
 #include "mm_camcorder_configure.h"
 #include "mm_camcorder_sound.h"
+#include <murphy/plugins/resource-native/libmurphy-resource/resource-api.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -398,7 +399,7 @@ extern "C" {
 #define MM_CAMCORDER_STROBE_MODE_NUM		8	/**< Number of strobe mode type */
 #define MM_CAMCORDER_STROBE_CONTROL_NUM		3	/**< Number of strobe control type */
 #define MM_CAMCORDER_DETECT_MODE_NUM		2	/**< Number of detect mode type */
-
+#define MM_CAMCORDER_MAX_RESOURCE_NUM		2	/**< Number of resources required*/
 
 /*=======================================================================================
 | ENUM DEFINITIONS									|
@@ -566,6 +567,12 @@ typedef struct {
 	pthread_mutex_t astream_cb_lock;		/**< Mutex (for audio stream callback) */
 } _MMCamcorderMTSafe;
 
+typedef struct {
+	mrp_res_context_t *cx;
+	mrp_res_resource_set_t *rs;
+	char *app_class;
+	mrp_mainloop_t *main_loop_ptr;
+} _MMCamcorderMurphy;
 
 /**
  * MMCamcorder Sub Context
@@ -688,6 +695,9 @@ typedef struct mmf_camcorder {
 	pthread_mutex_t task_thread_lock;                       /**< mutex for task thread */
 	pthread_cond_t task_thread_cond;                        /**< cond for task thread */
 	_MMCamcorderTaskThreadState task_thread_state;          /**< state of task thread */
+
+	_MMCamcorderMurphy mrp_data;                            /**< Data for Murphy*/
+	GMainLoop *g_loopptr;
 
 	int reserved[4];                                        /**< reserved */
 } mmf_camcorder_t;
