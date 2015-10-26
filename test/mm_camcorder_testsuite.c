@@ -2539,6 +2539,7 @@ static gboolean mode_change()
 	g_get_current_time(&previous);
 	g_timer_reset(timer);
 
+//	cam_info.g_loop_ptr = g_loop;
 	err = mm_camcorder_create(&hcamcorder->camcorder, &cam_info);
 	time_msg_t("mm_camcorder_create()  : %12.6lfs", g_timer_elapsed(timer, NULL));
 
@@ -2621,14 +2622,14 @@ int main(int argc, char **argv)
 
 	g_timer_reset(timer);
 
+	g_loop = g_main_loop_new(NULL, FALSE);
+
 	bret = mode_change();
 	if(!bret){
 		return bret;
 	}
 
 	print_menu();
-
-	g_loop = g_main_loop_new(NULL, FALSE);
 
 	stdin_channel = g_io_channel_unix_new(fileno(stdin));/* read from stdin */
 	g_io_add_watch(stdin_channel, G_IO_IN, (GIOFunc)cmd_input, NULL);
