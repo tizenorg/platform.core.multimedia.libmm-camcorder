@@ -42,6 +42,7 @@
 #include <mm_session.h>
 #include <mm_session_private.h>
 
+#include <murphy/common/glib-glue.h>
 
 /*---------------------------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal						|
@@ -184,7 +185,6 @@ static void _mmcamcorder_constructor()
 
 	return;
 }
-
 
 /* Internal command functions {*/
 int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
@@ -474,6 +474,15 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		}
 	}
 
+
+	/* initialize resource manager */
+	ret = _mmcamcorder_resource_manager_init(&hcamcorder->resource_manager, (void *)hcamcorder);
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("failed to initialize resource manager\n");
+		ret = MM_ERROR_CAMCORDER_INTERNAL;
+                goto _ERR_DEFAULT_VALUE_INIT;
+        }
+
 	ret = __mmcamcorder_gstreamer_init(hcamcorder->conf_main);
 	if (!ret) {
 		_mmcam_dbg_err( "Failed to initialize gstreamer!!" );
@@ -670,6 +679,12 @@ int _mmcamcorder_destroy(MMHandleType handle)
 		hcamcorder->sub_context = NULL;
 	}
 
+	/* de-initialize resource manager */
+	ret = _mmcamcorder_resource_manager_deinit(&hcamcorder->resource_manager);
+	if (!ret) {
+		_mmcam_dbg_err("failed to de-initialize resource manager\n");
+        }
+
 	/* Remove idle function which is not called yet */
 	if (hcamcorder->setting_event_id) {
 		_mmcam_dbg_log("Remove remaining idle function");
@@ -803,6 +818,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 	const char *videosink_name = NULL;
 	char *socket_path = NULL;
 	int socket_path_len;
+	mrp_res_resource_t *resource = NULL;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
@@ -1002,6 +1018,33 @@ int _mmcamcorder_realize(MMHandleType handle)
 	                                &(hcamcorder->sub_context->SensorEncodedCapture));
 	_mmcam_dbg_log("Support sensor encoded capture : %d", hcamcorder->sub_context->SensorEncodedCapture);
 
+	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
+		/* prepare resource manager for camera */
+		if((_mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, RESOURCE_TYPE_CAMERA))) {
+			_mmcam_dbg_err("could not prepare for camera resource\n");
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+		}
+
+		/* prepare resource manager for "video_overlay only if display surface is X" */
+		mm_camcorder_get_attributes(handle, NULL,
+                                            MMCAM_DISPLAY_SURFACE, &display_surface_type,
+                                            NULL);
+		if(display_surface_type == MM_DISPLAY_SURFACE_X) {
+			if((_mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, RESOURCE_TYPE_VIDEO_OVERLAY))) {
+				_mmcam_dbg_err("could not prepare for video overlay resource\n");
+				ret = MM_ERROR_CAMCORDER_INTERNAL;
+				goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+			}
+		}
+		/* acquire resources */
+		if((hcamcorder->resource_manager.rset && _mmcamcorder_resource_manager_acquire(&hcamcorder->resource_manager))) {
+			_mmcam_dbg_err("could not acquire resources\n");
+			_mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
+			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+		}
+	}
+
 	/* create pipeline */
 	ret = _mmcamcorder_create_pipeline(handle, hcamcorder->type);
 	if (ret != MM_ERROR_NONE) {
@@ -1104,6 +1147,23 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 		goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 	}
 
+	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
+		ret = _mmcamcorder_resource_manager_release(&hcamcorder->resource_manager);
+		if ( ret == MM_ERROR_RESOURCE_INVALID_STATE ) {
+			_mmcam_dbg_warn("it could be in the middle of resource callback or there's no acquired resource\n");
+			ret = MM_ERROR_NONE;
+		}
+		else if (ret != MM_ERROR_NONE) {
+			_mmcam_dbg_err("failed to release resource, ret(0x%x)\n", ret);
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+		}
+		ret = _mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
+		if(ret != MM_ERROR_NONE) {
+			LOGE("failed to unprepare resource manager, ret(0x%x)\n", ret);
+		}
+	}
+
 	/* Release SubContext */
 	if (hcamcorder->sub_context) {
 		/* destroy pipeline */
@@ -1196,6 +1256,7 @@ int _mmcamcorder_start(MMHandleType handle)
 	int state = MM_CAMCORDER_STATE_NONE;
 	int state_FROM = MM_CAMCORDER_STATE_READY;
 	int state_TO =MM_CAMCORDER_STATE_PREPARE;
+	int display_surface_type = MM_DISPLAY_SURFACE_X;
 
 	_MMCamcorderSubContext *sc = NULL;
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
