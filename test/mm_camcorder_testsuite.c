@@ -2621,14 +2621,14 @@ int main(int argc, char **argv)
 
 	g_timer_reset(timer);
 
+	g_loop = g_main_loop_new(NULL, FALSE);
+
 	bret = mode_change();
 	if(!bret){
 		return bret;
 	}
 
 	print_menu();
-
-	g_loop = g_main_loop_new(NULL, FALSE);
 
 	stdin_channel = g_io_channel_unix_new(fileno(stdin));/* read from stdin */
 	g_io_add_watch(stdin_channel, G_IO_IN, (GIOFunc)cmd_input, NULL);
