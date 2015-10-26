@@ -42,6 +42,7 @@
 
 #include "mm_camcorder.h"
 #include "mm_debug.h"
+#include "mm_camcorder_resource.h"
 
 /* camcorder sub module */
 #include "mm_camcorder_attribute.h"
@@ -399,7 +400,6 @@ extern "C" {
 #define MM_CAMCORDER_STROBE_CONTROL_NUM		3	/**< Number of strobe control type */
 #define MM_CAMCORDER_DETECT_MODE_NUM		2	/**< Number of detect mode type */
 
-
 /*=======================================================================================
 | ENUM DEFINITIONS									|
 ========================================================================================*/
@@ -523,6 +523,7 @@ typedef enum {
 typedef enum {
 	_MMCAMCORDER_STATE_CHANGE_NORMAL = 0,
 	_MMCAMCORDER_STATE_CHANGE_BY_ASM,
+	_MMCAMCORDER_STATE_CHANGE_BY_RM,
 } _MMCamcorderStateChange;
 
 
@@ -565,7 +566,6 @@ typedef struct {
 	pthread_mutex_t vstream_cb_lock;		/**< Mutex (for video stream callback) */
 	pthread_mutex_t astream_cb_lock;		/**< Mutex (for audio stream callback) */
 } _MMCamcorderMTSafe;
-
 
 /**
  * MMCamcorder Sub Context
@@ -691,6 +691,9 @@ typedef struct mmf_camcorder {
 	pthread_mutex_t task_thread_lock;                       /**< mutex for task thread */
 	pthread_cond_t task_thread_cond;                        /**< cond for task thread */
 	_MMCamcorderTaskThreadState task_thread_state;          /**< state of task thread */
+
+	/* resource manager for H/W resources */
+	MMCamcorderResourceManager resource_manager;
 
 	int reserved[4];                                        /**< reserved */
 } mmf_camcorder_t;
