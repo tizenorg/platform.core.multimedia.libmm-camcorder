@@ -30,6 +30,8 @@ BuildRequires:  pkgconfig(vconf)
 BuildRequires:  gstreamer-devel
 BuildRequires:  pkgconfig(libtbm)
 BuildRequires:  pkgconfig(storage)
+BuildRequires:  pkgconfig(murphy-resource)
+BuildRequires:  pkgconfig(murphy-glib)
 
 %description
 Camera and recorder library.

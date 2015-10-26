@@ -18,7 +18,8 @@ noinst_HEADERS = include/mm_camcorder_audiorec.h \
 		 include/mm_camcorder_util.h \
 		 include/mm_camcorder_exifinfo.h \
 		 include/mm_camcorder_exifdef.h \
-		 include/mm_camcorder_sound.h
+		 include/mm_camcorder_sound.h \
+		 include/mm_camcorder_resource.h
 
 libmmfcamcorder_la_SOURCES = mm_camcorder.c \
 			     mm_camcorder_internal.c \
@@ -32,7 +33,8 @@ libmmfcamcorder_la_SOURCES = mm_camcorder.c \
 			     mm_camcorder_util.c \
 			     mm_camcorder_exifinfo.c \
 			     mm_camcorder_sound.c \
-			     mm_camcorder_client.c
+			     mm_camcorder_client.c \
+			     mm_camcorder_resource.c
 
 libmmfcamcorder_la_CFLAGS = -I$(srcdir)/include \
 			     $(GST_CFLAGS) \
@@ -48,6 +50,8 @@ libmmfcamcorder_la_CFLAGS = -I$(srcdir)/include \
 			     $(MMUTIL_JPEG_CFLAGS) \
 			     $(TBM_CFLAGS) \
 			     $(STORAGE_CFLAGS) \
+			     $(MURPHY_RESOURCE_CFLAGS) \
+			     $(MURPHY_GLIB_CFLAGS) \
 			     $(SYSTEMINFO_CFLAGS)
 
 libmmfcamcorder_la_LIBADD = \
@@ -65,6 +69,8 @@ libmmfcamcorder_la_LIBADD = \
 			    $(MMUTIL_IMGP_LIBS) \
 			    $(MMUTIL_JPEG_LIBS) \
 			    $(TBM_LIBS) \
+			    $(MURPHY_RESOURCE_LIBS) \
+			    $(MURPHY_GLIB_LIBS) \
 			    $(STORAGE_LIBS)
 
 libmmfcamcorder_la_CFLAGS += -DMMF_LOG_OWNER=0x010 -D_FILE_OFFSET_BITS=64
