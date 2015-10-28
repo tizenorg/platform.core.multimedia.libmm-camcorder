@@ -3,11 +3,10 @@
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
 Version:    0.10.15
-Release:    0
+Release:    1
 Group:      Multimedia/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
-Requires(post): /usr/bin/vconftool
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(glib-2.0)
@@ -71,13 +70,6 @@ cp LICENSE.APLv2 %{buildroot}/usr/share/license/%{name}
 
 %post
 /sbin/ldconfig
-
-vconftool set -t int memory/camera/state 0 -i -u 5000 -s system::vconf_multimedia
-vconftool set -t int memory/camera/pid 0 -i -u 5000 -s system::vconf_multimedia
-vconftool set -t int memory/camera/flash_state 0 -i -u 5000 -s system::vconf_multimedia
-vconftool set -t int memory/recorder/state 0 -i -u 5000 -s system::vconf_multimedia
-vconftool set -t int memory/recorder/pid 0 -i -u 5000 -s system::vconf_multimedia
-vconftool set -t int file/camera/shutter_sound_policy 0 -u 5000 -s system::vconf_inhouse
 
 %postun -p /sbin/ldconfig
 
