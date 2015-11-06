@@ -37,6 +37,8 @@ extern "C" {
 /*=======================================================================================
 | GLOBAL DEFINITIONS AND DECLARATIONS FOR CAMCORDER					|
 ========================================================================================*/
+#define 	MM_CAMCORDER_ATTR_NONE	-1
+
 
 /*=======================================================================================
 | MACRO DEFINITIONS									|
@@ -182,6 +184,12 @@ typedef enum {
 	ENUM_CONVERT_NUM
 } MMCamConvertingEnum;
 
+typedef enum {
+	MM_CAMCONVERT_CATEGORY_CAMERA  = 1 << 0,
+	MM_CAMCONVERT_CATEGORY_DISPLAY = 1 << 1,
+	MM_CAMCONVERT_CATEGORY_AUDIO   = 1 << 2
+} MMCamConvertingCategory;
+
 /*=======================================================================================
 | STRUCTURE DEFINITIONS									|
 ========================================================================================*/
@@ -230,12 +238,13 @@ int _mmcamcorder_get_fps_array_by_resolution(MMHandleType handle, int width, int
 
 int _mmcamcorder_set_converted_value(MMHandleType handle, _MMCamcorderEnumConvert *convert);
 int _mmcamcorder_init_convert_table(MMHandleType handle);
-int _mmcamcorder_init_attr_from_configure(MMHandleType handle, int type);
+int _mmcamcorder_init_attr_from_configure(MMHandleType handle, MMCamConvertingCategory category);
 
 int _mmcamcorder_convert_brightness(int mslVal);
 int _mmcamcorder_convert_whitebalance(int mslVal);
 int _mmcamcorder_convert_colortone(int mslVal);
 double _mmcamcorder_convert_volume(int mslVal);
+int  __mmcamcorder_set_info_to_attr(MMHandleType handle, _MMCamcorderInfoConverting *info, int table_size);
 
 #ifdef __cplusplus
 }

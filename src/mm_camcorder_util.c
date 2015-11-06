@@ -987,6 +987,7 @@ void _mmcamcorder_element_release_noti(gpointer data, GObject *where_the_object_
 }
 
 
+#ifdef _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK
 gboolean _mmcamcorder_msg_callback(void *data)
 {
 	_MMCamcorderMsgItem *item = (_MMCamcorderMsgItem*)data;
@@ -1060,12 +1061,15 @@ MSG_CALLBACK_DONE:
 	/* For not being called again */
 	return FALSE;
 }
+#endif /* _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK */
 
 
 gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *data)
 {
 	mmf_camcorder_t* hcamcorder = MMF_CAMCORDER(handle);
+#ifdef _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK
 	_MMCamcorderMsgItem *item = NULL;
+#endif /* _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK */
 
 	mmf_return_val_if_fail(hcamcorder, FALSE);
 	mmf_return_val_if_fail(data, FALSE);
@@ -1099,6 +1103,7 @@ gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 			break;
 	}
 
+#ifdef _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK
 	item = g_malloc(sizeof(_MMCamcorderMsgItem));
 	if (item) {
 		memcpy(item, data, sizeof(_MMCamcorderMsgItem));
@@ -1107,7 +1112,7 @@ gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 
 		_MMCAMCORDER_LOCK(handle);
 		hcamcorder->msg_data = g_list_append(hcamcorder->msg_data, item);
-//		_mmcam_dbg_log("item[%p]", item);
+		/*_mmcam_dbg_log("item[%p]", item);*/
 
 		/* Use DEFAULT priority */
 		g_idle_add_full(G_PRIORITY_DEFAULT, _mmcamcorder_msg_callback, item, NULL);
@@ -1116,6 +1121,43 @@ gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 	} else {
 		_mmcam_dbg_err("item[id:0x%x] malloc failed : %d", data->id, sizeof(_MMCamcorderMsgItem));
 	}
+#else /* _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK */
+	_MMCAMCORDER_LOCK_MESSAGE_CALLBACK(hcamcorder);
+
+	if (hcamcorder->msg_cb) {
+		hcamcorder->msg_cb(data->id, (MMMessageParamType*)(&(data->param)), hcamcorder->msg_cb_param);
+	} else {
+		_mmcam_dbg_log("message callback is NULL. message id %d", data->id);
+	}
+
+	_MMCAMCORDER_UNLOCK_MESSAGE_CALLBACK(hcamcorder);
+
+	/* release allocated memory */
+	if (data->id == MM_MESSAGE_CAMCORDER_FACE_DETECT_INFO) {
+		MMCamFaceDetectInfo *cam_fd_info = (MMCamFaceDetectInfo *)data->param.data;
+		if (cam_fd_info) {
+			SAFE_FREE(cam_fd_info->face_info);
+			free(cam_fd_info);
+			cam_fd_info = NULL;
+
+			data->param.data = NULL;
+			data->param.size = 0;
+		}
+	} else if (data->id == MM_MESSAGE_CAMCORDER_VIDEO_CAPTURED ||
+	           data->id == MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED) {
+		MMCamRecordingReport *report = (MMCamRecordingReport *)data->param.data;
+		if (report) {
+			if (report->recording_filename) {
+				free(report->recording_filename);
+				report->recording_filename = NULL;
+			}
+			free(report);
+			report = NULL;
+
+			data->param.data = NULL;
+		}
+	}
+#endif /* _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK */
 
 	return TRUE;
 }
@@ -1124,18 +1166,21 @@ gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 void _mmcamcorder_remove_message_all(MMHandleType handle)
 {
 	mmf_camcorder_t* hcamcorder = MMF_CAMCORDER(handle);
-	_MMCamcorderMsgItem *item = NULL;
 	gboolean ret = TRUE;
+#ifdef _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK
+	_MMCamcorderMsgItem *item = NULL;
 	GList *list = NULL;
 	struct timespec timeout;
 	struct timeval tv;
 	struct timeval tv_to_add;
 	struct timeval tv_result;
+#endif /* _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK */
 
 	mmf_return_if_fail(hcamcorder);
 
 	_MMCAMCORDER_LOCK(handle);
 
+#ifdef _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK
 	if (!hcamcorder->msg_data) {
 		_mmcam_dbg_log("No message data is remained.");
 	} else {
@@ -1219,6 +1264,7 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 		g_list_free(hcamcorder->msg_data);
 		hcamcorder->msg_data = NULL;
 	}
+#endif /* _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK */
 
 	/* remove idle function for playing capture sound */
 	do {

@@ -47,6 +47,37 @@
 #include <storage.h>
 
 
+static _MMCamcorderInfoConverting g_client_display_info[] = {
+	{
+		CONFIGURE_TYPE_MAIN,
+		CONFIGURE_CATEGORY_MAIN_VIDEO_OUTPUT,
+		MM_CAM_CLIENT_DISPLAY_DEVICE,
+		MM_CAMCORDER_ATTR_NONE,
+		"DisplayDevice",
+		MM_CAMCONVERT_TYPE_INT_ARRAY,
+		NULL,
+	},
+	{
+		CONFIGURE_TYPE_MAIN,
+		CONFIGURE_CATEGORY_MAIN_VIDEO_OUTPUT,
+		MM_CAM_CLIENT_DISPLAY_MODE,
+		MM_CAMCORDER_ATTR_NONE,
+		"DisplayMode",
+		MM_CAMCONVERT_TYPE_INT_ARRAY,
+		NULL,
+	},
+	{
+		CONFIGURE_TYPE_MAIN,
+		CONFIGURE_CATEGORY_MAIN_VIDEO_OUTPUT,
+		MM_CAM_CLIENT_DISPLAY_SURFACE,
+		MM_CAMCORDER_ATTR_NONE,
+		"Videosink",
+		MM_CAMCONVERT_TYPE_INT_ARRAY,
+		NULL,
+	},
+};
+
+
 static int _storage_device_supported_cb(int storage_id, storage_type_e type, storage_state_e state, const char *path, void *user_data)
 {
 	char **root_directory = (char **)user_data;
@@ -702,8 +733,31 @@ int _mmcamcorder_client_videosink_window_set(MMHandleType handle, type_element* 
 	return MM_ERROR_NONE;
 }
 
-MMHandleType
-_mmcamcorder_client_alloc_attribute(MMHandleType handle)
+int _mmcamcorder_client_init_attr_from_configure(MMHandleType handle)
+{
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+	_MMCamcorderInfoConverting *info = NULL;
+
+	int table_size = 0;
+	int ret = MM_ERROR_NONE;
+
+	mmf_return_val_if_fail(hcamcorder, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
+
+	/* Initialize attribute related to display */
+	info = g_client_display_info;
+	table_size = sizeof(g_client_display_info) / sizeof(_MMCamcorderInfoConverting);
+	ret = __mmcamcorder_set_info_to_attr(handle, info, table_size);
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("display info set error : 0x%x", ret);
+		return ret;
+	}
+
+	_mmcam_dbg_log("done");
+
+	return ret;
+}
+
+MMHandleType _mmcamcorder_client_alloc_attribute(MMHandleType handle)
 {
 	_mmcam_dbg_log( "" );
 
@@ -1178,9 +1232,9 @@ int _mmcamcorder_client_create_preview_elements(MMHandleType handle, const char 
 	_mmcam_dbg_err("shm src socket path : %s", socket_path);
 
 	g_object_set(sc->element[_MMCAMCORDER_CLIENT_VIDEOSRC_SRC].gst,
-			"socket-path", socket_path,
-			"is-live", TRUE,
-			NULL);
+	             "socket-path", socket_path,
+	             "is-live", TRUE,
+	             NULL);
 
 	/* Making Video sink from here */
 	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_QUE, "queue", "videosink_queue", element_list, ret);
@@ -1498,6 +1552,13 @@ int mm_camcorder_client_create(MMHandleType *handle)
 	if (!ret) {
 		_mmcam_dbg_err( "Failed to initialize gstreamer!!" );
 		ret = MM_ERROR_CAMCORDER_NOT_INITIALIZED;
+		goto _ERR_DEFAULT_VALUE_INIT;
+	}
+
+	ret = _mmcamcorder_client_init_attr_from_configure((MMHandleType)hcamcorder);
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_warn("client_init_attr_from_configure error!!");
+		ret = MM_ERROR_CAMCORDER_INTERNAL;
 		goto _ERR_DEFAULT_VALUE_INIT;
 	}
 

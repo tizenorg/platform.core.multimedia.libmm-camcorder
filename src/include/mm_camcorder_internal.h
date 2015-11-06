@@ -628,7 +628,9 @@ typedef struct mmf_camcorder {
 	GList *buffer_probes;                  /**< a list of buffer probe handle */
 	GList *event_probes;                   /**< a list of event probe handle */
 	GList *signals;                        /**< a list of signal handle */
+#ifdef _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK
 	GList *msg_data;                       /**< a list of msg data */
+#endif /* _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK */
 	camera_conf *conf_main;                /**< Camera configure Main structure */
 	camera_conf *conf_ctrl;                /**< Camera configure Control structure */
 	guint pipeline_cb_event_id;            /**< Event source ID of pipeline message callback */

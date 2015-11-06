@@ -35,7 +35,6 @@
 /*---------------------------------------------------------------------------
 |    LOCAL VARIABLE DEFINITIONS for internal								|
 ---------------------------------------------------------------------------*/
-#define 	MM_CAMCORDER_ATTR_NONE	-1
 
 
 // Rule 1. 1:1 match except NONE.
@@ -630,7 +629,6 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 |    LOCAL FUNCTION PROTOTYPES:												|
 ---------------------------------------------------------------------------*/
 /* STATIC INTERNAL FUNCTION */
-static int  __mmcamcorder_set_info_to_attr( MMHandleType handle, _MMCamcorderInfoConverting *info, int table_size );
 static int  __mmcamcorder_get_valid_array(int * original_array, int original_count, int ** valid_array, int * valid_default );
 
 /*===========================================================================================
@@ -838,7 +836,7 @@ __mmcamcorder_get_valid_array(int * original_array, int original_count, int ** v
 }
 
 
-int _mmcamcorder_init_attr_from_configure(MMHandleType handle, int type)
+int _mmcamcorder_init_attr_from_configure(MMHandleType handle, MMCamConvertingCategory category)
 {
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderInfoConverting *info = NULL;
@@ -848,9 +846,9 @@ int _mmcamcorder_init_attr_from_configure(MMHandleType handle, int type)
 
 	mmf_return_val_if_fail(hcamcorder, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
 
-	_mmcam_dbg_log("type : %d", type);
+	_mmcam_dbg_log("category : %d", category);
 
-	if (type != MM_VIDEO_DEVICE_NONE) {
+	if (category & MM_CAMCONVERT_CATEGORY_CAMERA) {
 		/* Initialize attribute related to camera control */
 		info = hcamcorder->caminfo_convert;
 		table_size = sizeof(g_caminfo_convert) / sizeof(_MMCamcorderInfoConverting);
@@ -859,7 +857,9 @@ int _mmcamcorder_init_attr_from_configure(MMHandleType handle, int type)
 			_mmcam_dbg_err("camera info set error : 0x%x", ret);
 			return ret;
 		}
+	}
 
+	if (category & MM_CAMCONVERT_CATEGORY_DISPLAY) {
 		/* Initialize attribute related to display */
 		info = g_display_info;
 		table_size = sizeof(g_display_info) / sizeof(_MMCamcorderInfoConverting);
@@ -870,13 +870,15 @@ int _mmcamcorder_init_attr_from_configure(MMHandleType handle, int type)
 		}
 	}
 
-	/* Initialize attribute related to audio */
-	info = g_audio_info;
-	table_size = sizeof(g_audio_info) / sizeof(_MMCamcorderInfoConverting);
-	ret = __mmcamcorder_set_info_to_attr(handle, info, table_size);
-	if (ret != MM_ERROR_NONE) {
-		_mmcam_dbg_err("audio info set error : 0x%x", ret);
-		return ret;
+	if (category & MM_CAMCONVERT_CATEGORY_AUDIO) {
+		/* Initialize attribute related to audio */
+		info = g_audio_info;
+		table_size = sizeof(g_audio_info) / sizeof(_MMCamcorderInfoConverting);
+		ret = __mmcamcorder_set_info_to_attr(handle, info, table_size);
+		if (ret != MM_ERROR_NONE) {
+			_mmcam_dbg_err("audio info set error : 0x%x", ret);
+			return ret;
+		}
 	}
 
 	_mmcam_dbg_log("done");
@@ -885,8 +887,7 @@ int _mmcamcorder_init_attr_from_configure(MMHandleType handle, int type)
 }
 
 
-static int
-__mmcamcorder_set_info_to_attr( MMHandleType handle, _MMCamcorderInfoConverting *info, int table_size )
+int __mmcamcorder_set_info_to_attr(MMHandleType handle, _MMCamcorderInfoConverting *info, int table_size)
 {
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	MMHandleType     attrs      = 0;
@@ -908,7 +909,7 @@ __mmcamcorder_set_info_to_attr( MMHandleType handle, _MMCamcorderInfoConverting 
 				info[i].type,
 				info[i].category,
 				info[i].attr_idx,
-				info[i].attr_idx_sub,
+				info[i].attr_idx_pair,
 				info[i].keyword,
 				info[i].conv_type );
 		*/

@@ -234,7 +234,9 @@ gboolean _mmcamcorder_link_elements(GList *element_list);
 gboolean _mmcamcorder_filtered_link_elements(GList *element_list, GstCaps *caps);
 
 /* Message */
+#ifdef _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK
 gboolean _mmcamcorder_msg_callback(void *data);
+#endif /* _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK */
 gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *data);
 void _mmcamcorder_remove_message_all(MMHandleType handle);
 

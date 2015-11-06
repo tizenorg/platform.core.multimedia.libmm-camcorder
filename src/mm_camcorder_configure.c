@@ -140,6 +140,14 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		__videosink_default_string_array,
 		sizeof( __videosink_default_string_array ) / sizeof( type_string* ),
 	};
+	static type_element _videosink_element_remote_default = {
+		"VideosinkElementRemote",
+		"shmsink",
+		__videosink_default_int_array,
+		sizeof( __videosink_default_int_array ) / sizeof( type_int* ),
+		__videosink_default_string_array,
+		sizeof( __videosink_default_string_array ) / sizeof( type_string* ),
+	};
 	static type_element _videosink_element_null_default = {
 		"VideosinkElementNull",
 		"fakesink",
@@ -635,6 +643,7 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		{ "VideosinkElementX",     CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_x_default} },
 		{ "VideosinkElementEvas",  CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_evas_default} },
 		{ "VideosinkElementGL",    CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_gl_default} },
+		{ "VideosinkElementRemote",CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_remote_default} },
 		{ "VideosinkElementNull",  CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_null_default} },
 		{ "UseVideoscale",         CONFIGURE_VALUE_INT,       {.value_int = 0} },
 		{ "VideoscaleElement",     CONFIGURE_VALUE_ELEMENT,   {&_videoscale_element_default} },
@@ -854,7 +863,7 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		(*configure_info)->info = (conf_detail**)g_malloc0( sizeof( conf_detail* ) * CONFIGURE_CATEGORY_MAIN_NUM );
 
 		for (i = 0 ; i < CONFIGURE_CATEGORY_MAIN_NUM ; i++) {
-			(*configure_info)->info[i]	= NULL;
+			(*configure_info)->info[i] = NULL;
 		}
 	} else {
 		hcamcorder->conf_ctrl_info_table[CONFIGURE_CATEGORY_CTRL_CAMERA]     = conf_ctrl_camera_table;

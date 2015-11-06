@@ -2,8 +2,8 @@
 
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.10.15
-Release:    1
+Version:    0.10.16
+Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
@@ -32,17 +32,17 @@ BuildRequires:  pkgconfig(libtbm)
 BuildRequires:  pkgconfig(storage)
 
 %description
-Camera and recorder library.
+Camera and recorder function supported library.
 
 
 %package devel
-Summary:    Camera and recorder development library
+Summary:    Camera and recorder library for development
 Group:      libdevel
 Version:    %{version}
 Requires:   %{name} = %{version}-%{release}
 
 %description devel
-Camera and recorder development library.
+Camera and recorder function supported library for development.
 
 
 %prep

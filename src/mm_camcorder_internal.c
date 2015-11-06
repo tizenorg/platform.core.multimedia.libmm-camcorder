@@ -355,7 +355,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 				goto _ERR_DEFAULT_VALUE_INIT;
 			}
 
-			ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, info->videodev_type);
+			ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, MM_CAMCONVERT_CATEGORY_CAMERA|MM_CAMCONVERT_CATEGORY_DISPLAY);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("converting table initialize error!!");
 				ret = MM_ERROR_CAMCORDER_INTERNAL;
@@ -493,7 +493,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			goto _ERR_DEFAULT_VALUE_INIT;
 		}
 
-		ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, info->videodev_type);
+		ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, MM_CAMCONVERT_CATEGORY_AUDIO);
 		if (ret != MM_ERROR_NONE) {
 			_mmcam_dbg_warn("init attribute from configure error : 0x%x", ret);
 			ret = MM_ERROR_CAMCORDER_INTERNAL;
@@ -1014,6 +1014,9 @@ int _mmcamcorder_realize(MMHandleType handle)
 		break;
 	case MM_DISPLAY_SURFACE_NULL:
 		videosink_element_type = strdup("VideosinkElementNull");
+		break;
+	case MM_DISPLAY_SURFACE_REMOTE:
+		videosink_element_type = strdup("VideosinkElementRemote");
 		break;
 	default:
 		videosink_element_type = strdup("VideosinkElementX");
