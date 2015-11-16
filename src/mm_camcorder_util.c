@@ -625,7 +625,7 @@ int _mmcamcorder_get_freespace(const gchar *path, const gchar *root_directory, g
 
 		if (stat(root_directory, &stat_root) != 0) {
 			*free_space = 0;
-			_mmcam_dbg_err("failed to stat for [%s][errno %d]", path, errno);
+			_mmcam_dbg_err("failed to stat for [%s][errno %d]", root_directory, errno);
 			return -1;
 		}
 

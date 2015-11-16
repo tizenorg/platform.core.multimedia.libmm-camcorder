@@ -388,7 +388,7 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			{(void*)1},
 			MM_ATTRS_VALID_TYPE_DOUBLE_RANGE,
 			{.double_min = 0.0},
-			{.double_max = _MMCAMCORDER_MAX_INT},
+			{.double_max = _MMCAMCORDER_MAX_DOUBLE},
 			_mmcamcorder_commit_camera_recording_motion_rate,
 		},
 		{
