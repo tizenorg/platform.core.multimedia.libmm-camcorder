@@ -231,7 +231,6 @@ void _mmcamcorder_remove_all_handlers(MMHandleType handle, _MMCamcorderHandlerCa
 void _mmcamcorder_element_release_noti(gpointer data, GObject *where_the_object_was);
 gboolean _mmcamcorder_add_elements_to_bin(GstBin *bin, GList *element_list);
 gboolean _mmcamcorder_link_elements(GList *element_list);
-gboolean _mmcamcorder_filtered_link_elements(GList *element_list, GstCaps *caps);
 
 /* Message */
 #ifdef _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK
