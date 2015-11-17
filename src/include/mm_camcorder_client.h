@@ -69,6 +69,9 @@ typedef enum {
 	/* Pipeline element of Video input */
 	_MMCAMCORDER_CLIENT_VIDEOSRC_SRC,
 
+	/* Pipeline elements of Video Capsfilter */
+	_MMCAMCORDER_CLIENT_VIDEOSRC_FILT,
+
 	/* Pipeline element of Video Sink Queue */
 	_MMCAMCORDER_CLIENT_VIDEOSINK_QUE,
 

@@ -1236,6 +1236,16 @@ int _mmcamcorder_client_create_preview_elements(MMHandleType handle, const char 
 	             "is-live", TRUE,
 	             NULL);
 
+	/* create capsfilter */
+	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_FILT, "capsfilter", "vidoesrc_filt", element_list, ret);
+
+	caps = gst_caps_from_string(string_caps);
+	MMCAMCORDER_G_OBJECT_SET_POINTER(sc->element[_MMCAMCORDER_CLIENT_VIDEOSRC_FILT].gst, "caps", caps);
+
+	gst_caps_unref(caps);
+
+	caps = NULL;
+
 	/* Making Video sink from here */
 	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_QUE, "queue", "videosink_queue", element_list, ret);
 
@@ -1265,9 +1275,8 @@ int _mmcamcorder_client_create_preview_elements(MMHandleType handle, const char 
 		goto pipeline_creation_error;
 	}
 
-	caps = gst_caps_from_string(string_caps);
 	/* link elements */
-	if (!_mmcamcorder_filtered_link_elements(element_list, caps)) {
+	if (!_mmcamcorder_link_elements(element_list)) {
 		_mmcam_dbg_err( "element link error." );
 		ret = MM_ERROR_CAMCORDER_GST_LINK;
 		goto pipeline_creation_error;
