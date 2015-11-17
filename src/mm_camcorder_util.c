@@ -1547,39 +1547,6 @@ gboolean _mmcamcorder_link_elements(GList *element_list)
 	return TRUE;
 }
 
-gboolean _mmcamcorder_filtered_link_elements(GList *element_list, GstCaps *caps)
-{
-	GList                  *local_list  = element_list;
-	_MMCamcorderGstElement *element     = NULL;
-	_MMCamcorderGstElement *pre_element = NULL;
-
-	mmf_return_val_if_fail(local_list, FALSE);
-
-	pre_element = (_MMCamcorderGstElement*)local_list->data;
-	local_list = local_list->next;
-
-	while (local_list) {
-		element = (_MMCamcorderGstElement*)local_list->data;
-		if (element && element->gst) {
-			if (_MM_GST_ELEMENT_LINK_FILTERED(GST_ELEMENT(pre_element->gst), GST_ELEMENT(element->gst), caps)) {
-				_mmcam_dbg_log("Link [%s] to [%s] OK",
-				               GST_ELEMENT_NAME(GST_ELEMENT(pre_element->gst)),
-				               GST_ELEMENT_NAME(GST_ELEMENT(element->gst)));
-			} else {
-				_mmcam_dbg_err("Link [%s] to [%s] FAILED",
-				               GST_ELEMENT_NAME(GST_ELEMENT(pre_element->gst)),
-				               GST_ELEMENT_NAME(GST_ELEMENT(element->gst)));
-				return FALSE;
-			}
-		}
-
-		pre_element = element;
-		local_list = local_list->next;
-	}
-
-	return TRUE;
-}
-
 gboolean _mmcamcorder_resize_frame(unsigned char *src_data, unsigned int src_width, unsigned int src_height, unsigned int src_length, int src_format,
                                    unsigned char **dst_data, unsigned int *dst_width, unsigned int *dst_height, unsigned int *dst_length)
 {
