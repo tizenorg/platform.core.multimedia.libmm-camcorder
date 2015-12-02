@@ -509,10 +509,13 @@ gboolean _mmcamcorder_sound_play(MMHandleType handle, const char *sample_name, g
 		                                  NULL);
 */
 	}
+
+/*
 	if (pulse_op) {
 		pa_operation_unref(pulse_op);
 		pulse_op = NULL;
 	}
+*/
 
 	pthread_mutex_unlock(&(info->open_mutex));
 

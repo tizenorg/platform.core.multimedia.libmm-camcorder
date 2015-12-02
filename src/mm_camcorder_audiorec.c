@@ -737,7 +737,7 @@ __mmcamcorder_get_decibel(unsigned char* raw, int size, MMCamcorderAudioFormat f
 	}
 
 	if (count > 0) {
-		rms = sqrt( square_sum/count );
+		rms = sqrt( (double)square_sum/(double)count );
 		if (depthByte == 1) {
 			db = 20 * log10( rms/MAX_AMPLITUDE_MEAN_08BIT );
 		} else {

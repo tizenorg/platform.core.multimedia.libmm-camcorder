@@ -1527,7 +1527,7 @@ gboolean _mmcamcorder_link_elements(GList *element_list)
 
 	while (local_list) {
 		element = (_MMCamcorderGstElement*)local_list->data;
-		if (element && element->gst) {
+		if (pre_element && pre_element->gst && element && element->gst) {
 			if (_MM_GST_ELEMENT_LINK(GST_ELEMENT(pre_element->gst), GST_ELEMENT(element->gst))) {
 				_mmcam_dbg_log("Link [%s] to [%s] OK",
 				               GST_ELEMENT_NAME(GST_ELEMENT(pre_element->gst)),

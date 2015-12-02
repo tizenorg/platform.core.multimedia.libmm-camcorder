@@ -1166,20 +1166,16 @@ __mmcamcorder_client_gstreamer_init(camera_conf * conf)
 	/* release */
 	for (i = 0; i < *argc; i++) {
 		if (argv[i]) {
-			free(argv[i]);
+			g_free(argv[i]);
 			argv[i] = NULL;
 		}
 	}
 
-	if (argv) {
-		free(argv);
-		argv = NULL;
-	}
+	free(argv);
+	argv = NULL;
 
-	if (argc) {
-		free(argc);
-		argc = NULL;
-	}
+	free(argc);
+	argc = NULL;
 
 	return ret;
 

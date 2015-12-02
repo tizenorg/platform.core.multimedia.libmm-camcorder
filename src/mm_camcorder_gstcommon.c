@@ -1019,11 +1019,6 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 		element_list = NULL;
 	}
 
-	if (video_caps) {
-		gst_caps_unref(video_caps);
-		video_caps = NULL;
-	}
-
 	_mmcam_dbg_log("done");
 
 	return MM_ERROR_NONE;
@@ -1044,11 +1039,6 @@ pipeline_creation_error :
 	if (element_list) {
 		g_list_free(element_list);
 		element_list = NULL;
-	}
-
-	if (video_caps) {
-		gst_caps_unref(video_caps);
-		video_caps = NULL;
 	}
 
 	return err;
@@ -1938,8 +1928,8 @@ int _mmcamcorder_check_audiocodec_fileformat_compatibility(MMHandleType handle)
 	}
 
 	/* Check compatibility between audio codec and file format */
-	if (audio_codec >= MM_AUDIO_CODEC_INVALID && audio_codec < MM_AUDIO_CODEC_NUM &&
-	    file_format >= MM_FILE_FORMAT_INVALID && file_format < MM_FILE_FORMAT_NUM) {
+	if (audio_codec > MM_AUDIO_CODEC_INVALID && audio_codec < MM_AUDIO_CODEC_NUM &&
+	    file_format > MM_FILE_FORMAT_INVALID && file_format < MM_FILE_FORMAT_NUM) {
 		if (audiocodec_fileformat_compatibility_table[audio_codec][file_format] == 0) {
 			_mmcam_dbg_err("Audio codec[%d] and file format[%d] compatibility FAILED.",
 			               audio_codec, file_format);
@@ -1977,8 +1967,8 @@ int _mmcamcorder_check_videocodec_fileformat_compatibility(MMHandleType handle)
 	}
 
 	/* Check compatibility between audio codec and file format */
-	if (video_codec >= MM_VIDEO_CODEC_INVALID && video_codec < MM_VIDEO_CODEC_NUM &&
-	    file_format >= MM_FILE_FORMAT_INVALID && file_format < MM_FILE_FORMAT_NUM) {
+	if (video_codec > MM_VIDEO_CODEC_INVALID && video_codec < MM_VIDEO_CODEC_NUM &&
+	    file_format > MM_FILE_FORMAT_INVALID && file_format < MM_FILE_FORMAT_NUM) {
 		if (videocodec_fileformat_compatibility_table[video_codec][file_format] == 0) {
 			_mmcam_dbg_err("Video codec[%d] and file format[%d] compatibility FAILED.",
 			               video_codec, file_format);
@@ -2211,12 +2201,16 @@ bool _mmcamcorder_set_videosrc_caps(MMHandleType handle, unsigned int fourcc, in
 
 		structure = gst_caps_get_structure(caps, 0);
 		if (structure) {
+			const gchar *format_string = NULL;
 			int caps_width = 0;
 			int caps_height = 0;
 			int caps_fps = 0;
 			int caps_rotate = 0;
 
-			caps_fourcc = _mmcamcorder_convert_fourcc_string_to_value(gst_structure_get_string(structure, "format"));
+			format_string = gst_structure_get_string(structure, "format");
+			if (format_string) {
+				caps_fourcc = _mmcamcorder_convert_fourcc_string_to_value(format_string);
+			}
 			gst_structure_get_int(structure, "width", &caps_width);
 			gst_structure_get_int(structure, "height", &caps_height);
 			gst_structure_get_int(structure, "fps", &caps_fps);

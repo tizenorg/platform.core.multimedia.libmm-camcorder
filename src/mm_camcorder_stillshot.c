@@ -2088,8 +2088,8 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle, int image_width, int 
 
 	/* get ExifData from exif info */
 	ed = mm_exif_get_exif_from_info(hcamcorder->exif_info);
-	if (ed == NULL || ed->ifd == NULL) {
-		_mmcam_dbg_err("get exif data error!!(%p, %p)", ed, (ed ? ed->ifd : NULL));
+	if (ed == NULL) {
+		_mmcam_dbg_err("get exif data error!!");
 		return MM_ERROR_INVALID_HANDLE;
 	}
 
@@ -2204,16 +2204,22 @@ int __mmcamcorder_set_exif_basic_info(MMHandleType handle, int image_width, int 
 #endif
 	/*6. EXIF_TAG_IMAGE_DESCRIPTION */
 	mm_camcorder_get_attributes(handle, NULL, MMCAM_TAG_IMAGE_DESCRIPTION, &str_value, &str_val_len, NULL);
-	_mmcam_dbg_log("desctiption [%s]", str_value);
 	if (str_value && str_val_len > 0) {
 		char *description = strdup(str_value);
-		ret = mm_exif_set_add_entry(ed, EXIF_IFD_0, EXIF_TAG_IMAGE_DESCRIPTION,
-		                            EXIF_FORMAT_ASCII, strlen(description), (const char *)description);
-		free(description);
-		str_value = NULL;
-		str_val_len = 0;
-		if (ret != MM_ERROR_NONE) {
-			EXIF_SET_ERR(ret, EXIF_TAG_IMAGE_DESCRIPTION);
+
+		_mmcam_dbg_log("desctiption [%s]", str_value);
+
+		if (description) {
+			ret = mm_exif_set_add_entry(ed, EXIF_IFD_0, EXIF_TAG_IMAGE_DESCRIPTION,
+			                            EXIF_FORMAT_ASCII, strlen(description), (const char *)description);
+			free(description);
+			str_value = NULL;
+			str_val_len = 0;
+			if (ret != MM_ERROR_NONE) {
+				EXIF_SET_ERR(ret, EXIF_TAG_IMAGE_DESCRIPTION);
+			}
+		} else {
+			_mmcam_dbg_err("strdup failed for [%s]", str_value);
 		}
 	} else {
 		_mmcam_dbg_warn("failed to get description");

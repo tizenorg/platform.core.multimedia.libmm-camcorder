@@ -695,7 +695,7 @@ int _mmcamcorder_get_fps_array_by_resolution(MMHandleType handle, int width, int
 	MMCamAttrsInfo *infoW = NULL;
 	MMCamAttrsInfo *infoH = NULL;
 	int i = 0;
-	char nameFps[5] = {0,};
+	char nameFps[10] = {0,};
 	bool valid_check = false;
 
 	type_int_array *fps_array;
@@ -705,7 +705,20 @@ int _mmcamcorder_get_fps_array_by_resolution(MMHandleType handle, int width, int
 	//_mmcam_dbg_log("prev resolution w:%d, h:%d", width, height);
 
 	infoW = (MMCamAttrsInfo*)calloc(1, sizeof(MMCamAttrsInfo));
+	if (infoW == NULL) {
+		_mmcam_dbg_err("failed to alloc infoW");
+		return MM_ERROR_CAMCORDER_LOW_MEMORY;
+	}
+
 	infoH = (MMCamAttrsInfo*)calloc(1, sizeof(MMCamAttrsInfo));
+	if (infoH == NULL) {
+		_mmcam_dbg_err("failed to alloc infoH");
+
+		free(infoW);
+		infoW = NULL;
+
+		return MM_ERROR_CAMCORDER_LOW_MEMORY;
+	}
 
 	mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_WIDTH, infoW);
 	mm_camcorder_get_attribute_info(handle, MMCAM_CAMERA_HEIGHT, infoH);
@@ -714,16 +727,16 @@ int _mmcamcorder_get_fps_array_by_resolution(MMHandleType handle, int width, int
 		//_mmcam_dbg_log("width :%d, height : %d\n", infoW->int_array.array[i], infoH->int_array.array[i]);
 		if(infoW->int_array.array[i] == width && infoH->int_array.array[i] == height) {
 			valid_check = true;
-			sprintf(nameFps, "FPS%d", i);
+			snprintf(nameFps, 10, "FPS%d", i);
 			_mmcam_dbg_log("nameFps : %s!!!", nameFps);
 			break;
 		}
 	}
 
-	if(infoW)
-		free(infoW);
-	if(infoH)
-		free(infoH);
+	free(infoW);
+	infoW = NULL;
+	free(infoH);
+	infoH = NULL;
 
 	if(!valid_check) {
 		_mmcam_dbg_err("FAILED : Can't find the valid resolution from attribute.");

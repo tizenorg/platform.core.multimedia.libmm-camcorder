@@ -1044,6 +1044,10 @@ int _mmcamcorder_conf_parse_info(MMHandleType handle, int type, FILE* fd, camera
 		else if( *buffer_token[0] == '[' )
 		{
 			category_name = get_new_string( buffer_token[0] );
+			if (category_name == NULL) {
+				_mmcam_dbg_err("strdup failed for [%s]", buffer_token[0]);
+				continue;
+			}
 
 			count_main_category++;
 			count_details = 0;
@@ -1550,20 +1554,20 @@ int _mmcamcorder_conf_add_info(MMHandleType handle, int type, conf_detail** info
 						free( new_int_pair_array->name );
 						new_int_pair_array->name = NULL;
 					}
-					free( new_int_pair_array );
+					g_free( new_int_pair_array );
 					new_int_pair_array = NULL;
 					_mmcam_dbg_err("allocation failed");
 					break;
 				}
 				new_int_pair_array->value[1] = (int*)g_malloc( sizeof(int)*(count_value) );
 				if ( new_int_pair_array->value[1] == NULL ) {
-					free( new_int_pair_array->value[0] );
+					g_free( new_int_pair_array->value[0] );
 					new_int_pair_array->value[0] = NULL;
 					if (new_int_pair_array->name) {
 						free( new_int_pair_array->name );
 						new_int_pair_array->name = NULL;
 					}
-					free( new_int_pair_array );
+					g_free( new_int_pair_array );
 					new_int_pair_array = NULL;
 					_mmcam_dbg_err("allocation failed");
 					break;
@@ -1661,7 +1665,7 @@ int _mmcamcorder_conf_add_info(MMHandleType handle, int type, conf_detail** info
 				*/
 
 				/* add int values */
-				if ( new_element->count_int > 0 ) {
+				if ( new_element->count_int > 0 && new_element->count_int <= 30 ) {
 					new_element->value_int = (type_int2**)g_malloc0( sizeof(type_int2*)*(new_element->count_int) );
 					if ( new_element->value_int) {
 						for ( j = 0 ; j < new_element->count_int ; j++ ) {
@@ -1683,11 +1687,13 @@ int _mmcamcorder_conf_add_info(MMHandleType handle, int type, conf_detail** info
 				}
 				else
 				{
+					_mmcam_dbg_err("invalid count - %d", new_element->count_int);
 					new_element->value_int = NULL;
 				}
 
 				/* add string values */
-				if ( new_element->count_string > 0 ) {
+				if ( new_element->count_string > 0 && new_element->count_string <= 30 &&
+				     new_element->count_int >= 0 && new_element->count_int <= 30 ) {
 					new_element->value_string = (type_string2**)g_malloc0( sizeof(type_string2*)*(new_element->count_string) );
 					if (new_element->value_string) {
 						for ( ; j < new_element->count_string + new_element->count_int ; j++ ) {
@@ -1707,6 +1713,7 @@ int _mmcamcorder_conf_add_info(MMHandleType handle, int type, conf_detail** info
 						_mmcam_dbg_err("malloc failed : %d", sizeof(type_string2*)*(new_element->count_string));
 					}
 				} else {
+					_mmcam_dbg_err("invalid count - %d", new_element->count_string);
 					new_element->value_string = NULL;
 				}
 

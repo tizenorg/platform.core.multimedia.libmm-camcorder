@@ -1400,7 +1400,7 @@ static void setting_menu(gchar buf)
 					}
 					err = scanf("%d",&idx);
 
-					if( idx > 0 && idx <= count ) {
+					if( idx > 0 && idx <= count && count <= 30) {
 						bret = camcordertest_set_attr_int("camera-shutter-speed", array[idx-1]);
 					}
 				}

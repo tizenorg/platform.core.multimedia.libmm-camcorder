@@ -1018,30 +1018,30 @@ int _mmcamcorder_realize(MMHandleType handle)
 		_mmcam_dbg_warn("SupportDualStream [%d]", hcamcorder->sub_context->info_video->support_dual_stream);
 	}
 
-	switch (display_surface_type) {
-	case MM_DISPLAY_SURFACE_X:
-		videosink_element_type = strdup("VideosinkElementX");
-		break;
-	case MM_DISPLAY_SURFACE_EVAS:
-		videosink_element_type = strdup("VideosinkElementEvas");
-		break;
-	case MM_DISPLAY_SURFACE_GL:
-		videosink_element_type = strdup("VideosinkElementGL");
-		break;
-	case MM_DISPLAY_SURFACE_NULL:
-		videosink_element_type = strdup("VideosinkElementNull");
-		break;
-	case MM_DISPLAY_SURFACE_REMOTE:
-		videosink_element_type = strdup("VideosinkElementRemote");
-		break;
-	default:
-		videosink_element_type = strdup("VideosinkElementX");
-		break;
-	}
-
 	if (socket_path == NULL) {
 		_mmcam_dbg_warn("Socket Path is not properly set, -> to NullSink.");
 		videosink_element_type = strdup("VideosinkElementNull");
+	} else {
+		switch (display_surface_type) {
+		case MM_DISPLAY_SURFACE_X:
+			videosink_element_type = strdup("VideosinkElementX");
+			break;
+		case MM_DISPLAY_SURFACE_EVAS:
+			videosink_element_type = strdup("VideosinkElementEvas");
+			break;
+		case MM_DISPLAY_SURFACE_GL:
+			videosink_element_type = strdup("VideosinkElementGL");
+			break;
+		case MM_DISPLAY_SURFACE_NULL:
+			videosink_element_type = strdup("VideosinkElementNull");
+			break;
+		case MM_DISPLAY_SURFACE_REMOTE:
+			videosink_element_type = strdup("VideosinkElementRemote");
+			break;
+		default:
+			videosink_element_type = strdup("VideosinkElementX");
+			break;
+		}
 	}
 
 	/* check string of videosink element */
@@ -2435,7 +2435,7 @@ __mmcamcorder_gstreamer_init(camera_conf * conf)
 	/* release */
 	for (i = 0; i < *argc; i++) {
 		if (argv[i]) {
-			free(argv[i]);
+			g_free(argv[i]);
 			argv[i] = NULL;
 		}
 	}
