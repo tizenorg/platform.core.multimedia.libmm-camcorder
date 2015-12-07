@@ -62,6 +62,7 @@ struct sigaction mm_camcorder_sys_old_action;
 #define __MMCAMCORDER_FORCE_STOP_TRY_COUNT      30
 #define __MMCAMCORDER_FORCE_STOP_WAIT_TIME      100000  /* us */
 #define __MMCAMCORDER_SOUND_WAIT_TIMEOUT        3
+#define __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN   64
 
 
 /*---------------------------------------------------------------------------------------
@@ -2510,7 +2511,7 @@ void _mmcamcorder_set_state(MMHandleType handle, int state)
 		switch (hcamcorder->state_change_by_system) {
 		case _MMCAMCORDER_STATE_CHANGE_BY_ASM:
 			msg.id = MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_ASM;
-			msg.param.state.code = MM_ERROR_NONE;
+			msg.param.state.code = hcamcorder->interrupt_code;
 			break;
 		case _MMCAMCORDER_STATE_CHANGE_BY_RM:
 			msg.id = MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_RM;
@@ -3193,11 +3194,8 @@ void _mmcamcorder_sound_focus_cb(int id, mm_sound_focus_type_e focus_type,
 		return;
 	}
 
-	/* set value to inform a status is changed by asm */
-	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_ASM;
-
 	_mmcam_dbg_log("sound focus callback : focus state %d, reason %s",
-		       focus_state, reason_for_change ? reason_for_change : "N/A");
+	               focus_state, reason_for_change ? reason_for_change : "N/A");
 
 	if (hcamcorder->session_flags & MM_SESSION_OPTION_UNINTERRUPTIBLE) {
 		_mmcam_dbg_warn("session flag is UNINTERRUPTIBLE. do nothing.");
@@ -3205,6 +3203,20 @@ void _mmcamcorder_sound_focus_cb(int id, mm_sound_focus_type_e focus_type,
 	}
 
 	_MMCAMCORDER_LOCK_ASM(hcamcorder);
+
+	/* set value to inform a status is changed by asm */
+	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_ASM;
+
+	/* check the reason */
+	if (!strncmp(reason_for_change, "ringtone-voip", __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN) ||
+	    !strncmp(reason_for_change, "voip", __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN) ||
+	    !strncmp(reason_for_change, "call-voice", __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN)) {
+		hcamcorder->interrupt_code = MM_MSG_CODE_INTERRUPTED_BY_CALL_START;
+	} else if (!strncmp(reason_for_change, "alarm", __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN)) {
+		hcamcorder->interrupt_code = MM_MSG_CODE_INTERRUPTED_BY_ALARM_START;
+	} else {
+		hcamcorder->interrupt_code = MM_MSG_CODE_INTERRUPTED_BY_MEDIA;
+	}
 
 	if (focus_state == FOCUS_IS_RELEASED) {
 		hcamcorder->acquired_focus &= ~focus_type;
@@ -3255,9 +3267,6 @@ void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_soun
 		return;
 	}
 
-	/* set value to inform a status is changed by asm */
-	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_ASM;
-
 	_mmcam_dbg_log("sound focus watch callback : focus state %d, reason %s",
 		       focus_state, reason_for_change ? reason_for_change : "N/A");
 
@@ -3267,6 +3276,20 @@ void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_soun
 	}
 
 	_MMCAMCORDER_LOCK_ASM(hcamcorder);
+
+	/* set value to inform a status is changed by asm */
+	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_ASM;
+
+	/* check the reason */
+	if (!strncmp(reason_for_change, "ringtone-voip", __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN) ||
+	    !strncmp(reason_for_change, "voip", __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN) ||
+	    !strncmp(reason_for_change, "call-voice", __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN)) {
+		hcamcorder->interrupt_code = MM_MSG_CODE_INTERRUPTED_BY_CALL_START;
+	} else if (!strncmp(reason_for_change, "alarm", __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN)) {
+		hcamcorder->interrupt_code = MM_MSG_CODE_INTERRUPTED_BY_ALARM_START;
+	} else {
+		hcamcorder->interrupt_code = MM_MSG_CODE_INTERRUPTED_BY_MEDIA;
+	}
 
 	if (focus_state == FOCUS_IS_RELEASED) {
 		_MMCamcorderMsgItem msg;
