@@ -674,6 +674,7 @@ typedef struct mmf_camcorder {
 	int sound_focus_register;                               /**< Use sound focus internally */
 	int sound_focus_id;                                     /**< id for sound focus */
 	int sound_focus_watch_id;                               /**< id for sound focus watch */
+	int interrupt_code;                                     /**< Interrupt code */
 	int acquired_focus;                                     /**< Current acquired focus */
 	int session_type;                                       /**< Session type */
 	int session_flags;                                      /**< Session flags */

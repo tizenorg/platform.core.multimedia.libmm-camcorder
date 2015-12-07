@@ -1078,6 +1078,7 @@ gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 	{
 		case MM_MESSAGE_CAMCORDER_STATE_CHANGED:
 		case MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_ASM:
+		case MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_RM:
 			data->param.union_type = MM_MSG_UNION_STATE;
 			break;
 		case MM_MESSAGE_CAMCORDER_RECORDING_STATUS:
