@@ -58,7 +58,7 @@ struct sigaction mm_camcorder_sys_old_action;
 |    LOCAL VARIABLE DEFINITIONS for internal						|
 ---------------------------------------------------------------------------------------*/
 #define __MMCAMCORDER_CMD_ITERATE_MAX           3
-#define __MMCAMCORDER_SET_GST_STATE_TIMEOUT     3
+#define __MMCAMCORDER_SET_GST_STATE_TIMEOUT     5
 #define __MMCAMCORDER_FORCE_STOP_TRY_COUNT      30
 #define __MMCAMCORDER_FORCE_STOP_WAIT_TIME      100000  /* us */
 #define __MMCAMCORDER_SOUND_WAIT_TIMEOUT        3
@@ -723,7 +723,7 @@ int _mmcamcorder_destroy(MMHandleType handle)
 	ret = _mmcamcorder_resource_manager_deinit(&hcamcorder->resource_manager);
 	if (!ret) {
 		_mmcam_dbg_err("failed to de-initialize resource manager");
-        }
+	}
 
 	/* Remove idle function which is not called yet */
 	if (hcamcorder->setting_event_id) {
