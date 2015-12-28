@@ -1485,16 +1485,19 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 		structure = gst_caps_get_structure( caps, 0 );
 		gst_structure_get_int(structure, "width", &(stream.width));
 		gst_structure_get_int(structure, "height", &(stream.height));
-		string_format = gst_structure_get_string(structure, "format");
-		if (string_format == NULL) {
-			gst_caps_unref(caps);
-			caps = NULL;
-			_mmcam_dbg_warn("get string error!!");
-			return GST_PAD_PROBE_OK;
+		if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ENCODED_H264) {
+			stream.format = MM_PIXEL_FORMAT_ENCODED_H264;
+		} else {
+			string_format = gst_structure_get_string(structure, "format");
+			if (string_format == NULL) {
+				gst_caps_unref(caps);
+				caps = NULL;
+				_mmcam_dbg_warn("get string error!!");
+				return GST_PAD_PROBE_OK;
+			}
+			fourcc = _mmcamcorder_convert_fourcc_string_to_value(string_format);
+			stream.format = _mmcamcorder_get_pixtype(fourcc);
 		}
-
-		fourcc = _mmcamcorder_convert_fourcc_string_to_value(string_format);
-		stream.format = _mmcamcorder_get_pixtype(fourcc);
 		gst_caps_unref(caps);
 		caps = NULL;
 
@@ -1602,6 +1605,13 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 				stream.data_type = MM_CAM_STREAM_DATA_YUV422;
 				stream.data.yuv422.yuv = mapinfo.data;
 				stream.data.yuv422.length_yuv = stream.length_total;
+			} else if (stream.format == MM_PIXEL_FORMAT_ENCODED_H264) {
+					stream.data_type = MM_CAM_STREAM_DATA_ENCODED;
+					stream.data.encoded.data = mapinfo.data;
+					stream.data.encoded.length_data = stream.length_total;
+					_mmcam_dbg_log("H264[num_planes:%d] [0]p:0x%x,size:%d",
+						fourcc, fourcc>>8, fourcc>>16, fourcc>>24, stream.num_planes,
+						stream.data.encoded.data, stream.data.encoded.length_data);
 			} else {
 				stream.data_type = MM_CAM_STREAM_DATA_YUV420;
 				stream.data.yuv420.yuv = mapinfo.data;

@@ -39,6 +39,7 @@
 #include <sndfile.h>
 #include <vconf.h>
 #include <gst/video/video-format.h>
+#include <ttrace.h>
 
 #include "mm_camcorder.h"
 #include "mm_debug.h"
@@ -134,7 +135,9 @@ extern "C" {
 		_mmcam_dbg_err("The element is existed. element_id=[%d], name=[%s]", eid, name); \
 		gst_object_unref(element[eid].gst); \
 	} \
+	traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:ELEMENT_MAKE:%s", name); \
 	element[eid].gst = gst_element_factory_make(name, nickname); \
+	traceEnd(TTRACE_TAG_CAMERA); \
 	if (element[eid].gst == NULL) { \
 		_mmcam_dbg_err("Element creation fail. element_id=[%d], name=[%s]", eid, name); \
 		err = MM_ERROR_CAMCORDER_RESOURCE_CREATION; \

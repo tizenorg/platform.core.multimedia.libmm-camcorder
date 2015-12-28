@@ -223,11 +223,19 @@ void _mmcamcorder_destroy_video_capture_pipeline(MMHandleType handle)
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", TRUE);
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", TRUE);
 
+		traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:UNREALIZE:SET_NULL_TO_PIPELINE");
+
 		_mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_MAIN_PIPE].gst, GST_STATE_NULL);
+
+		traceEnd(TTRACE_TAG_CAMERA);
 
 		_mmcamcorder_remove_all_handlers(handle, _MMCAMCORDER_HANDLER_CATEGORY_ALL);
 
+		traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:UNREALIZE:UNREF_PIPELINE");
+
 		gst_object_unref(sc->element[_MMCAMCORDER_MAIN_PIPE].gst);
+
+		traceEnd(TTRACE_TAG_CAMERA);
 
 		/* NULL initialization will be done in _mmcamcorder_element_release_noti */
 	}
@@ -742,7 +750,11 @@ int _mmcamcorder_image_cmd_preview_start(MMHandleType handle)
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", FALSE);
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
 
+		traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:START:SET_PLAYING_TO_PIPELINE");
+
 		ret = _mmcamcorder_gst_set_state(handle, pipeline, GST_STATE_PLAYING);
+
+		traceEnd(TTRACE_TAG_CAMERA);
 
 		if (ret != MM_ERROR_NONE) {
 			goto cmd_error;
@@ -823,7 +835,11 @@ int _mmcamcorder_image_cmd_preview_stop(MMHandleType handle)
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", TRUE);
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", TRUE);
 
+	traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:STOP:SET_READY_TO_PIPELINE");
+
 	ret = _mmcamcorder_gst_set_state(handle, pipeline, GST_STATE_READY);
+
+	traceEnd(TTRACE_TAG_CAMERA);
 
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", FALSE);

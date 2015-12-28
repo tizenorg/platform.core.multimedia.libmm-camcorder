@@ -47,7 +47,11 @@ int mm_camcorder_create(MMHandleType *camcorder, MMCamPreset *info)
 
 	_mmcam_dbg_err("");
 
+	traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:CREATE");
+
 	error = _mmcamcorder_create(camcorder, info);
+
+	traceEnd(TTRACE_TAG_CAMERA);
 
 	_mmcam_dbg_err("END");
 
@@ -63,7 +67,11 @@ int mm_camcorder_destroy(MMHandleType camcorder)
 
 	_mmcam_dbg_err("");
 
+	traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:DESTROY");
+
 	error = _mmcamcorder_destroy(camcorder);
+
+	traceEnd(TTRACE_TAG_CAMERA);
 
 	_mmcam_dbg_err("END!!!");
 
@@ -81,7 +89,11 @@ int mm_camcorder_realize(MMHandleType camcorder)
 
 	_MMCAMCORDER_LOCK_ASM(camcorder);
 
+	traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:REALIZE");
+
 	error = _mmcamcorder_realize(camcorder);
+
+	traceEnd(TTRACE_TAG_CAMERA);
 
 	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
@@ -101,7 +113,11 @@ int mm_camcorder_unrealize(MMHandleType camcorder)
 
 	_MMCAMCORDER_LOCK_ASM(camcorder);
 
+	traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:UNREALIZE");
+
 	error = _mmcamcorder_unrealize(camcorder);
+
+	traceEnd(TTRACE_TAG_CAMERA);
 
 	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
@@ -121,7 +137,11 @@ int mm_camcorder_start(MMHandleType camcorder)
 
 	_MMCAMCORDER_LOCK_ASM(camcorder);
 
+	traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:START");
+
 	error = _mmcamcorder_start(camcorder);
+
+	traceEnd(TTRACE_TAG_CAMERA);
 
 	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 
@@ -141,7 +161,11 @@ int mm_camcorder_stop(MMHandleType camcorder)
 
 	_MMCAMCORDER_LOCK_ASM(camcorder);
 
+	traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:STOP");
+
 	error = _mmcamcorder_stop(camcorder);
+
+	traceEnd(TTRACE_TAG_CAMERA);
 
 	_MMCAMCORDER_UNLOCK_ASM(camcorder);
 

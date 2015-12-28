@@ -508,10 +508,15 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	if (ret != MM_ERROR_NONE) {
 		_mmcam_dbg_err("failed to initialize resource manager");
 		ret = MM_ERROR_CAMCORDER_INTERNAL;
-                goto _ERR_DEFAULT_VALUE_INIT;
-        }
+		goto _ERR_DEFAULT_VALUE_INIT;
+	}
+
+	traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:CREATE:INIT_GSTREAMER");
 
 	ret = __mmcamcorder_gstreamer_init(hcamcorder->conf_main);
+
+	traceEnd(TTRACE_TAG_CAMERA);
+
 	if (!ret) {
 		_mmcam_dbg_err( "Failed to initialize gstreamer!!" );
 		ret = MM_ERROR_CAMCORDER_NOT_INITIALIZED;
@@ -1106,7 +1111,12 @@ int _mmcamcorder_realize(MMHandleType handle)
 	}
 
 	/* create pipeline */
+	traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:REALIZE:CREATE_PIPELINE");
+
 	ret = _mmcamcorder_create_pipeline(handle, hcamcorder->type);
+
+	traceEnd(TTRACE_TAG_CAMERA);
+
 	if (ret != MM_ERROR_NONE) {
 		/* check internal error of gstreamer */
 		if (hcamcorder->error_code != MM_ERROR_NONE) {
@@ -3361,7 +3371,11 @@ int _mmcamcorder_create_pipeline(MMHandleType handle, int type)
 
 	pipeline = sc->element[_MMCAMCORDER_MAIN_PIPE].gst;
 	if (type != MM_CAMCORDER_MODE_AUDIO) {
+		traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:REALIZE:SET_READY_TO_PIPELINE");
+
 		ret = _mmcamcorder_gst_set_state(handle, pipeline, GST_STATE_READY);
+
+		traceEnd(TTRACE_TAG_CAMERA);
 	}
 #ifdef _MMCAMCORDER_GET_DEVICE_INFO
 	if (!_mmcamcorder_get_device_info(handle)) {
