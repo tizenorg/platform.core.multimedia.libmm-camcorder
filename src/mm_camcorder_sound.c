@@ -167,8 +167,6 @@ gboolean _mmcamcorder_sound_init(MMHandleType handle)
 	int sound_enable = TRUE;
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	SOUND_INFO *info = NULL;
-	mm_sound_device_in device_in;
-	mm_sound_device_out device_out;
 	pa_mainloop_api *api = NULL;
 	int error = PA_ERR_INTERNAL;
 
@@ -349,29 +347,6 @@ gboolean _mmcamcorder_sound_init(MMHandleType handle)
 	}
 #endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 
-	/* backup current route */
-	info->active_out_backup = DEFAULT_ACTIVE_DEVICE;
-
-	ret = mm_sound_get_active_device(&device_in, &device_out);
-	if (ret != MM_ERROR_NONE) {
-		_mmcam_dbg_err("mm_sound_get_active_device failed [%x]. skip sound play.", ret);
-		goto SOUND_INIT_ERROR;
-	}
-
-	_mmcam_dbg_log("current out [%x]", device_out);
-
-	if (device_out != MM_SOUND_DEVICE_OUT_SPEAKER) {
-		//ret = mm_sound_set_active_route_without_broadcast (MM_SOUND_ROUTE_OUT_SPEAKER);
-		if (ret != MM_ERROR_NONE) {
-			_mmcam_dbg_err("mm_sound_set_active_route_without_broadcast failed [%x]. skip sound play.", ret);
-			goto SOUND_INIT_ERROR;
-		}
-		info->active_out_backup = device_out;
-	}
-
-	//info->volume_type = PA_TIZEN_AUDIO_VOLUME_TYPE_FIXED;
-	info->volume_level = 0;
-
 	info->state = _MMCAMCORDER_SOUND_STATE_INIT;
 
 	_mmcam_dbg_log("init DONE");
@@ -547,24 +522,6 @@ gboolean _mmcamcorder_sound_finalize(MMHandleType handle)
 		return TRUE;
 	}
 
-	/* Restore route */
-	_mmcam_dbg_log("restore route");
-	if (info->active_out_backup != DEFAULT_ACTIVE_DEVICE) {
-		ret = mm_sound_get_active_device(&device_in, &device_out);
-		if (ret != MM_ERROR_NONE) {
-			_mmcam_dbg_err("mm_sound_get_active_device failed [%x]", ret);
-		}
-
-		_mmcam_dbg_log("current out [%x]", device_out);
-
-		if (device_out != info->active_out_backup) {
-			//ret = mm_sound_set_active_route_without_broadcast (info->active_out_backup);
-			if (ret != MM_ERROR_NONE) {
-				_mmcam_dbg_err("mm_sound_set_active_route_without_broadcast [%x]", ret);
-			}
-		}
-	}
-
 	pa_threaded_mainloop_lock(info->pulse_mainloop);
 
 #ifdef _MMCAMCORDER_UPLOAD_SAMPLE
@@ -613,7 +570,6 @@ gboolean _mmcamcorder_sound_finalize(MMHandleType handle)
 #endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 
 	info->state = _MMCAMCORDER_SOUND_STATE_NONE;
-	info->active_out_backup = DEFAULT_ACTIVE_DEVICE;
 
 	/* release mutex and cond */
 	_mmcam_dbg_log("release play_mutex/cond");
@@ -680,8 +636,8 @@ void _mmcamcorder_sound_solo_play(MMHandleType handle, const char* filepath, gbo
 
 	if (hcamcorder->shutter_sound_policy == VCONFKEY_CAMERA_SHUTTER_SOUND_POLICY_ON ||
 	    hcamcorder->sub_context->info_image->sound_status) {
-		ret = mm_sound_play_loud_solo_sound(filepath, VOLUME_TYPE_FIXED | gain_type,
-		                                    (mm_sound_stop_callback_func)__solo_sound_callback, (void*)hcamcorder, &sound_handle);
+		ret = mm_sound_play_sound(filepath, VOLUME_TYPE_FIXED | gain_type,
+		                          (mm_sound_stop_callback_func)__solo_sound_callback, (void*)hcamcorder, &sound_handle);
 		sound_played = TRUE;
 	} else {
 		_mmcam_dbg_warn("skip shutter sound");

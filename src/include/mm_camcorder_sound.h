@@ -64,9 +64,7 @@ typedef enum {
 typedef struct __SOUND_INFO {
 	/* PCM */
 	MMSoundPcmHandle_t handle;
-	mm_sound_device_out active_out_backup;
 	int volume_type;
-	unsigned int volume_level;
 
 	/* mutex and cond */
 	pthread_mutex_t play_mutex;

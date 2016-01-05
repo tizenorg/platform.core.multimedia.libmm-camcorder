@@ -852,7 +852,6 @@ int _mmcamcorder_image_cmd_preview_stop(MMHandleType handle)
 		_mmcam_dbg_log("deregister sound status callback");
 
 		vconf_ignore_key_changed(VCONFKEY_SETAPPL_SOUND_STATUS_BOOL, __sound_status_changed_cb);
-		mm_sound_volume_remove_callback(VOLUME_TYPE_SYSTEM);
 
 		sc->info_image->sound_status = _SOUND_STATUS_INIT;
 	}
