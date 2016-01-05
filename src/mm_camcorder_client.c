@@ -1214,10 +1214,11 @@ int _mmcamcorder_client_create_preview_elements(MMHandleType handle, const char 
 	_MMCAMCORDER_PIPELINE_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_MAIN_PIPE, "camera_client", ret);
 
 	/* create source */
-	if (hcamcorder->use_zero_copy_format)
+	if (hcamcorder->use_zero_copy_format) {
 		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_SRC, "tizenipcsrc", "camera_client_src", element_list, ret);
-	else
+	} else {
 		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_SRC, "shmsrc", "camera_client_src", element_list, ret);
+	}
 
 	mm_camcorder_get_attributes(handle, NULL,
 	                            MMCAM_DISPLAY_SOCKET_PATH, &socket_path, &socket_path_length,
