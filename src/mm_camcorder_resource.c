@@ -391,7 +391,7 @@ int _mmcamcorder_resource_manager_deinit(MMCamcorderResourceManager *resource_ma
 	if (resource_manager->rset) {
 		if (resource_manager->rset->state == MRP_RES_RESOURCE_ACQUIRED) {
 			if (mrp_res_release_resource_set(resource_manager->rset))
-				_mmcam_dbg_err("- could not release resource\n");
+				_mmcam_dbg_err("- could not release resource");
 		}
 		mrp_res_delete_resource_set(resource_manager->rset);
 		resource_manager->rset = NULL;
