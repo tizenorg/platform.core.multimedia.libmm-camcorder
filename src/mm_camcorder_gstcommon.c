@@ -234,7 +234,7 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 	                                  MMCAM_CAMERA_HDR_CAPTURE, &sc->info_image->hdr_capture_mode,
 	                                  MMCAM_IMAGE_ENCODER, &codectype,
 	                                  MMCAM_IMAGE_ENCODER_QUALITY, &capture_jpg_quality,
-	                                  MMCAM_DISPLAY_SHM_SOCKET_PATH, &socket_path, &socket_path_len,
+	                                  MMCAM_DISPLAY_SOCKET_PATH, &socket_path, &socket_path_len,
 	                                  MMCAM_DISPLAY_SURFACE, &display_surface_type,
 	                                  NULL);
 	if (err != MM_ERROR_NONE) {
@@ -308,7 +308,7 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_SINK, videosink_name, "ipc_sink", element_list, err);
 
 		err = mm_camcorder_get_attributes(handle, &err_name,
-		                                  MMCAM_DISPLAY_SHM_SOCKET_PATH, &socket_path, &socket_path_len,
+		                                  MMCAM_DISPLAY_SOCKET_PATH, &socket_path, &socket_path_len,
 		                                  NULL);
 		if (err != MM_ERROR_NONE) {
 			_mmcam_dbg_warn("Get socket path failed 0x%x", err);

@@ -905,7 +905,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 	mm_camcorder_get_attributes(handle, NULL,
 	                            MMCAM_DISPLAY_SURFACE, &display_surface_type,
 	                            MMCAM_CAMERA_RECORDING_MOTION_RATE, &motion_rate,
-	                            MMCAM_DISPLAY_SHM_SOCKET_PATH, &socket_path, &socket_path_len,
+	                            MMCAM_DISPLAY_SOCKET_PATH, &socket_path, &socket_path_len,
 	                            NULL);
 
 	/* set camera/recorder state to vconf key */

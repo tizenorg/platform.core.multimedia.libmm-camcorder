@@ -793,8 +793,8 @@ MMHandleType _mmcamcorder_client_alloc_attribute(MMHandleType handle)
 	/* basic attributes' info */
 	mm_cam_attr_construct_info temp_info[] = {
 		{
-			MM_CAM_CLIENT_DISPLAY_SHM_SOCKET_PATH,
-			MMCAM_DISPLAY_SHM_SOCKET_PATH,
+			MM_CAM_CLIENT_DISPLAY_SOCKET_PATH,
+			MMCAM_DISPLAY_SOCKET_PATH,
 			MMF_VALUE_TYPE_STRING,
 			MM_ATTRS_FLAG_RW,
 			{(void*)NULL},
@@ -1214,18 +1214,21 @@ int _mmcamcorder_client_create_preview_elements(MMHandleType handle, const char 
 	_MMCAMCORDER_PIPELINE_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_MAIN_PIPE, "camera_client", ret);
 
 	/* create source */
-	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_SRC, "shmsrc", "shmsrc", element_list, ret);
+	if (hcamcorder->use_zero_copy_format)
+		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_SRC, "tizenipcsrc", "camera_client_src", element_list, ret);
+	else
+		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_SRC, "shmsrc", "camera_client_src", element_list, ret);
 
 	mm_camcorder_get_attributes(handle, NULL,
-	                            MMCAM_DISPLAY_SHM_SOCKET_PATH, &socket_path, &socket_path_length,
+	                            MMCAM_DISPLAY_SOCKET_PATH, &socket_path, &socket_path_length,
 	                            NULL);
 
 	if (socket_path == NULL ) {
-		_mmcam_dbg_err("shmsink's socket path is not set");
+		_mmcam_dbg_err("socket path is not set");
 		goto set_videosrc_error;
 	}
 
-	_mmcam_dbg_err("shm src socket path : %s", socket_path);
+	_mmcam_dbg_err("ipc src socket path : %s", socket_path);
 
 	g_object_set(sc->element[_MMCAMCORDER_CLIENT_VIDEOSRC_SRC].gst,
 	             "socket-path", socket_path,
@@ -1253,8 +1256,9 @@ int _mmcamcorder_client_create_preview_elements(MMHandleType handle, const char 
 	/* create sink */
 	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_SINK, videosink_name, "videosink_sink", element_list, ret);
 
-	if (strcmp(videosink_name, "fakesink") != 0 && strcmp(videosink_name, "shmsink") != 0) {
-
+	if (strcmp(videosink_name, "fakesink") &&
+	    strcmp(videosink_name, "tizenipcsink") &&
+	    strcmp(videosink_name, "shmsink")) {
 		if (_mmcamcorder_client_videosink_window_set(handle, sc->VideosinkElement) != MM_ERROR_NONE) {
 			_mmcam_dbg_err("_mmcamcorder_videosink_window_set error");
 			ret = MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
@@ -1496,12 +1500,14 @@ _ERR_CAMCORDER_CMD_PRECON:
 	return ret;
 }
 
-static int _mm_camcorder_client_set_shm_socket_path(MMHandleType handle, const char *path)
+static int _mm_camcorder_client_set_socket_path(MMHandleType handle, const char *path)
 {
 	int ret = MM_ERROR_NONE;
+
 	_mmcam_dbg_log("handle : 0x%x, path:%s", handle, path);
+
 	mm_camcorder_set_attributes(handle, NULL,
-	                            MMCAM_DISPLAY_SHM_SOCKET_PATH, path, strlen(path),
+	                            MMCAM_DISPLAY_SOCKET_PATH, path, strlen(path),
 	                            NULL);
 
 	return ret;
@@ -1654,11 +1660,11 @@ int mm_camcorder_client_unrealize(MMHandleType handle)
 	return ret;
 }
 
-int mm_camcorder_client_set_shm_socket_path(MMHandleType handle, const char *path)
+int mm_camcorder_client_set_socket_path(MMHandleType handle, const char *path)
 {
 	int ret = MM_ERROR_NONE;
 	_mmcam_dbg_log("Entered ");
-	ret = _mm_camcorder_client_set_shm_socket_path(handle, path);
+	ret = _mm_camcorder_client_set_socket_path(handle, path);
 	return ret;
 }
 

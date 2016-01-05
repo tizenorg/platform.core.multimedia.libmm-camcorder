@@ -1230,7 +1230,7 @@ extern "C" {
 /**
  * Determines the socket stream path
  */
-#define MMCAM_DISPLAY_SHM_SOCKET_PATH		"display-shm-socket-path"
+#define MMCAM_DISPLAY_SOCKET_PATH               "display-socket-path"
 
 /**
  * PID for sound focus

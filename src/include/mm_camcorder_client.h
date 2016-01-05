@@ -33,7 +33,7 @@
  */
 typedef enum
 {
-	MM_CAM_CLIENT_DISPLAY_SHM_SOCKET_PATH,
+	MM_CAM_CLIENT_DISPLAY_SOCKET_PATH,
 	MM_CAM_CLIENT_DISPLAY_HANDLE,
 	MM_CAM_CLIENT_DISPLAY_DEVICE,
 	MM_CAM_CLIENT_DISPLAY_SURFACE,
@@ -134,7 +134,7 @@ int mm_camcorder_client_unrealize(MMHandleType handle);
 int mm_camcorder_client_get_video_caps(MMHandleType handle, char **caps);
 
 /**
- * This function set "socket-path" element property of shmsink/src.
+ * This function set "socket-path" element property of ipc sink/src.
  * To be used by both server and client.
  *
  * @param	handle  [in] Handle of camera.
@@ -145,7 +145,7 @@ int mm_camcorder_client_get_video_caps(MMHandleType handle, char **caps);
  * @see
  * @since
  */
-int mm_camcorder_client_set_shm_socket_path(MMHandleType handle, const char *path);
+int mm_camcorder_client_set_socket_path(MMHandleType handle, const char *path);
 
 /**
  * This function get root directory of current process.
