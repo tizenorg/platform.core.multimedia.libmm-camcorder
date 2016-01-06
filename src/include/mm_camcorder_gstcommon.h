@@ -167,7 +167,8 @@ bool _mmcamcorder_set_videosrc_flip(MMHandleType handle, int viderosrc_flip);
 bool _mmcamcorder_set_videosrc_anti_shake(MMHandleType handle, int anti_shake);
 bool _mmcamcorder_set_videosrc_stabilization(MMHandleType handle, int stabilization);
 bool _mmcamcorder_set_camera_resolution(MMHandleType handle, int width, int height);
-
+bool _mmcamcorder_set_encoded_preview_bitrate(MMHandleType handle, int bitrate);
+bool _mmcamcorder_set_encoded_preview_gop_interval(MMHandleType handle, int gop);
 #ifdef __cplusplus
 }
 #endif
