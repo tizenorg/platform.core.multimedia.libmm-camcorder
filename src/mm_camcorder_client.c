@@ -1215,9 +1215,9 @@ int _mmcamcorder_client_create_preview_elements(MMHandleType handle, const char 
 
 	/* create source */
 	if (hcamcorder->use_zero_copy_format) {
-		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_SRC, "tizenipcsrc", "camera_client_src", element_list, ret);
+		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_SRC, "tizenipcsrc", "client_videosrc_src", element_list, ret);
 	} else {
-		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_SRC, "shmsrc", "camera_client_src", element_list, ret);
+		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_SRC, "shmsrc", "client_videosrc_src", element_list, ret);
 	}
 
 	mm_camcorder_get_attributes(handle, NULL,
@@ -1237,7 +1237,7 @@ int _mmcamcorder_client_create_preview_elements(MMHandleType handle, const char 
 	             NULL);
 
 	/* create capsfilter */
-	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_FILT, "capsfilter", "vidoesrc_filt", element_list, ret);
+	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSRC_FILT, "capsfilter", "client_vidoesrc_filt", element_list, ret);
 
 	caps = gst_caps_from_string(string_caps);
 	MMCAMCORDER_G_OBJECT_SET_POINTER(sc->element[_MMCAMCORDER_CLIENT_VIDEOSRC_FILT].gst, "caps", caps);
@@ -1247,15 +1247,15 @@ int _mmcamcorder_client_create_preview_elements(MMHandleType handle, const char 
 	caps = NULL;
 
 	/* Making Video sink from here */
-	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_QUE, "queue", "videosink_queue", element_list, ret);
+	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_QUE, "queue", "client_videosink_queue", element_list, ret);
 
 	/* Add color converting element */
 	if (!strcmp(videosink_name, "evasimagesink") || !strcmp(videosink_name, "ximagesink")) {
-		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_CLS, "videoconvert", "videosrc_convert", element_list, ret);
+		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_CLS, "videoconvert", "client_videosrc_convert", element_list, ret);
 	}
 
 	/* create sink */
-	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_SINK, videosink_name, "videosink_sink", element_list, ret);
+	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_SINK, videosink_name, "client_videosink_sink", element_list, ret);
 
 	if (strcmp(videosink_name, "fakesink") &&
 	    strcmp(videosink_name, "tizenipcsink") &&
@@ -1322,11 +1322,14 @@ void __mmcamcorder_client_gst_destroy_pipeline(MMHandleType handle)
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
 
 	if (sc->element[_MMCAMCORDER_CLIENT_MAIN_PIPE].gst) {
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_CLIENT_VIDEOSINK_QUE].gst, "empty-buffers", TRUE);
+
 		_mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_CLIENT_MAIN_PIPE].gst, GST_STATE_NULL);
 		_mmcamcorder_remove_all_handlers(handle, _MMCAMCORDER_HANDLER_CATEGORY_ALL);
 
 		gst_object_unref(sc->element[_MMCAMCORDER_CLIENT_MAIN_PIPE].gst);
 	}
+
 	return;
 }
 
@@ -1574,10 +1577,17 @@ int mm_camcorder_client_create(MMHandleType *handle)
 		goto _ERR_DEFAULT_VALUE_INIT;
 	}
 
+	/* Get UseZeroCopyFormat value from INI */
+	_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_main,
+	                                CONFIGURE_CATEGORY_MAIN_VIDEO_INPUT,
+	                                "UseZeroCopyFormat",
+	                                &(hcamcorder->use_zero_copy_format));
+
 	/* Set initial state */
 	_mmcamcorder_set_state((MMHandleType)hcamcorder, MM_CAMCORDER_STATE_NULL);
 
-	_mmcam_dbg_log("created handle %p", hcamcorder);
+	_mmcam_dbg_log("created handle %p - UseZeroCopyFormat %d",
+		hcamcorder, hcamcorder->use_zero_copy_format);
 
 	*handle = (MMHandleType)hcamcorder;
 	_mmcam_dbg_log("created client handle : 0x%x", *handle);

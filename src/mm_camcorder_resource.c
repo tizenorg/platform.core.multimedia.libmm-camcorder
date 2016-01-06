@@ -166,7 +166,6 @@ static void mrp_rset_state_callback(mrp_res_context_t *cx, const mrp_res_resourc
 static void mrp_resource_release_cb (mrp_res_context_t *cx, const mrp_res_resource_set_t *rs, void *user_data)
 {
 	int i = 0;
-	int result = MM_ERROR_NONE;
 	int current_state = MM_CAMCORDER_STATE_NONE;
 	mmf_camcorder_t* camcorder = (mmf_camcorder_t*)user_data;
 	mrp_res_resource_t *res;

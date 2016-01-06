@@ -428,7 +428,9 @@ gboolean _mmcamcorder_sound_play(MMHandleType handle, const char *sample_name, g
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	SOUND_INFO *info = NULL;
+/*
 	pa_operation *pulse_op = NULL;
+*/
 
 	mmf_return_val_if_fail(hcamcorder && sample_name, FALSE);
 
@@ -507,9 +509,6 @@ gboolean _mmcamcorder_sound_finalize(MMHandleType handle)
 {
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	SOUND_INFO *info = NULL;
-	mm_sound_device_in device_in;
-	mm_sound_device_out device_out;
-	int ret = 0;
 
 	mmf_return_val_if_fail(hcamcorder, FALSE);
 
