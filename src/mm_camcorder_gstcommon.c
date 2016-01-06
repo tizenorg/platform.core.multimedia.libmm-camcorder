@@ -292,7 +292,26 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 
 	/* make demux and decoder for H264 stream from videosrc */
 	if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ENCODED_H264) {
+		int preview_bitrate = 0;
+		int gop_interval = 0;
+
+		/* set encoded preview bitrate and iframe interval */
+		mm_camcorder_get_attributes(handle, NULL,
+			MMCAM_ENCODED_PREVIEW_BITRATE, &preview_bitrate,
+			MMCAM_ENCODED_PREVIEW_GOP_INTERVAL, &gop_interval,
+			NULL);
+
+		if (!_mmcamcorder_set_encoded_preview_bitrate(handle, preview_bitrate))
+			_mmcam_dbg_warn("_mmcamcorder_set_encoded_preview_bitrate failed");
+
+		if (!_mmcamcorder_set_encoded_preview_gop_interval(handle, gop_interval))
+			_mmcam_dbg_warn("_mmcamcorder_set_encoded_preview_gop_interval failed");
+
+		/* create decoder element */
 		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSRC_DECODE, _MMCAMCORDER_VIDEO_DECODER_NAME, "videosrc_decode", element_list, err);
+
+		// seamless mode : 0x01 clip mode setting
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst, "decoding-type", 0x01);
 	}
 
 	_mmcam_dbg_log("Current mode[%d]", hcamcorder->type);
@@ -2455,4 +2474,82 @@ bool _mmcamcorder_set_camera_resolution(MMHandleType handle, int width, int heig
 	_mmcam_dbg_log("set %dx%d", width, height);
 
 	return _mmcamcorder_set_videosrc_caps(handle, sc->fourcc, width, height, fps, sc->videosrc_rotate);
+}
+
+
+bool _mmcamcorder_set_encoded_preview_bitrate(MMHandleType handle, int bitrate)
+{
+	_MMCamcorderSubContext *sc = NULL;
+	GstCameraControl *CameraControl = NULL;
+	GstCameraControlChannel *CameraControlChannel = NULL;
+	const GList *controls = NULL;
+	const GList *item = NULL;
+
+	if ((void *)handle == NULL) {
+		_mmcam_dbg_warn("handle is NULL");
+		return FALSE;
+	}
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	if (!sc) {
+		_mmcam_dbg_warn("subcontext is NULL");
+		return FALSE;
+	}
+
+	if (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst == NULL) {
+		_mmcam_dbg_warn("videosrc plugin is NULL");
+		return FALSE;
+	}
+
+	_mmcam_dbg_log("set encoded preview bitrate : %d bps", bitrate);
+
+	CameraControl = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+	controls = gst_camera_control_list_channels(CameraControl);
+	_mmcam_dbg_log("controls : 0x%x", controls);
+	if (controls != NULL) {
+		_mmcam_dbg_log("controls : 0x%x", controls);
+		for (item = controls ; item && item->data ; item = item->next) {
+			CameraControlChannel = item->data;
+			_mmcam_dbg_log("item : %d", item);
+			if (!strcmp(CameraControlChannel->label, "bitrate")) {
+				_mmcam_dbg_log("set encoded preview bitrate %d", bitrate);
+				return gst_camera_control_set_value(CameraControl, CameraControlChannel, bitrate);
+			}
+		}
+		_mmcam_dbg_log("item : %d", item);
+		if (item == NULL) {
+			_mmcam_dbg_warn("failed to find \"bitrate\" control channel");
+		}
+	}
+	_mmcam_dbg_log("item : %d", item);
+
+	return FALSE;
+}
+
+
+bool _mmcamcorder_set_encoded_preview_gop_interval(MMHandleType handle, int gop)
+{
+	_MMCamcorderSubContext *sc = NULL;
+
+	if ((void *)handle == NULL) {
+		_mmcam_dbg_warn("handle is NULL");
+		return FALSE;
+	}
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	if (!sc) {
+		_mmcam_dbg_warn("subcontext is NULL");
+		return FALSE;
+	}
+
+	if (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst == NULL) {
+		_mmcam_dbg_warn("videosrc plugin is NULL");
+		return FALSE;
+	}
+
+	_mmcam_dbg_log("set encoded preview GOP interval : %d ms", gop);
+
+	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst, "newgop-interval", gop);
+
+	return TRUE;
 }
