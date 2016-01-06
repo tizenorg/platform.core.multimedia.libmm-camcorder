@@ -1242,6 +1242,15 @@ extern "C" {
  */
 #define MMCAM_ROOT_DIRECTORY                    "root-directory"
 
+/**
+ * Bitrate for encoded preview stream
+ */
+#define MMCAM_ENCODED_PREVIEW_BITRATE           "encoded-preview-bitrate"
+
+/**
+ * GOP interval for encoded preview stream
+ */
+#define MMCAM_ENCODED_PREVIEW_GOP_INTERVAL   "encoded-preview-gop-interval"
 
 /*=======================================================================================
 | ENUM DEFINITIONS									|
