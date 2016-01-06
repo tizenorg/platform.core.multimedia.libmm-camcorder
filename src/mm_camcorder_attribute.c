@@ -38,6 +38,8 @@
 -----------------------------------------------------------------------*/
 #define MMCAMCORDER_DEFAULT_CAMERA_WIDTH        640
 #define MMCAMCORDER_DEFAULT_CAMERA_HEIGHT       480
+#define MMCAMCORDER_DEFAULT_ENCODED_PREVIEW_BITRATE (1024*1024*10)
+#define MMCAMCORDER_DEFAULT_ENCODED_PREVIEW_GOP_INTERVAL 1000
 
 /*---------------------------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal						|
@@ -1412,6 +1414,28 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			NULL,
 		},
 		{
+			MM_CAM_ENCODED_PREVIEW_BITRATE,
+			"encoded-preview-bitrate",
+			MMF_VALUE_TYPE_INT,
+			MM_ATTRS_FLAG_RW,
+			{(void*)MMCAMCORDER_DEFAULT_ENCODED_PREVIEW_BITRATE},
+			MM_ATTRS_VALID_TYPE_INT_RANGE,
+			0,
+			_MMCAMCORDER_MAX_INT,
+			_mmcamcorder_commit_encoded_preview_bitrate,
+		},
+		{
+			MM_CAM_ENCODED_PREVIEW_GOP_INTERVAL,
+			"encoded-preview-gop-interval",
+			MMF_VALUE_TYPE_INT,
+			MM_ATTRS_FLAG_RW,
+			{(void*)MMCAMCORDER_DEFAULT_ENCODED_PREVIEW_GOP_INTERVAL},
+			MM_ATTRS_VALID_TYPE_INT_RANGE,
+			0,
+			_MMCAMCORDER_MAX_INT,
+			_mmcamcorder_commit_encoded_preview_gop_interval,
+		},
+		{
 			MM_CAM_RECORDER_TAG_ENABLE,
 			"recorder-tag-enable",
 			MMF_VALUE_TYPE_INT,
@@ -1444,6 +1468,7 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			{.int_max = _MMCAMCORDER_MAX_INT},
 			_mmcamcorder_commit_pid_for_sound_focus,
 		},
+		//120
 		{
 			MM_CAM_ROOT_DIRECTORY,
 			"root-directory",
@@ -3986,6 +4011,66 @@ bool _mmcamcorder_commit_detect(MMHandleType handle, int attr_idx, const mmf_val
 	}
 
 	return bret;
+}
+
+
+bool _mmcamcorder_commit_encoded_preview_bitrate(MMHandleType handle, int attr_idx, const mmf_value_t *value)
+{
+	int current_state = MM_CAMCORDER_STATE_NONE;
+	int preview_format = MM_PIXEL_FORMAT_NV12;
+
+	if ((void *)handle == NULL) {
+		_mmcam_dbg_warn("handle is NULL");
+		return FALSE;
+	}
+
+	_mmcam_dbg_log("Commit : encoded preview bitrate - %d", value->value.i_val);
+
+	/* check preview format */
+	mm_camcorder_get_attributes(handle, NULL, MMCAM_CAMERA_FORMAT, &preview_format, NULL);
+	if (preview_format != MM_PIXEL_FORMAT_ENCODED_H264) {
+		_mmcam_dbg_err("current preview format[%d] is not encoded format", preview_format);
+		return FALSE;
+	}
+
+	/* check state */
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_READY) {
+		_mmcam_dbg_log("will be applied when preview starts");
+		return TRUE;
+	}
+
+	return _mmcamcorder_set_encoded_preview_bitrate(handle, value->value.i_val);
+}
+
+
+bool _mmcamcorder_commit_encoded_preview_gop_interval(MMHandleType handle, int attr_idx, const mmf_value_t *value)
+{
+	int current_state = MM_CAMCORDER_STATE_NONE;
+	int preview_format = MM_PIXEL_FORMAT_NV12;
+
+	if ((void *)handle == NULL) {
+		_mmcam_dbg_warn("handle is NULL");
+		return FALSE;
+	}
+
+	_mmcam_dbg_log("Commit : encoded preview I-frame interval - %d", value->value.i_val);
+
+	/* check preview format */
+	mm_camcorder_get_attributes(handle, NULL, MMCAM_CAMERA_FORMAT, &preview_format, NULL);
+	if (preview_format != MM_PIXEL_FORMAT_ENCODED_H264) {
+		_mmcam_dbg_err("current preview format[%d] is not encoded format", preview_format);
+		return FALSE;
+	}
+
+	/* check state */
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_READY) {
+		_mmcam_dbg_log("will be applied when preview starts");
+		return TRUE;
+	}
+
+	return _mmcamcorder_set_encoded_preview_gop_interval(handle, value->value.i_val);
 }
 
 
