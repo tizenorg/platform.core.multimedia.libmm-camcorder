@@ -1115,11 +1115,7 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
 	} else {
 		_mmcam_dbg_warn("Play stop sound through pulseaudio");
 
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-		_mmcamcorder_sound_init(handle, _MMCAMCORDER_FILEPATH_REC_STOP_SND);
-#else /* _MMCAMCORDER_UPLOAD_SAMPLE */
 		_mmcamcorder_sound_init(handle);
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 
 		_mmcamcorder_sound_play((MMHandleType)hcamcorder, _MMCAMCORDER_SAMPLE_SOUND_NAME_REC_STOP, TRUE);
 
