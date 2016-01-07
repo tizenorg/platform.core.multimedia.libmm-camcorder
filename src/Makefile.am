@@ -44,7 +44,6 @@ libmmfcamcorder_la_CFLAGS = -I$(srcdir)/include \
 			     $(EXIF_CFLAGS) \
 			     $(MM_COMMON_CFLAGS) \
 			     $(MMSOUND_CFLAGS) \
-			     $(SNDFILE_CFLAGS) \
 			     $(VCONF_CFLAGS) \
 			     $(MMUTIL_IMGP_CFLAGS) \
 			     $(MMUTIL_JPEG_CFLAGS) \
@@ -65,7 +64,6 @@ libmmfcamcorder_la_LIBADD = \
 			    $(MM_COMMON_LIBS) \
 			    $(EXIF_LIBS) \
 			    $(MMSOUND_LIBS) \
-			    $(SNDFILE_LIBS) \
 			    $(VCONF_LIBS) \
 			    $(MMUTIL_IMGP_LIBS) \
 			    $(MMUTIL_JPEG_LIBS) \

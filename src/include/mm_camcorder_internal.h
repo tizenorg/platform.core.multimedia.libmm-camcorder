@@ -36,7 +36,6 @@
 #include <mm_attrs_private.h>
 #include <mm_message.h>
 #include <mm_sound_focus.h>
-#include <sndfile.h>
 #include <vconf.h>
 #include <gst/video/video-format.h>
 #include <ttrace.h>

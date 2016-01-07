@@ -2,7 +2,7 @@
 
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.10.26
+Version:    0.10.27
 Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
@@ -24,7 +24,6 @@ BuildRequires:  pkgconfig(gstreamer-app-1.0)
 BuildRequires:  pkgconfig(gstreamer-wayland-1.0)
 BuildRequires:  pkgconfig(wayland-client)
 %endif
-BuildRequires:  pkgconfig(sndfile)
 BuildRequires:  pkgconfig(libpulse)
 BuildRequires:  pkgconfig(vconf)
 BuildRequires:  gstreamer-devel

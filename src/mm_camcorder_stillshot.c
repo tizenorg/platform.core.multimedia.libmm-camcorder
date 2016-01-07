@@ -335,11 +335,7 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 		info->multi_shot_stop = FALSE;
 
 		/* sound init to pause other session */
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-		_mmcamcorder_sound_init(handle, _MMCAMCORDER_FILEPATH_CAPTURE2_SND);
-#else /* _MMCAMCORDER_UPLOAD_SAMPLE */
 		_mmcamcorder_sound_init(handle);
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 	}
 
 	_mmcam_dbg_log("preview(%dx%d,fmt:%d), capture(%dx%d,fmt:%d), count(%d), hdr mode(%d), interval (%d)",
