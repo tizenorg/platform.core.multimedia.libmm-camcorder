@@ -63,7 +63,6 @@ typedef enum {
  */
 typedef struct __SOUND_INFO {
 	/* PCM */
-	MMSoundPcmHandle_t handle;
 	int volume_type;
 	unsigned int volume_level;
 
@@ -76,20 +75,8 @@ typedef struct __SOUND_INFO {
 	/* pulse audio */
 	pa_threaded_mainloop *pulse_mainloop;
 	pa_context *pulse_context;
-
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-	/* sound file */
-	SF_INFO sfinfo;
-	SNDFILE *infile;
-	char *filename;
 	pa_stream *sample_stream;
 	pa_sample_spec sample_spec;
-	size_t sample_length;
-	pa_channel_map channel_map;
-#else /* _MMCAMCORDER_UPLOAD_SAMPLE */
-	pa_stream *sample_stream;
-	pa_sample_spec sample_spec;
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 
 	_MMCamcorderSoundState state;
 } SOUND_INFO;
@@ -102,11 +89,7 @@ typedef struct __SOUND_INFO {
 /*=======================================================================================
 | GLOBAL FUNCTION PROTOTYPES								|
 ========================================================================================*/
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-gboolean _mmcamcorder_sound_init(MMHandleType handle, char *filename);
-#else /* _MMCAMCORDER_UPLOAD_SAMPLE */
 gboolean _mmcamcorder_sound_init(MMHandleType handle);
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 gboolean _mmcamcorder_sound_play(MMHandleType handle, const char *sample_name, gboolean sync_play);
 gboolean _mmcamcorder_sound_finalize(MMHandleType handle);
 

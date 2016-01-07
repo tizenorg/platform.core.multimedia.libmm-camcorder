@@ -99,69 +99,7 @@ static void __pulseaudio_context_state_cb(pa_context *pulse_context, void *user_
 	return;
 }
 
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-static void __pulseaudio_stream_write_cb(pa_stream *stream, size_t length, void *user_data)
-{
-	sf_count_t read_length;
-	short *data;
-	SOUND_INFO *info = NULL;
-
-	mmf_return_if_fail(user_data);
-
-	info = (SOUND_INFO *)user_data;
-
-	_mmcam_dbg_log("START");
-
-	data = pa_xmalloc(length);
-
-	read_length = (sf_count_t)(length/pa_frame_size(&(info->sample_spec)));
-
-	if ((sf_readf_short(info->infile, data, read_length)) != read_length) {
-		pa_xfree(data);
-		return;
-	}
-
-	pa_stream_write(stream, data, length, pa_xfree, 0, PA_SEEK_RELATIVE);
-
-	info->sample_length -= length;
-
-	if (info->sample_length <= 0) {
-		pa_stream_set_write_callback(info->sample_stream, NULL, NULL);
-		pa_stream_finish_upload(info->sample_stream);
-
-		pa_threaded_mainloop_signal(info->pulse_mainloop, 0);
-		_mmcam_dbg_log("send signal DONE");
-	}
-
-	_mmcam_dbg_log("DONE read_length %d", read_length);
-
-	return;
-}
-
-
-static void __pulseaudio_remove_sample_finish_cb(pa_context *pulse_context, int success, void *user_data)
-{
-	SOUND_INFO *info = NULL;
-
-	mmf_return_if_fail(user_data);
-
-	info = (SOUND_INFO *)user_data;
-
-	_mmcam_dbg_log("START");
-
-	pa_threaded_mainloop_signal(info->pulse_mainloop, 0);
-
-	_mmcam_dbg_log("DONE");
-
-	return;
-}
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
-
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-gboolean _mmcamcorder_sound_init(MMHandleType handle, char *filename)
-#else /* _MMCAMCORDER_UPLOAD_SAMPLE */
 gboolean _mmcamcorder_sound_init(MMHandleType handle)
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 {
 	int ret = 0;
 	int sound_enable = TRUE;
@@ -192,31 +130,8 @@ gboolean _mmcamcorder_sound_init(MMHandleType handle)
 		return TRUE;
 	}
 
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-	if (info->filename) {
-		free(info->filename);
-		info->filename = NULL;
-	}
-
-	info->filename = strdup(filename);
-	if (info->filename == NULL) {
-		_mmcam_dbg_err("strdup failed");
-		return FALSE;
-	}
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
-
 	pthread_mutex_init(&(info->play_mutex), NULL);
 	pthread_cond_init(&(info->play_cond), NULL);
-
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-	/* read sample */
-	memset (&(info->sfinfo), 0, sizeof(SF_INFO));
-	info->infile = sf_open(info->filename, SFM_READ, &(info->sfinfo));
-	if (!(info->infile)) {
-		_mmcam_dbg_err("Failed to open sound file");
-		goto SOUND_INIT_ERROR;
-	}
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 
 	/**
 	 * Init Pulseaudio thread
@@ -286,44 +201,6 @@ gboolean _mmcamcorder_sound_init(MMHandleType handle)
 	/* unlock pulseaudio thread */
 	pa_threaded_mainloop_unlock(info->pulse_mainloop);
 
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-	/**
-	 * Upload sample
-	 */
-	if (pa_sndfile_read_sample_spec(info->infile, &(info->sample_spec)) < 0) {
-		_mmcam_dbg_err("Failed to determine sample specification from file");
-		goto SOUND_INIT_ERROR;
-	}
-
-	info->sample_spec.format = PA_SAMPLE_S16LE;
-
-	if (pa_sndfile_read_channel_map(info->infile, &(info->channel_map)) < 0) {
-		pa_channel_map_init_extend(&(info->channel_map), info->sample_spec.channels, PA_CHANNEL_MAP_DEFAULT);
-
-		if (info->sample_spec.channels > 2) {
-			_mmcam_dbg_warn("Failed to determine sample specification from file");
-		}
-	}
-
-	info->sample_length = (size_t)info->sfinfo.frames * pa_frame_size(&(info->sample_spec));
-
-	pa_threaded_mainloop_lock(info->pulse_mainloop);
-
-	/* prepare uploading */
-	info->sample_stream = pa_stream_new(info->pulse_context, SAMPLE_SOUND_NAME, &(info->sample_spec), NULL);
-	/* set stream write callback */
-	pa_stream_set_write_callback(info->sample_stream, __pulseaudio_stream_write_cb, info);
-	/* upload sample (ASYNC) */
-	pa_stream_connect_upload(info->sample_stream, info->sample_length);
-	/* wait for upload completion */
-	pa_threaded_mainloop_wait(info->pulse_mainloop);
-
-	pa_threaded_mainloop_unlock(info->pulse_mainloop);
-
-	/* close sndfile */
-	sf_close(info->infile);
-	info->infile = NULL;
-#else /* _MMCAMCORDER_UPLOAD_SAMPLE */
 	if (info->sample_stream) {
 		pa_stream_connect_playback(info->sample_stream, NULL, NULL, 0, NULL, NULL);
 
@@ -345,7 +222,6 @@ gboolean _mmcamcorder_sound_init(MMHandleType handle)
 			pa_threaded_mainloop_wait(info->pulse_mainloop);
 		}
 	}
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 
 	//info->volume_type = PA_TIZEN_AUDIO_VOLUME_TYPE_FIXED;
 	info->volume_level = 0;
@@ -359,42 +235,18 @@ gboolean _mmcamcorder_sound_init(MMHandleType handle)
 	return TRUE;
 
 SOUND_INIT_ERROR:
-
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-	/**
-	 * Release allocated resources
-	 */
-	if (info->filename) {
-		free(info->filename);
-		info->filename = NULL;
-	}
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
-
 	/* remove pulse mainloop */
 	if (info->pulse_mainloop) {
 		pa_threaded_mainloop_lock(info->pulse_mainloop);
 
 		/* remove pulse context */
 		if (info->pulse_context) {
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-			/* remove uploaded sample */
-			if (info->sample_stream) {
-				pa_threaded_mainloop_lock(info->pulse_mainloop);
-
-				/* Remove sample (ASYNC) */
-				pa_operation_unref(pa_context_remove_sample(info->pulse_context, SAMPLE_SOUND_NAME, __pulseaudio_remove_sample_finish_cb, info));
-
-				/* Wait for async operation */
-				pa_threaded_mainloop_wait(info->pulse_mainloop);
-			}
-#else /* _MMCAMCORDER_UPLOAD_SAMPLE */
 			/* release sample stream */
 			if (info->sample_stream) {
 				pa_stream_disconnect(info->sample_stream);
 				pa_stream_unref(info->sample_stream);
 				info->sample_stream = NULL;
 			}
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 
 			/* Make sure we don't get any further callbacks */
 			pa_context_set_state_callback(info->pulse_context, NULL, NULL);
@@ -526,24 +378,11 @@ gboolean _mmcamcorder_sound_finalize(MMHandleType handle)
 
 	pa_threaded_mainloop_lock(info->pulse_mainloop);
 
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-	/**
-	 * Remove sample
-	 */
-	_mmcam_dbg_log("remove sample");
-
-	/* Remove sample (ASYNC) */
-	pa_operation_unref(pa_context_remove_sample(info->pulse_context, SAMPLE_SOUND_NAME, __pulseaudio_remove_sample_finish_cb, info));
-
-	/* Wait for async operation */
-	pa_threaded_mainloop_wait(info->pulse_mainloop);
-#else /* _MMCAMCORDER_UPLOAD_SAMPLE */
 	if (info->sample_stream) {
 		pa_stream_disconnect(info->sample_stream);
 		pa_stream_unref(info->sample_stream);
 		info->sample_stream = NULL;
 	}
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 
 	/**
 	 * Release pulseaudio thread
@@ -563,13 +402,6 @@ gboolean _mmcamcorder_sound_finalize(MMHandleType handle)
 	pa_threaded_mainloop_stop(info->pulse_mainloop);
 	pa_threaded_mainloop_free(info->pulse_mainloop);
 	info->pulse_mainloop = NULL;
-
-#ifdef _MMCAMCORDER_UPLOAD_SAMPLE
-	if (info->filename) {
-		free(info->filename);
-		info->filename = NULL;
-	}
-#endif /* _MMCAMCORDER_UPLOAD_SAMPLE */
 
 	info->state = _MMCAMCORDER_SOUND_STATE_NONE;
 
