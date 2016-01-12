@@ -1420,8 +1420,8 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			MM_ATTRS_FLAG_RW,
 			{(void*)MMCAMCORDER_DEFAULT_ENCODED_PREVIEW_BITRATE},
 			MM_ATTRS_VALID_TYPE_INT_RANGE,
-			0,
-			_MMCAMCORDER_MAX_INT,
+			{.int_min = 0},
+			{.int_max = _MMCAMCORDER_MAX_INT},
 			_mmcamcorder_commit_encoded_preview_bitrate,
 		},
 		{
@@ -1431,8 +1431,8 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			MM_ATTRS_FLAG_RW,
 			{(void*)MMCAMCORDER_DEFAULT_ENCODED_PREVIEW_GOP_INTERVAL},
 			MM_ATTRS_VALID_TYPE_INT_RANGE,
-			0,
-			_MMCAMCORDER_MAX_INT,
+			{.int_min = 0},
+			{.int_max = _MMCAMCORDER_MAX_INT},
 			_mmcamcorder_commit_encoded_preview_gop_interval,
 		},
 		{
@@ -2137,7 +2137,7 @@ bool _mmcamcorder_commit_camera_width(MMHandleType handle, int attr_idx, const m
 
 				hcamcorder->resolution_changed = FALSE;
 
-				if (!pthread_mutex_trylock(&(hcamcorder->restart_preview_lock))) {
+				if (g_mutex_trylock(&hcamcorder->restart_preview_lock)) {
 					_mmcam_dbg_log("restart preview");
 
 					MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", TRUE);
@@ -2156,7 +2156,7 @@ bool _mmcamcorder_commit_camera_width(MMHandleType handle, int attr_idx, const m
 					_mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_MAIN_PIPE].gst, GST_STATE_PLAYING);
 
 					/* unlock */
-					pthread_mutex_unlock(&(hcamcorder->restart_preview_lock));
+					g_mutex_unlock(&hcamcorder->restart_preview_lock);
 				} else {
 					_mmcam_dbg_err("currently locked for preview restart");
 					return FALSE;
@@ -2225,7 +2225,7 @@ bool _mmcamcorder_commit_camera_height(MMHandleType handle, int attr_idx, const 
 
 			hcamcorder->resolution_changed = FALSE;
 
-			if (!pthread_mutex_trylock(&(hcamcorder->restart_preview_lock))) {
+			if (g_mutex_trylock(&hcamcorder->restart_preview_lock)) {
 				_mmcam_dbg_log("restart preview");
 
 				_mmcam_dbg_log("set empty buffers");
@@ -2247,7 +2247,7 @@ bool _mmcamcorder_commit_camera_height(MMHandleType handle, int attr_idx, const 
 				_mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_MAIN_PIPE].gst, GST_STATE_PLAYING);
 
 				/* unlock */
-				pthread_mutex_unlock(&(hcamcorder->restart_preview_lock));
+				g_mutex_unlock(&hcamcorder->restart_preview_lock);
 			} else {
 				_mmcam_dbg_err("currently locked for preview restart");
 				return FALSE;
@@ -3694,7 +3694,6 @@ bool _mmcamcorder_commit_strobe (MMHandleType handle, int attr_idx, const mmf_va
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	int strobe_type, mslVal, newVal, cur_value;
 	int current_state = MM_CAMCORDER_STATE_NONE;
-	int set_flash_state = -1;
 
 	if (hcamcorder == NULL) {
 		_mmcam_dbg_err("NULL handle");
@@ -3714,7 +3713,7 @@ bool _mmcamcorder_commit_strobe (MMHandleType handle, int attr_idx, const mmf_va
 		int flash_brightness = 0;
 
 		/* get current flash brightness */
-		if (_mmcamcorder_get_device_flash_brightness(&flash_brightness) != MM_ERROR_NONE) {
+		if (_mmcamcorder_get_device_flash_brightness(hcamcorder->gdbus_conn, &flash_brightness) != MM_ERROR_NONE) {
 			_mmcam_dbg_err("_mmcamcorder_get_device_flash_brightness failed");
 			hcamcorder->error_code = MM_ERROR_COMMON_INVALID_PERMISSION;
 			return FALSE;
@@ -3729,14 +3728,7 @@ bool _mmcamcorder_commit_strobe (MMHandleType handle, int attr_idx, const mmf_va
 			_mmcam_dbg_err("other module already turned on flash. avoid to set flash mode here.");
 			return FALSE;
 		} else {
-			/* flash is OFF state, this case will set flash state key */
-			if (mslVal == MM_CAMCORDER_STROBE_MODE_OFF) {
-				set_flash_state = VCONFKEY_CAMERA_FLASH_STATE_OFF;
-			} else {
-				set_flash_state = VCONFKEY_CAMERA_FLASH_STATE_ON;
-			}
-
-			_mmcam_dbg_log("keep going, and will set flash state key %d", set_flash_state);
+			_mmcam_dbg_log("keep going");
 		}
 	}
 
@@ -3744,13 +3736,6 @@ bool _mmcamcorder_commit_strobe (MMHandleType handle, int attr_idx, const mmf_va
 	current_state = _mmcamcorder_get_state(handle);
 	if (current_state < MM_CAMCORDER_STATE_READY) {
 		_mmcam_dbg_log("It doesn't need to change dynamically.(state=%d)", current_state);
-
-		if (set_flash_state != -1) {
-			_mmcam_dbg_log("set VCONFKEY_CAMERA_FLASH_STATE : %d", set_flash_state);
-			vconf_set_int(VCONFKEY_CAMERA_FLASH_STATE, set_flash_state);
-			vconf_set_int(VCONFKEY_CAMERA_PID, (int)getpid());
-		}
-
 		return TRUE;
 	} else if (current_state == MM_CAMCORDER_STATE_CAPTURING) {
 		_mmcam_dbg_warn("invalid state[capturing]");
@@ -3810,12 +3795,6 @@ bool _mmcamcorder_commit_strobe (MMHandleType handle, int attr_idx, const mmf_va
 			_mmcam_dbg_warn("Failed to get strobe. Type[%d]", strobe_type);
 			bret = FALSE;
 		}
-	}
-
-	if (bret == TRUE && set_flash_state != -1) {
-		_mmcam_dbg_log("set VCONFKEY_CAMERA_FLASH_STATE : %d", set_flash_state);
-		vconf_set_int(VCONFKEY_CAMERA_FLASH_STATE, set_flash_state);
-		vconf_set_int(VCONFKEY_CAMERA_PID, (int)getpid());
 	}
 
 	return bret;

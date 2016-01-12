@@ -24,7 +24,6 @@
 |  INCLUDE FILES																			|
 |  																							|
 ========================================================================================== */
-#include <glib.h>
 #include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
 #include <gst/video/videooverlay.h>
@@ -1537,13 +1536,13 @@ int mm_camcorder_client_create(MMHandleType *handle)
 	hcamcorder->target_state = MM_CAMCORDER_STATE_NULL;
 	hcamcorder->capture_in_recording = FALSE;
 
-	pthread_mutex_init(&((hcamcorder->mtsafe).lock), NULL);
-	pthread_cond_init(&((hcamcorder->mtsafe).cond), NULL);
-	pthread_mutex_init(&((hcamcorder->mtsafe).cmd_lock), NULL);
-	pthread_mutex_init(&((hcamcorder->mtsafe).state_lock), NULL);
-	pthread_mutex_init(&((hcamcorder->mtsafe).gst_state_lock), NULL);
-	pthread_mutex_init(&((hcamcorder->mtsafe).message_cb_lock), NULL);
-	pthread_mutex_init(&(hcamcorder->restart_preview_lock), NULL);
+	g_mutex_init(&(hcamcorder->mtsafe).lock);
+	g_cond_init(&(hcamcorder->mtsafe).cond);
+	g_mutex_init(&(hcamcorder->mtsafe).cmd_lock);
+	g_mutex_init(&(hcamcorder->mtsafe).state_lock);
+	g_mutex_init(&(hcamcorder->mtsafe).gst_state_lock);
+	g_mutex_init(&(hcamcorder->mtsafe).message_cb_lock);
+	g_mutex_init(&hcamcorder->restart_preview_lock);
 
 	/* Get Camera Configure information from Camcorder INI file */
 	_mmcamcorder_conf_get_info((MMHandleType)hcamcorder, CONFIGURE_TYPE_MAIN, CONFIGURE_MAIN_FILE, &hcamcorder->conf_main);
@@ -1598,15 +1597,15 @@ _ERR_CAMCORDER_CREATE_CONFIGURE:
 _ERR_CAMCORDER_RESOURCE_CREATION:
 _ERR_DEFAULT_VALUE_INIT:
 	/* Release lock, cond */
-	pthread_mutex_destroy(&((hcamcorder->mtsafe).lock));
-	pthread_cond_destroy(&((hcamcorder->mtsafe).cond));
-	pthread_mutex_destroy(&((hcamcorder->mtsafe).cmd_lock));
-	pthread_mutex_destroy(&((hcamcorder->mtsafe).state_lock));
-	pthread_mutex_destroy(&((hcamcorder->mtsafe).gst_state_lock));
-	pthread_mutex_destroy(&((hcamcorder->mtsafe).gst_encode_state_lock));
-	pthread_mutex_destroy(&((hcamcorder->mtsafe).message_cb_lock));
+	g_mutex_clear(&(hcamcorder->mtsafe).lock);
+	g_cond_clear(&(hcamcorder->mtsafe).cond);
+	g_mutex_clear(&(hcamcorder->mtsafe).cmd_lock);
+	g_mutex_clear(&(hcamcorder->mtsafe).state_lock);
+	g_mutex_clear(&(hcamcorder->mtsafe).gst_state_lock);
+	g_mutex_clear(&(hcamcorder->mtsafe).gst_encode_state_lock);
+	g_mutex_clear(&(hcamcorder->mtsafe).message_cb_lock);
 
-	pthread_mutex_destroy(&(hcamcorder->restart_preview_lock));
+	g_mutex_clear(&(hcamcorder->restart_preview_lock));
 
 	if (hcamcorder->conf_ctrl) {
 		_mmcamcorder_conf_release_info(handle, &hcamcorder->conf_ctrl);
@@ -1641,13 +1640,13 @@ void mm_camcorder_client_destroy(MMHandleType handle)
 	_mmcam_dbg_log("unlock");
 	_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
 
-	pthread_mutex_destroy(&((hcamcorder->mtsafe).lock));
-	pthread_cond_destroy(&((hcamcorder->mtsafe).cond));
-	pthread_mutex_destroy(&((hcamcorder->mtsafe).cmd_lock));
-	pthread_mutex_destroy(&((hcamcorder->mtsafe).state_lock));
-	pthread_mutex_destroy(&((hcamcorder->mtsafe).gst_state_lock));
-	pthread_mutex_destroy(&((hcamcorder->mtsafe).message_cb_lock));
-	pthread_mutex_destroy(&(hcamcorder->restart_preview_lock));
+	g_mutex_clear(&((hcamcorder->mtsafe).lock));
+	g_cond_clear(&((hcamcorder->mtsafe).cond));
+	g_mutex_clear(&((hcamcorder->mtsafe).cmd_lock));
+	g_mutex_clear(&((hcamcorder->mtsafe).state_lock));
+	g_mutex_clear(&((hcamcorder->mtsafe).gst_state_lock));
+	g_mutex_clear(&((hcamcorder->mtsafe).message_cb_lock));
+	g_mutex_clear(&(hcamcorder->restart_preview_lock));
 	_mmcamcorder_set_state((MMHandleType)hcamcorder, MM_CAMCORDER_STATE_NONE);
 	/* Release handle */
 	memset(hcamcorder, 0x00, sizeof(mmf_camcorder_t));

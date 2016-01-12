@@ -631,7 +631,7 @@ camcordertest_video_capture_cb(MMCamcorderCaptureDataType *main, MMCamcorderCapt
 		void *dst = NULL;
 
 		nret = _mmcamcorder_encode_jpeg(main->data, main->width, main->height, main->format,
-		                                main->length, 90, &dst, &dst_size);
+			main->length, 90, &dst, &dst_size);
 		if (nret) {
 			_file_write(m_filename, dst, dst_size);
 		} else {
