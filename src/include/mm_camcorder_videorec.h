@@ -55,31 +55,31 @@ enum {
  * MMCamcorder information for video(preview/recording) mode
  */
 typedef struct {
-	gboolean b_commiting;		/**< Is it commiting now? */
-	char *filename;			/**< recorded filename */
-	double record_timestamp_ratio;	/**< timestamp ratio of video recording for slow/fast motion recording */
-	double record_motion_rate;	/**< motion rate of video recording for slow/fast motion recording */
-	GstClockTime prev_preview_ts;	/**< previous preview frame timestamp */
-	GstClockTime base_video_ts;	/**< base video frame timestamp */
-	guint record_drop_count;	/**< drop count of video recording for slow/fast motion recording */
-	guint64 video_frame_count;	/**< current video frame */
-	guint64 audio_frame_count;	/**< current audio frame */
-	guint64 filesize;		/**< current file size */
-	guint64 max_size;		/**< max recording size */
-	guint64 max_time;		/**< max recording time */
-	int fileformat;			/**< recording file format */
-	int push_encoding_buffer;	/**< ready to record flag */
-	int preview_width;		/**< preview width */
-	int preview_height;		/**< preview height */
-	int video_width;		/**< video width */
-	int video_height;		/**< video height */
-	int fps;			/**< fps in videosrc caps */
+	gboolean b_commiting;           /**< Is it commiting now? */
+	char *filename;                 /**< recorded filename */
+	double record_timestamp_ratio;  /**< timestamp ratio of video recording for slow/fast motion recording */
+	double record_motion_rate;      /**< motion rate of video recording for slow/fast motion recording */
+	GstClockTime prev_preview_ts;   /**< previous preview frame timestamp */
+	GstClockTime base_video_ts;     /**< base video frame timestamp */
+	guint record_drop_count;        /**< drop count of video recording for slow/fast motion recording */
+	guint64 video_frame_count;      /**< current video frame */
+	guint64 audio_frame_count;      /**< current audio frame */
+	guint64 filesize;               /**< current file size */
+	guint64 max_size;               /**< max recording size */
+	guint64 max_time;               /**< max recording time */
+	int fileformat;                 /**< recording file format */
+	int push_encoding_buffer;       /**< ready to record flag */
+	int preview_width;              /**< preview width */
+	int preview_height;             /**< preview height */
+	int video_width;                /**< video width */
+	int video_height;               /**< video height */
+	int fps;                        /**< fps in videosrc caps */
 	gboolean is_firstframe;
-	gboolean get_first_I_frame;	/**< start flag for H.264 preview recording */
-	gboolean support_dual_stream;	/**< support dual stream flag */
-	gboolean record_dual_stream;	/**< record with dual stream flag */
-	gboolean restart_preview;	/**< flag for whether restart preview or not when start recording */
-	pthread_mutex_t size_check_lock;/**< mutex for checking recording size */
+	gboolean get_first_I_frame;     /**< start flag for H.264 preview recording */
+	gboolean support_dual_stream;   /**< support dual stream flag */
+	gboolean record_dual_stream;    /**< record with dual stream flag */
+	gboolean restart_preview;       /**< flag for whether restart preview or not when start recording */
+	GMutex size_check_lock;         /**< mutex for checking recording size */
 } _MMCamcorderVideoInfo;
 
 /*=======================================================================================

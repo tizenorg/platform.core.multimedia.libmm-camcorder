@@ -32,7 +32,6 @@
 #include <time.h>
 #include <mm_debug.h>
 #include <mm_error.h>
-#include <glib.h>
 
 #define MM_EXIFINFO_USE_BINARY_EXIFDATA         1
 #define JPEG_MAX_SIZE                           20000000

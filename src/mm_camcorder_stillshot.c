@@ -376,8 +376,7 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 		/* Check encoding method */
 		if (cap_format == MM_PIXEL_FORMAT_ENCODED) {
 			if ((sc->SensorEncodedCapture && info->type == _MMCamcorder_SINGLE_SHOT) ||
-			    (sc->SensorEncodedCapture && sc->info_video->support_dual_stream) ||
-			    is_modified_size) {
+			    hcamcorder->support_zsl_capture || is_modified_size) {
 				cap_fourcc = _mmcamcorder_get_fourcc(cap_format, image_encoder, hcamcorder->use_zero_copy_format);
 				_mmcam_dbg_log("Sensor JPEG Capture [is_modified_size:%d]", is_modified_size);
 			} else {
@@ -535,7 +534,7 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 		if (current_state < MM_CAMCORDER_STATE_RECORDING &&
 		    hcamcorder->support_zsl_capture == TRUE &&
 		    !info->hdr_capture_mode) {
-			_mmcamcorder_sound_solo_play((MMHandleType)hcamcorder, _MMCAMCORDER_FILEPATH_CAPTURE_SND, FALSE);
+			_mmcamcorder_sound_solo_play((MMHandleType)hcamcorder, _MMCAMCORDER_SAMPLE_SOUND_NAME_CAPTURE01, FALSE);
 		}
 
 		/* set flag */
@@ -759,15 +758,15 @@ int _mmcamcorder_image_cmd_preview_start(MMHandleType handle)
 		/* get sound status/volume level and register changed_cb */
 		if (hcamcorder->shutter_sound_policy == VCONFKEY_CAMERA_SHUTTER_SOUND_POLICY_OFF &&
 		    info->sound_status == _SOUND_STATUS_INIT) {
-			_mmcam_dbg_log("get sound status/volume level and register vconf changed_cb");
+			_mmcam_dbg_log("register vconf changed_cb and get sound status");
+
+			/* register changed_cb */
+			vconf_notify_key_changed(VCONFKEY_SETAPPL_SOUND_STATUS_BOOL, __sound_status_changed_cb, hcamcorder);
 
 			/* get sound status */
 			vconf_get_bool(VCONFKEY_SETAPPL_SOUND_STATUS_BOOL, &(info->sound_status));
 
 			_mmcam_dbg_log("sound status %d", info->sound_status);
-
-			/* register changed_cb */
-			vconf_notify_key_changed(VCONFKEY_SETAPPL_SOUND_STATUS_BOOL, __sound_status_changed_cb, hcamcorder);
 		}
 	}
 
@@ -1186,28 +1185,28 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstSample *sampl
 		/* play capture sound here if multi capture
 		   or preview format is ITLV(because of AF and flash control in plugin) */
 		if (info->type == _MMCamcorder_MULTI_SHOT) {
-			pthread_mutex_lock(&(hcamcorder->task_thread_lock));
+			g_mutex_lock(&hcamcorder->task_thread_lock);
 			_mmcam_dbg_log("send signal for sound play");
 			hcamcorder->task_thread_state = _MMCAMCORDER_TASK_THREAD_STATE_SOUND_PLAY_START;
-			pthread_cond_signal(&(hcamcorder->task_thread_cond));
-			pthread_mutex_unlock(&(hcamcorder->task_thread_lock));
+			g_cond_signal(&hcamcorder->task_thread_cond);
+			g_mutex_unlock(&hcamcorder->task_thread_lock);
 		} else if (!info->played_capture_sound) {
-			_mmcamcorder_sound_solo_play((MMHandleType)hcamcorder, _MMCAMCORDER_FILEPATH_CAPTURE_SND, FALSE);
+			_mmcamcorder_sound_solo_play((MMHandleType)hcamcorder, _MMCAMCORDER_SAMPLE_SOUND_NAME_CAPTURE01, FALSE);
 		}
 	} else {
 		/* Handle capture in recording case */
 		hcamcorder->capture_in_recording = FALSE;
 
-		pthread_mutex_lock(&(hcamcorder->task_thread_lock));
+		g_mutex_lock(&hcamcorder->task_thread_lock);
 
 		if (hcamcorder->task_thread_state == _MMCAMCORDER_TASK_THREAD_STATE_CHECK_CAPTURE_IN_RECORDING) {
 			_mmcam_dbg_log("send signal for capture in recording");
-			pthread_cond_signal(&(hcamcorder->task_thread_cond));
+			g_cond_signal(&hcamcorder->task_thread_cond);
 		} else {
 			_mmcam_dbg_warn("unexpected task thread state : %d", hcamcorder->task_thread_state);
 		}
 
-		pthread_mutex_unlock(&(hcamcorder->task_thread_lock));
+		g_mutex_unlock(&hcamcorder->task_thread_lock);
 	}
 
 	/* init capture data */
@@ -1375,14 +1374,14 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstSample *sampl
 				     encode_src.width % thumb_width == 0 &&
 				     encode_src.height % thumb_height == 0) {
 					if (!_mmcamcorder_downscale_UYVYorYUYV(encode_src.data, encode_src.width, encode_src.height,
-					                                      &thumb_raw_data, thumb_width, thumb_height)) {
+						&thumb_raw_data, thumb_width, thumb_height)) {
 						thumb_raw_data = NULL;
 						_mmcam_dbg_warn("_mmcamcorder_downscale_UYVYorYUYV failed. skip thumbnail making...");
 					}
 				} else {
 					if (!_mmcamcorder_resize_frame(encode_src.data, encode_src.width, encode_src.height,
-									   encode_src.length, encode_src.format,
-									   &thumb_raw_data, &thumb_width, &thumb_height, &thumb_length)) {
+						encode_src.length, encode_src.format,
+						&thumb_raw_data, &thumb_width, &thumb_height, &thumb_length)) {
 						thumb_raw_data = NULL;
 						_mmcam_dbg_warn("_mmcamcorder_resize_frame failed. skip thumbnail making...");
 					}
@@ -1399,8 +1398,8 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstSample *sampl
 
 			if (thumb_raw_data) {
 				ret = _mmcamcorder_encode_jpeg(thumb_raw_data, thumb_width, thumb_height,
-				                               encode_src.format, thumb_length, THUMBNAIL_JPEG_QUALITY,
-				                               (void **)&internal_thumb_data, &internal_thumb_length);
+					encode_src.format, thumb_length, THUMBNAIL_JPEG_QUALITY,
+					(void **)&internal_thumb_data, &internal_thumb_length);
 				if (ret) {
 					_mmcam_dbg_log("encode THUMBNAIL done - data %p, length %d",
 					               internal_thumb_data, internal_thumb_length);
@@ -1437,8 +1436,8 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstSample *sampl
 		_mmcam_dbg_log("Start Internal Encode - capture_quality %d", capture_quality);
 
 		ret = _mmcamcorder_encode_jpeg(mapinfo1.data, dest.width, dest.height,
-		                               pixtype_main, dest.length, capture_quality,
-		                               (void **)&internal_main_data, &internal_main_length);
+			pixtype_main, dest.length, capture_quality,
+			(void **)&internal_main_data, &internal_main_length);
 		if (!ret) {
 			_mmcam_dbg_err("_mmcamcorder_encode_jpeg failed");
 

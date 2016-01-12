@@ -588,13 +588,13 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 				return MM_ERROR_OUT_OF_STORAGE;
 			}
 
-			pthread_mutex_lock(&(hcamcorder->task_thread_lock));
+			g_mutex_lock(&hcamcorder->task_thread_lock);
 			if (sc->encode_element[_MMCAMCORDER_ENCODE_MAIN_PIPE].gst == NULL &&
 			    hcamcorder->task_thread_state == _MMCAMCORDER_TASK_THREAD_STATE_NONE) {
 				/* Play record start sound */
-				_mmcamcorder_sound_solo_play(handle, _MMCAMCORDER_FILEPATH_REC_START_SND, FALSE);
+				_mmcamcorder_sound_solo_play(handle, _MMCAMCORDER_SAMPLE_SOUND_NAME_REC_START, FALSE);
 			}
-			pthread_mutex_unlock(&(hcamcorder->task_thread_lock));
+			g_mutex_unlock(&hcamcorder->task_thread_lock);
 
 			_mmcam_dbg_warn("video size [%dx%d]", info->video_width, info->video_height);
 
@@ -717,17 +717,17 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 			}
 
 			/* check pre-created encode pipeline */
-			pthread_mutex_lock(&(hcamcorder->task_thread_lock));
+			g_mutex_lock(&hcamcorder->task_thread_lock);
 			if (sc->encode_element[_MMCAMCORDER_ENCODE_MAIN_PIPE].gst == NULL &&
 			    hcamcorder->task_thread_state == _MMCAMCORDER_TASK_THREAD_STATE_NONE) {
 				/* create encoding pipeline */
 				ret =_mmcamcorder_video_prepare_record((MMHandleType)hcamcorder);
 				if (ret != MM_ERROR_NONE) {
-					pthread_mutex_unlock(&(hcamcorder->task_thread_lock));
+					g_mutex_unlock(&hcamcorder->task_thread_lock);
 					goto _ERR_CAMCORDER_VIDEO_COMMAND;
 				}
 			}
-			pthread_mutex_unlock(&(hcamcorder->task_thread_lock));
+			g_mutex_unlock(&hcamcorder->task_thread_lock);
 
 			/* check recording start sound */
 			_mmcamcorder_sound_solo_play_wait(handle);
@@ -1111,7 +1111,7 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
 
 	if (hcamcorder->state_change_by_system != _MMCAMCORDER_STATE_CHANGE_BY_ASM) {
 		/* Play record stop sound */
-		_mmcamcorder_sound_solo_play(handle, _MMCAMCORDER_FILEPATH_REC_STOP_SND, FALSE);
+		_mmcamcorder_sound_solo_play(handle, _MMCAMCORDER_SAMPLE_SOUND_NAME_REC_STOP, FALSE);
 	} else {
 		_mmcam_dbg_warn("Play stop sound through pulseaudio");
 
@@ -1321,18 +1321,18 @@ static GstPadProbeReturn __mmcamcorder_audio_dataprobe_check(GstPad *pad, GstPad
 
 	/*_mmcam_dbg_err("[%" GST_TIME_FORMAT "]", GST_TIME_ARGS(GST_BUFFER_PTS(buffer)));*/
 
-	pthread_mutex_lock(&(videoinfo->size_check_lock));
+	g_mutex_lock(&videoinfo->size_check_lock);
 
 	if (videoinfo->audio_frame_count == 0) {
 		videoinfo->filesize += buffer_size;
 		videoinfo->audio_frame_count++;
-		pthread_mutex_unlock(&(videoinfo->size_check_lock));
+		g_mutex_unlock(&videoinfo->size_check_lock);
 		return GST_PAD_PROBE_OK;
 	}
 
 	if (sc->ferror_send || sc->isMaxsizePausing) {
 		_mmcam_dbg_warn("Recording is paused, drop frames");
-		pthread_mutex_unlock(&(videoinfo->size_check_lock));
+		g_mutex_unlock(&videoinfo->size_check_lock);
 		return GST_PAD_PROBE_DROP;
 	}
 
@@ -1364,7 +1364,7 @@ static GstPadProbeReturn __mmcamcorder_audio_dataprobe_check(GstPad *pad, GstPad
 			_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
 		}
 
-		pthread_mutex_unlock(&(videoinfo->size_check_lock));
+		g_mutex_unlock(&videoinfo->size_check_lock);
 
 		return FALSE;
 	}
@@ -1372,7 +1372,7 @@ static GstPadProbeReturn __mmcamcorder_audio_dataprobe_check(GstPad *pad, GstPad
 	videoinfo->filesize += buffer_size;
 	videoinfo->audio_frame_count++;
 
-	pthread_mutex_unlock(&(videoinfo->size_check_lock));
+	g_mutex_unlock(&videoinfo->size_check_lock);
 
 	return GST_PAD_PROBE_OK;
 }
@@ -1417,9 +1417,9 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPa
 	if (videoinfo->video_frame_count <= (guint64)_MMCAMCORDER_MINIMUM_FRAME) {
 		/* _mmcam_dbg_log("Pass minimum frame: info->video_frame_count: %" G_GUINT64_FORMAT " ",
 		                info->video_frame_count); */
-		pthread_mutex_lock(&(videoinfo->size_check_lock));
+		g_mutex_lock(&videoinfo->size_check_lock);
 		videoinfo->filesize += buffer_size;
-		pthread_mutex_unlock(&(videoinfo->size_check_lock));
+		g_mutex_unlock(&videoinfo->size_check_lock);
 		return GST_PAD_PROBE_OK;
 	}
 
@@ -1493,7 +1493,7 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPa
 		break;
 	}
 
-	pthread_mutex_lock(&(videoinfo->size_check_lock));
+	g_mutex_lock(&videoinfo->size_check_lock);
 
 	/* check max size of recorded file */
 	if (videoinfo->max_size > 0 &&
@@ -1516,7 +1516,7 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPa
 			_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
 		}
 
-		pthread_mutex_unlock(&(videoinfo->size_check_lock));
+		g_mutex_unlock(&videoinfo->size_check_lock);
 
 		return GST_PAD_PROBE_DROP;
 	}
@@ -1527,7 +1527,7 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPa
 	_mmcam_dbg_log("filesize %lld Byte, ", videoinfo->filesize);
 	*/
 
-	pthread_mutex_unlock(&(videoinfo->size_check_lock));
+	g_mutex_unlock(&videoinfo->size_check_lock);
 
 	return GST_PAD_PROBE_OK;
 }

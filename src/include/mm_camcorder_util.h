@@ -25,6 +25,7 @@
 /*=======================================================================================
 | INCLUDE FILES										|
 ========================================================================================*/
+#include <gio/gio.h>
 #include <linux/magic.h>
 
 
@@ -168,6 +169,17 @@ do { \
 | ENUM DEFINITIONS									|
 ========================================================================================*/
 /**
+ * Structure of GDBus Callback.
+ */
+typedef struct {
+	GCond sync_cond;
+	GMutex sync_mutex;
+	int param;
+	int is_playing;
+	guint subscribe_id;
+} _MMCamcorderGDbusCbInfo;
+
+/**
  *Type define of util.
  */
 typedef enum {
@@ -203,21 +215,23 @@ typedef struct {
  * Structure of message item
  */
 typedef struct {
-	MMHandleType handle;		/**< handle */
-	int id;				/**< message id */
-	MMMessageParamType param;	/**< message parameter */
-	pthread_mutex_t lock;		/**< mutex for item */
+	MMHandleType handle;        /**< handle */
+	int id;                     /**< message id */
+	MMMessageParamType param;   /**< message parameter */
+	GMutex lock;                /**< mutex for item */
 } _MMCamcorderMsgItem;
 
 
 /*=======================================================================================
 | CONSTANT DEFINITIONS									|
 ========================================================================================*/
+#define G_DBUS_CB_TIMEOUT_MSEC                  3000
+#define G_DBUS_REPLY_TIMEOUT                    (120 * 1000)
 #define FAT32_FILE_SYSTEM_MAX_SIZE              (4294967295UL)     /* 4 GigaByte - 1 byte */
 #define NANO_SEC_PER_MILI_SEC                   1000000
 #define _MMCAMCORDER_HANDLER_CATEGORY_ALL \
 	(_MMCAMCORDER_HANDLER_PREVIEW | _MMCAMCORDER_HANDLER_VIDEOREC |_MMCAMCORDER_HANDLER_STILLSHOT | _MMCAMCORDER_HANDLER_AUDIOREC)
-#define G_DBUS_REPLY_TIMEOUT (120 * 1000)
+
 
 /*=======================================================================================
 | GLOBAL FUNCTION PROTOTYPES								|
@@ -246,13 +260,13 @@ unsigned int _mmcamcorder_get_fourcc(int pixtype, int codectype, int use_zero_co
 
 /* JPEG encode */
 gboolean _mmcamcorder_encode_jpeg(void *src_data, unsigned int src_width, unsigned int src_height,
-                                  int src_format, unsigned int src_length, unsigned int jpeg_quality,
-                                  void **result_data, unsigned int *result_length);
+	int src_format, unsigned int src_length, unsigned int jpeg_quality,
+	void **result_data, unsigned int *result_length);
 /* resize */
 gboolean _mmcamcorder_resize_frame(unsigned char *src_data, unsigned int src_width, unsigned int src_height, unsigned int src_length, int src_format,
-                                   unsigned char **dst_data, unsigned int *dst_width, unsigned int *dst_height, unsigned int *dst_length);
+	unsigned char **dst_data, unsigned int *dst_width, unsigned int *dst_height, unsigned int *dst_length);
 gboolean _mmcamcorder_downscale_UYVYorYUYV(unsigned char *src, unsigned int src_width, unsigned int src_height,
-                                           unsigned char **dst, unsigned int dst_width, unsigned int dst_height);
+	unsigned char **dst, unsigned int dst_width, unsigned int dst_height);
 
 /* Recording */
 /* find top level tag only, do not use this function for finding sub level tags.
@@ -277,7 +291,11 @@ int _mmcamcorder_get_file_system_type(const gchar *path, int *file_system_type);
 void *_mmcamcorder_util_task_thread_func(void *data);
 
 /* device */
-int _mmcamcorder_get_device_flash_brightness(int *brightness);
+int _mmcamcorder_get_device_flash_brightness(GDBusConnection *conn, int *brightness);
+
+/* sound play via dbus*/
+int _mmcamcorder_send_sound_play_message(GDBusConnection *conn, _MMCamcorderGDbusCbInfo *gdbus_info,
+	const char *sample_name, const char *stream_role, const char *volume_gain, int sync_play);
 
 #ifdef __cplusplus
 }

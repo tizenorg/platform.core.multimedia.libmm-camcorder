@@ -97,37 +97,25 @@ static gboolean _mmcamcorder_convert_NV12_to_I420(unsigned char *src, guint widt
 |    GLOBAL FUNCTION DEFINITIONS:											|
 ---------------------------------------------------------------------------*/
 
-static int __gdbus_method_call_sync(const char* bus_name, const char* object, const char* iface,
-							const char* method, GVariant* args, GVariant** result, bool is_sync)
+static int __gdbus_method_call_sync(GDBusConnection *conn, const char *bus_name,
+	const char *object, const char *iface, const char *method,
+	GVariant *args, GVariant **result, bool is_sync)
 {
 	int ret = MM_ERROR_NONE;
-	GError *err = NULL;
-	GVariant* dbus_reply = NULL;
-	GDBusConnection *conn = NULL;
+	GVariant *dbus_reply = NULL;
 
-	if (!object || !iface || !method) {
-		_mmcam_dbg_err("Invalid Argument");
-		if (!object)
-			_mmcam_dbg_err("object null");
-		if (!iface)
-			_mmcam_dbg_err("iface null");
-		if (!method)
-			_mmcam_dbg_err("method null");
+	if (!conn || !object || !iface || !method) {
+		_mmcam_dbg_err("Invalid Argument %p %p %p %p",
+			conn, object, iface, method);
 		return MM_ERROR_INVALID_ARGUMENT;
 	}
 
-	conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, NULL);
-	if (conn == NULL) {
-		_mmcam_dbg_err("get connection failed");
-		return MM_ERROR_CAMCORDER_INTERNAL;
-	}
-
-	_mmcam_dbg_log("Dbus call with obj : '%s' iface : '%s' method : '%s'", object, iface, method);
+	_mmcam_dbg_log("Dbus call - obj [%s], iface [%s], method [%s]", object, iface, method);
 
 	if (is_sync) {
-		dbus_reply = g_dbus_connection_call_sync(conn, bus_name, object, iface,
-							 method, args, NULL, G_DBUS_CALL_FLAGS_NONE,
-							 G_DBUS_REPLY_TIMEOUT, NULL, &err);
+		dbus_reply = g_dbus_connection_call_sync(conn,
+			bus_name, object, iface, method, args, NULL,
+			G_DBUS_CALL_FLAGS_NONE, G_DBUS_REPLY_TIMEOUT, NULL, NULL);
 		if (dbus_reply) {
 			_mmcam_dbg_log("Method Call '%s.%s' Success", iface, method);
 			*result = dbus_reply;
@@ -136,12 +124,112 @@ static int __gdbus_method_call_sync(const char* bus_name, const char* object, co
 			ret = MM_ERROR_CAMCORDER_INTERNAL;
 		}
 	} else {
-		g_dbus_connection_call(conn, bus_name, object, iface, \
-							     method, args, \
-							     NULL, G_DBUS_CALL_FLAGS_NONE, G_DBUS_REPLY_TIMEOUT, \
-							     NULL, NULL, NULL);
+		g_dbus_connection_call(conn, bus_name, object, iface, method, args, NULL,
+			G_DBUS_CALL_FLAGS_NONE, G_DBUS_REPLY_TIMEOUT, NULL, NULL, NULL);
 	}
-	g_object_unref(conn);
+
+	return ret;
+}
+
+static int __gdbus_subscribe_signal(GDBusConnection *conn,
+	const char *object_name, const char *iface_name, const char *signal_name,
+	GDBusSignalCallback signal_cb, guint *subscribe_id, void *userdata)
+{
+	guint subs_id = 0;
+
+	if (!conn || !object_name || !iface_name || !signal_name || !signal_cb || !subscribe_id) {
+		_mmcam_dbg_err("Invalid Argument %p %p %p %p %p %p",
+			conn, object_name, iface_name, signal_name, signal_cb, subscribe_id);
+		return MM_ERROR_INVALID_ARGUMENT;
+	}
+
+	_mmcam_dbg_log("subscirbe signal Obj %s, iface_name %s, sig_name %s",
+		object_name, iface_name, signal_name);
+
+	subs_id = g_dbus_connection_signal_subscribe(conn,
+		NULL, iface_name, signal_name, object_name, NULL,
+		G_DBUS_SIGNAL_FLAGS_NONE, signal_cb, userdata, NULL);
+	if (!subs_id) {
+		_mmcam_dbg_err("g_dbus_connection_signal_subscribe() failed");
+		return MM_ERROR_CAMCORDER_INTERNAL;
+	} else {
+		*subscribe_id = subs_id;
+		_mmcam_dbg_log("subs_id %u", subs_id);
+	}
+
+	return MM_ERROR_NONE;
+}
+
+
+static void __gdbus_stream_eos_cb(GDBusConnection *connection,
+	const gchar *sender_name, const gchar *object_path, const gchar *interface_name,
+	const gchar *signal_name, GVariant *param, gpointer user_data)
+{
+	int played_idx = 0;
+	_MMCamcorderGDbusCbInfo *gdbus_info = NULL;
+
+	_mmcam_dbg_log("entered");
+
+	if (!param || !user_data) {
+		_mmcam_dbg_err("invalid parameter %p %p", param, user_data);
+		return;
+	}
+
+	gdbus_info = (_MMCamcorderGDbusCbInfo *)user_data;
+
+	g_variant_get(param, "(i)", &played_idx);
+
+	g_mutex_lock(&gdbus_info->sync_mutex);
+
+	_mmcam_dbg_log("gdbus_info->param %d, played_idx : %d",
+		gdbus_info->param, played_idx);
+
+	if (gdbus_info->param == played_idx) {
+		g_dbus_connection_signal_unsubscribe(connection, gdbus_info->subscribe_id);
+
+		gdbus_info->is_playing = FALSE;
+		gdbus_info->subscribe_id = 0;
+		gdbus_info->param = 0;
+
+		g_cond_signal(&gdbus_info->sync_cond);
+	}
+
+	g_mutex_unlock(&gdbus_info->sync_mutex);
+
+	return;
+}
+
+static int __gdbus_wait_for_cb_return(_MMCamcorderGDbusCbInfo *gdbus_info, int time_out)
+{
+	int ret = MM_ERROR_NONE;
+	gint64 end_time = 0;
+
+	if (!gdbus_info) {
+		_mmcam_dbg_err("invalid info");
+		return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
+	}
+
+	g_mutex_lock(&gdbus_info->sync_mutex);
+
+	_mmcam_dbg_log("entered");
+
+	if (gdbus_info->is_playing == FALSE) {
+		_mmcam_dbg_log("callback is already returned");
+		g_mutex_unlock(&gdbus_info->sync_mutex);
+		return MM_ERROR_NONE;
+	}
+
+	end_time = g_get_monotonic_time()+ (time_out * G_TIME_SPAN_MILLISECOND);
+
+	if (g_cond_wait_until(&gdbus_info->sync_cond, &gdbus_info->sync_mutex, end_time)) {
+		_mmcam_dbg_log("wait signal received");
+	} else {
+		_mmcam_dbg_err("wait time is expired");
+		ret = MM_ERROR_CAMCORDER_RESPONSE_TIMEOUT;
+	}
+
+	g_mutex_unlock(&gdbus_info->sync_mutex);
+
 	return ret;
 }
 
@@ -679,26 +767,23 @@ int _mmcamcorder_get_file_system_type(const gchar *path, int *file_system_type)
 }
 
 
-int _mmcamcorder_get_device_flash_brightness(int *brightness)
+int _mmcamcorder_get_device_flash_brightness(GDBusConnection *conn, int *brightness)
 {
 	int get_value = 0;
 	int ret = MM_ERROR_NONE;
-	GVariant *params = NULL, *result = NULL;
-	const char *param_type = "(i)";
+	GVariant *params = NULL;
+	GVariant *result = NULL;
 
-	if ((ret = __gdbus_method_call_sync("org.tizen.system.deviced",
-					    "/Org/Tizen/System/DeviceD/Led",
-					    "org.tizen.system.deviced.Led",
-					    "GetBrightnessForCamera",
-					    params,
-					    &result,
-					    TRUE)) != MM_ERROR_NONE) {
+	ret = __gdbus_method_call_sync(conn, "org.tizen.system.deviced",
+		"/Org/Tizen/System/DeviceD/Led", "org.tizen.system.deviced.Led",
+		"GetBrightnessForCamera", params, &result, TRUE);
+	if (ret != MM_ERROR_NONE) {
 		_mmcam_dbg_err("Dbus Call on Client Error");
 		return ret;
 	}
 
 	if (result) {
-		g_variant_get(result, param_type, &get_value);
+		g_variant_get(result, "(i)", &get_value);
 		*brightness = get_value;
 		_mmcam_dbg_log("flash brightness : %d", *brightness);
 	} else {
@@ -708,6 +793,69 @@ int _mmcamcorder_get_device_flash_brightness(int *brightness)
 
 	return ret;
 }
+
+
+int _mmcamcorder_send_sound_play_message(GDBusConnection *conn, _MMCamcorderGDbusCbInfo *gdbus_info,
+	const char *sample_name, const char *stream_role, const char *volume_gain, int sync_play)
+{
+	int get_value = 0;
+	int ret = MM_ERROR_NONE;
+	GVariant *params = NULL, *result = NULL;
+	guint subs_id = 0;
+
+	if (!conn || !gdbus_info) {
+		_mmcam_dbg_err("Invalid parameter %p %p", conn, gdbus_info);
+		return MM_ERROR_CAMCORDER_INTERNAL;
+	}
+
+	params = g_variant_new("(sss)", sample_name, stream_role, volume_gain);
+	result = g_variant_new("(i)", get_value);
+
+	ret = __gdbus_method_call_sync(conn, "org.pulseaudio.Server",
+		"/org/pulseaudio/SoundPlayer", "org.pulseaudio.SoundPlayer",
+		"SamplePlay", params, &result, TRUE);
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("Dbus Call on Client Error");
+		return ret;
+	}
+
+	if (result) {
+		g_variant_get(result, "(i)", &get_value);
+		_mmcam_dbg_log("played index : %d", get_value);
+	} else {
+		_mmcam_dbg_err("replied result is null");
+		return MM_ERROR_CAMCORDER_INTERNAL;
+	}
+
+	g_mutex_lock(&gdbus_info->sync_mutex);
+
+	if (gdbus_info->subscribe_id > 0) {
+		_mmcam_dbg_warn("subscribe_id[%u] is remained. remove it.", gdbus_info->subscribe_id);
+
+		g_dbus_connection_signal_unsubscribe(conn, gdbus_info->subscribe_id);
+
+		gdbus_info->subscribe_id = 0;
+	}
+
+	gdbus_info->is_playing = TRUE;
+	gdbus_info->param = get_value;
+
+	ret = __gdbus_subscribe_signal(conn,
+		"/org/pulseaudio/SoundPlayer", "org.pulseaudio.SoundPlayer", "EOS",
+		__gdbus_stream_eos_cb, &subs_id, gdbus_info);
+
+	if (ret == MM_ERROR_NONE)
+		gdbus_info->subscribe_id = subs_id;
+
+	g_mutex_unlock(&gdbus_info->sync_mutex);
+
+	if (sync_play && ret == MM_ERROR_NONE) {
+		ret = __gdbus_wait_for_cb_return(gdbus_info, G_DBUS_CB_TIMEOUT_MSEC);
+	}
+
+	return ret;
+}
+
 
 int _mmcamcorder_get_file_size(const char *filename, guint64 *size)
 {
@@ -994,7 +1142,7 @@ gboolean _mmcamcorder_msg_callback(void *data)
 	mmf_camcorder_t *hcamcorder = NULL;
 	mmf_return_val_if_fail(item, FALSE);
 
-	pthread_mutex_lock(&(item->lock));
+	g_mutex_lock(&item->lock);
 
 	hcamcorder = MMF_CAMCORDER(item->handle);
 	if (hcamcorder == NULL) {
@@ -1052,8 +1200,8 @@ MSG_CALLBACK_DONE:
 		}
 	}
 
-	pthread_mutex_unlock(&(item->lock));
-	pthread_mutex_destroy(&(item->lock));
+	g_mutex_unlock(&item->lock);
+	g_mutex_clear(&item->lock);
 
 	free(item);
 	item = NULL;
@@ -1109,7 +1257,7 @@ gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 	if (item) {
 		memcpy(item, data, sizeof(_MMCamcorderMsgItem));
 		item->handle = handle;
-		pthread_mutex_init(&(item->lock), NULL);
+		g_mutex_init(&item->lock);
 
 		_MMCAMCORDER_LOCK(handle);
 		hcamcorder->msg_data = g_list_append(hcamcorder->msg_data, item);
@@ -1171,10 +1319,7 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 #ifdef _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK
 	_MMCamcorderMsgItem *item = NULL;
 	GList *list = NULL;
-	struct timespec timeout;
-	struct timeval tv;
-	struct timeval tv_to_add;
-	struct timeval tv_result;
+	gint64 end_time = 0;
 #endif /* _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK */
 
 	mmf_return_if_fail(hcamcorder);
@@ -1185,9 +1330,6 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 	if (!hcamcorder->msg_data) {
 		_mmcam_dbg_log("No message data is remained.");
 	} else {
-		tv_to_add.tv_sec = 0;
-		tv_to_add.tv_usec = 1000 * 100; /* 100 ms */
-
 		list = hcamcorder->msg_data;
 
 		while (list) {
@@ -1197,7 +1339,7 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 			if (!item) {
 				_mmcam_dbg_err("Fail to remove message. The item is NULL");
 			} else {
-				if (pthread_mutex_trylock(&(item->lock))) {
+				if (g_mutex_trylock(&(item->lock))) {
 					ret = g_idle_remove_by_data(item);
 
 					_mmcam_dbg_log("remove msg item[%p], ret[%d]", item, ret);
@@ -1235,10 +1377,10 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 
 					hcamcorder->msg_data = g_list_remove(hcamcorder->msg_data, item);
 
-					pthread_mutex_unlock(&(item->lock));
+					g_mutex_unlock(&(item->lock));
 
 					if (ret == TRUE) {
-						pthread_mutex_destroy(&(item->lock));
+						g_mutex_clear(&item->lock);
 
 						free(item);
 						item = NULL;
@@ -1248,12 +1390,9 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 				} else {
 					_mmcam_dbg_warn("item lock failed. it's being called...");
 
-					gettimeofday(&tv, NULL);
-					timeradd(&tv, &tv_to_add, &tv_result);
-					timeout.tv_sec = tv_result.tv_sec;
-					timeout.tv_nsec = tv_result.tv_usec * 1000;
+					end_time = g_get_monotonic_time() + (100 * G_TIME_SPAN_MILLISECOND);
 
-					if (_MMCAMCORDER_TIMED_WAIT(handle, timeout)) {
+					if (_MMCAMCORDER_WAIT_UNTIL(handle, end_time)) {
 						_mmcam_dbg_warn("signal received");
 					} else {
 						_mmcam_dbg_warn("timeout");
@@ -1549,7 +1688,7 @@ gboolean _mmcamcorder_link_elements(GList *element_list)
 }
 
 gboolean _mmcamcorder_resize_frame(unsigned char *src_data, unsigned int src_width, unsigned int src_height, unsigned int src_length, int src_format,
-                                   unsigned char **dst_data, unsigned int *dst_width, unsigned int *dst_height, unsigned int *dst_length)
+	unsigned char **dst_data, unsigned int *dst_width, unsigned int *dst_height, unsigned int *dst_length)
 {
 	int ret = TRUE;
 	int mm_ret = MM_ERROR_NONE;
@@ -1622,8 +1761,8 @@ gboolean _mmcamcorder_resize_frame(unsigned char *src_data, unsigned int src_wid
 
 
 gboolean _mmcamcorder_encode_jpeg(void *src_data, unsigned int src_width, unsigned int src_height,
-				  int src_format, unsigned int src_length, unsigned int jpeg_quality,
-				  void **result_data, unsigned int *result_length)
+	int src_format, unsigned int src_length, unsigned int jpeg_quality,
+	void **result_data, unsigned int *result_length)
 {
 	int ret = 0;
 	gboolean ret_conv = TRUE;
@@ -1715,7 +1854,7 @@ gboolean _mmcamcorder_encode_jpeg(void *src_data, unsigned int src_width, unsign
 
 /* make UYVY smaller as multiple size. ex: 640x480 -> 320x240 or 160x120 ... */
 gboolean _mmcamcorder_downscale_UYVYorYUYV(unsigned char *src, unsigned int src_width, unsigned int src_height,
-                                           unsigned char **dst, unsigned int dst_width, unsigned int dst_height)
+	unsigned char **dst, unsigned int dst_width, unsigned int dst_height)
 {
 	unsigned int i = 0;
 	int j = 0;
@@ -1827,44 +1966,41 @@ void *_mmcamcorder_util_task_thread_func(void *data)
 
 	_mmcam_dbg_warn("start thread");
 
-	pthread_mutex_lock(&(hcamcorder->task_thread_lock));
+	g_mutex_lock(&hcamcorder->task_thread_lock);
 
 	while (hcamcorder->task_thread_state != _MMCAMCORDER_TASK_THREAD_STATE_EXIT) {
 		switch (hcamcorder->task_thread_state) {
 		case _MMCAMCORDER_TASK_THREAD_STATE_NONE:
 			_mmcam_dbg_warn("wait for task signal");
-			pthread_cond_wait(&(hcamcorder->task_thread_cond), &(hcamcorder->task_thread_lock));
+			g_cond_wait(&hcamcorder->task_thread_cond, &hcamcorder->task_thread_lock);
 			_mmcam_dbg_warn("task signal received : state %d", hcamcorder->task_thread_state);
 			break;
 		case _MMCAMCORDER_TASK_THREAD_STATE_SOUND_PLAY_START:
-			_mmcamcorder_sound_play((MMHandleType)hcamcorder, _MMCAMCORDER_SAMPLE_SOUND_NAME_CAPTURE, FALSE);
+			_mmcamcorder_sound_play((MMHandleType)hcamcorder, _MMCAMCORDER_SAMPLE_SOUND_NAME_CAPTURE02, FALSE);
 			hcamcorder->task_thread_state = _MMCAMCORDER_TASK_THREAD_STATE_NONE;
 			break;
 		case _MMCAMCORDER_TASK_THREAD_STATE_SOUND_SOLO_PLAY_START:
-			_mmcamcorder_sound_solo_play((MMHandleType)hcamcorder, _MMCAMCORDER_FILEPATH_CAPTURE_SND, FALSE);
+			_mmcamcorder_sound_solo_play((MMHandleType)hcamcorder, _MMCAMCORDER_SAMPLE_SOUND_NAME_CAPTURE01, FALSE);
 			hcamcorder->task_thread_state = _MMCAMCORDER_TASK_THREAD_STATE_NONE;
 			break;
 		case _MMCAMCORDER_TASK_THREAD_STATE_ENCODE_PIPE_CREATE:
 			ret = _mmcamcorder_video_prepare_record((MMHandleType)hcamcorder);
 
 			/* Play record start sound */
-			_mmcamcorder_sound_solo_play((MMHandleType)hcamcorder, _MMCAMCORDER_FILEPATH_REC_START_SND, FALSE);
+			_mmcamcorder_sound_solo_play((MMHandleType)hcamcorder, _MMCAMCORDER_SAMPLE_SOUND_NAME_REC_START, FALSE);
 
 			_mmcam_dbg_log("_mmcamcorder_video_prepare_record return 0x%x", ret);
 			hcamcorder->task_thread_state = _MMCAMCORDER_TASK_THREAD_STATE_NONE;
 			break;
 		case _MMCAMCORDER_TASK_THREAD_STATE_CHECK_CAPTURE_IN_RECORDING:
 			{
-				struct timespec timeout;
-				struct timeval tv;
-
-				gettimeofday(&tv, NULL);
-				timeout.tv_sec = tv.tv_sec + __MMCAMCORDER_CAPTURE_WAIT_TIMEOUT;
-				timeout.tv_nsec = tv.tv_usec * 1000;
+				gint64 end_time = 0;
 
 				_mmcam_dbg_warn("wait for capture data in recording. wait signal...");
 
-				if (!pthread_cond_timedwait(&(hcamcorder->task_thread_cond), &(hcamcorder->task_thread_lock), &timeout)) {
+				end_time = g_get_monotonic_time() + (5 * G_TIME_SPAN_SECOND);
+
+				if (g_cond_wait_until(&hcamcorder->task_thread_cond, &hcamcorder->task_thread_lock, end_time)) {
 					_mmcam_dbg_warn("signal received");
 				} else {
 					_MMCamcorderMsgItem message;
@@ -1891,7 +2027,7 @@ void *_mmcamcorder_util_task_thread_func(void *data)
 		}
 	}
 
-	pthread_mutex_unlock(&(hcamcorder->task_thread_lock));
+	g_mutex_unlock(&hcamcorder->task_thread_lock);
 
 	_mmcam_dbg_warn("exit thread");
 

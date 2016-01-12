@@ -25,7 +25,7 @@
 /*=======================================================================================
 | INCLUDE FILES										|
 ========================================================================================*/
-#include <pulse/pulseaudio.h>
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,11 +39,9 @@ extern "C" {
 /*=======================================================================================
 | MACRO DEFINITIONS									|
 ========================================================================================*/
-#define _MMCAMCORDER_FILEPATH_CAPTURE_SND        "/usr/share/sounds/mm-camcorder/capture_shutter_01.wav"
-#define _MMCAMCORDER_FILEPATH_CAPTURE2_SND       "/usr/share/sounds/mm-camcorder/capture_shutter_02.wav"
-#define _MMCAMCORDER_FILEPATH_REC_START_SND      "/usr/share/sounds/mm-camcorder/recording_start_01.wav"
-#define _MMCAMCORDER_FILEPATH_REC_STOP_SND       "/usr/share/sounds/mm-camcorder/recording_stop_01.wav"
-#define _MMCAMCORDER_SAMPLE_SOUND_NAME_CAPTURE   "camera-shutter"
+#define _MMCAMCORDER_SAMPLE_SOUND_NAME_CAPTURE01 "camera-shutter-01"
+#define _MMCAMCORDER_SAMPLE_SOUND_NAME_CAPTURE02 "camera-shutter-02"
+#define _MMCAMCORDER_SAMPLE_SOUND_NAME_REC_START "recording-start"
 #define _MMCAMCORDER_SAMPLE_SOUND_NAME_REC_STOP  "recording-stop"
 
 /*=======================================================================================
@@ -61,23 +59,14 @@ typedef enum {
 /**
  * Structure of sound info
  */
-typedef struct __SOUND_INFO {
-	/* PCM */
-	int volume_type;
-	unsigned int volume_level;
-
+typedef struct _SOUND_INFO {
 	/* mutex and cond */
-	pthread_mutex_t play_mutex;
-	pthread_cond_t play_cond;
-	pthread_mutex_t open_mutex;
-	pthread_cond_t open_cond;
+	GMutex play_mutex;
+	GCond play_cond;
+	GMutex open_mutex;
+	GCond open_cond;
 
-	/* pulse audio */
-	pa_threaded_mainloop *pulse_mainloop;
-	pa_context *pulse_context;
-	pa_stream *sample_stream;
-	pa_sample_spec sample_spec;
-
+	/* state */
 	_MMCamcorderSoundState state;
 } SOUND_INFO;
 
@@ -93,7 +82,7 @@ gboolean _mmcamcorder_sound_init(MMHandleType handle);
 gboolean _mmcamcorder_sound_play(MMHandleType handle, const char *sample_name, gboolean sync_play);
 gboolean _mmcamcorder_sound_finalize(MMHandleType handle);
 
-void _mmcamcorder_sound_solo_play(MMHandleType handle, const char *filepath, gboolean sync_play);
+int _mmcamcorder_sound_solo_play(MMHandleType handle, const char *sample_name, gboolean sync_play);
 void _mmcamcorder_sound_solo_play_wait(MMHandleType handle);
 
 #ifdef __cplusplus
