@@ -329,12 +329,17 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 		if (err != MM_ERROR_NONE) {
 			_mmcam_dbg_warn("Get socket path failed 0x%x", err);
 			SAFE_FREE(err_name);
-			return err;
+			goto pipeline_creation_error;
 		}
 
 		g_object_set(G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst), "socket-path", socket_path, NULL);
 	} else {
 		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_SINK, videosink_name, "videosink_sink", element_list, err);
+		if (_mmcamcorder_videosink_window_set(handle, sc->VideosinkElement) != MM_ERROR_NONE) {
+			_mmcam_dbg_err("_mmcamcorder_videosink_window_set error");
+			err = MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
+			goto pipeline_creation_error;
+		}
 	}
 
 	_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, sc->VideosinkElement);
@@ -2013,7 +2018,7 @@ int _mmcamcorder_check_videocodec_fileformat_compatibility(MMHandleType handle)
 }
 
 
-bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate)
+bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate, int videosink_index)
 {
 	const char* videosink_name = NULL;
 
@@ -2027,7 +2032,7 @@ bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate)
 	mmf_return_val_if_fail(sc, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
 	mmf_return_val_if_fail(sc->element, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
 
-	if (sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst) {
+	if (sc->element[videosink_index].gst) {
 		/* Get videosink name */
 		_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
 		if (videosink_name == NULL) {
@@ -2035,10 +2040,9 @@ bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate)
 			return FALSE;
 		}
 
-		if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "evasimagesink") ||
-		    !strcmp(videosink_name, "evaspixmapsink")) {
-			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst,
-			                         "rotate", display_rotate);
+		if (!strcmp(videosink_name, "waylandsink") || !strcmp(videosink_name, "xvimagesink") ||
+			!strcmp(videosink_name, "evasimagesink") || !strcmp(videosink_name, "evaspixmapsink")) {
+			MMCAMCORDER_G_OBJECT_SET(sc->element[videosink_index].gst, "rotate", display_rotate);
 			_mmcam_dbg_log("Set display-rotate [%d] done.", display_rotate);
 			return TRUE;
 		} else {
@@ -2052,7 +2056,7 @@ bool _mmcamcorder_set_display_rotation(MMHandleType handle, int display_rotate)
 }
 
 
-bool _mmcamcorder_set_display_flip(MMHandleType handle, int display_flip)
+bool _mmcamcorder_set_display_flip(MMHandleType handle, int display_flip, int videosink_index)
 {
 	const char* videosink_name = NULL;
 
@@ -2066,7 +2070,7 @@ bool _mmcamcorder_set_display_flip(MMHandleType handle, int display_flip)
 	mmf_return_val_if_fail(sc, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
 	mmf_return_val_if_fail(sc->element, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
 
-	if (sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst) {
+	if (sc->element[videosink_index].gst) {
 		/* Get videosink name */
 		_mmcamcorder_conf_get_value_element_name(sc->VideosinkElement, &videosink_name);
 		if (videosink_name == NULL) {
@@ -2074,10 +2078,9 @@ bool _mmcamcorder_set_display_flip(MMHandleType handle, int display_flip)
 			return FALSE;
 		}
 
-		if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "evasimagesink") ||
-		    !strcmp(videosink_name, "evaspixmapsink")) {
-			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst,
-			                         "flip", display_flip);
+		if (!strcmp(videosink_name, "waylandsink") || !strcmp(videosink_name, "xvimagesink") ||
+			!strcmp(videosink_name, "evasimagesink") || !strcmp(videosink_name, "evaspixmapsink")) {
+			MMCAMCORDER_G_OBJECT_SET(sc->element[videosink_index].gst, "flip", display_flip);
 			_mmcam_dbg_log("Set display flip [%d] done.", display_flip);
 			return TRUE;
 		} else {

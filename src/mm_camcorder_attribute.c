@@ -3362,7 +3362,7 @@ bool _mmcamcorder_commit_display_rotation(MMHandleType handle, int attr_idx, con
 		return TRUE;
 	}
 
-	return _mmcamcorder_set_display_rotation(handle, value->value.i_val);
+	return _mmcamcorder_set_display_rotation(handle, value->value.i_val, _MMCAMCORDER_VIDEOSINK_SINK);
 }
 
 
@@ -3387,7 +3387,7 @@ bool _mmcamcorder_commit_display_flip(MMHandleType handle, int attr_idx, const m
 		return TRUE;
 	}
 
-	return _mmcamcorder_set_display_flip(handle, value->value.i_val);
+	return _mmcamcorder_set_display_flip(handle, value->value.i_val, _MMCAMCORDER_VIDEOSINK_SINK);
 }
 
 

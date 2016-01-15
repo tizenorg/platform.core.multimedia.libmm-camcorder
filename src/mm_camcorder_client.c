@@ -312,7 +312,7 @@ bool _mmcamcorder_client_commit_display_rotation(MMHandleType handle, int attr_i
 		return TRUE;
 	}
 
-	return _mmcamcorder_set_display_rotation(handle, value->value.i_val);
+	return _mmcamcorder_set_display_rotation(handle, value->value.i_val, _MMCAMCORDER_CLIENT_VIDEOSINK_SINK);
 }
 
 bool _mmcamcorder_client_commit_display_visible(MMHandleType handle, int attr_idx, const mmf_value_t *value)
@@ -347,8 +347,8 @@ bool _mmcamcorder_client_commit_display_visible(MMHandleType handle, int attr_id
 		return FALSE;
 	}
 
-	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "evasimagesink") ||
-	    !strcmp(videosink_name, "evaspixmapsink")) {
+	if (!strcmp(videosink_name, "waylandsink") || !strcmp(videosink_name, "xvimagesink") ||
+		!strcmp(videosink_name, "evasimagesink") || !strcmp(videosink_name, "evaspixmapsink")) {
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_CLIENT_VIDEOSINK_SINK].gst, "visible", value->value.i_val);
 		_mmcam_dbg_log("Set visible [%d] done.", value->value.i_val);
 		return TRUE;
@@ -391,8 +391,8 @@ bool _mmcamcorder_client_commit_display_geometry_method (MMHandleType handle, in
 		return FALSE;
 	}
 
-	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "evasimagesink") ||
-	    !strcmp(videosink_name, "evaspixmapsink")) {
+	if (!strcmp(videosink_name, "waylandsink") || !strcmp(videosink_name, "xvimagesink") ||
+		!strcmp(videosink_name, "evasimagesink") || !strcmp(videosink_name, "evaspixmapsink")) {
 		method = value->value.i_val;
 		MMCAMCORDER_G_OBJECT_SET( sc->element[_MMCAMCORDER_CLIENT_VIDEOSINK_SINK].gst, "display-geometry-method", method);
 		return TRUE;
@@ -437,7 +437,7 @@ bool _mmcamcorder_client_commit_display_scale(MMHandleType handle, int attr_idx,
 	}
 
 	zoom = value->value.i_val;
-	if (!strcmp(videosink_name, "xvimagesink")) {
+	if (!strcmp(videosink_name, "waylandsink") || !strcmp(videosink_name, "xvimagesink")) {
 		vs_element = sc->element[_MMCAMCORDER_CLIENT_VIDEOSINK_SINK].gst;
 
 		MMCAMCORDER_G_OBJECT_SET(vs_element, "zoom", (float)(zoom + 1));
@@ -483,7 +483,7 @@ bool _mmcamcorder_client_commit_display_mode(MMHandleType handle, int attr_idx, 
 
 	_mmcam_dbg_log("Commit : videosinkname[%s]", videosink_name);
 
-	if (!strcmp(videosink_name, "xvimagesink")) {
+	if (!strcmp(videosink_name, "waylandsink") || !strcmp(videosink_name, "xvimagesink")) {
 		_mmcam_dbg_log("Commit : display mode [%d]", value->value.i_val);
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_CLIENT_VIDEOSINK_SINK].gst, "display-mode", value->value.i_val);
 		return TRUE;
@@ -559,7 +559,7 @@ bool _mmcamcorder_client_commit_display_flip(MMHandleType handle, int attr_idx, 
 		return TRUE;
 	}
 
-	return _mmcamcorder_set_display_flip(handle, value->value.i_val);
+	return _mmcamcorder_set_display_flip(handle, value->value.i_val, _MMCAMCORDER_CLIENT_VIDEOSINK_SINK);
 }
 
 int _mmcamcorder_client_videosink_window_set(MMHandleType handle, type_element* VideosinkElement)
@@ -690,8 +690,8 @@ int _mmcamcorder_client_videosink_window_set(MMHandleType handle, type_element* 
 	               videosink_name, display_geometry_method, origin_size, visible, rotation, flip);
 
 	/* Set attribute */
-	if (!strcmp(videosink_name, "xvimagesink") ||
-	    !strcmp(videosink_name, "evaspixmapsink")) {
+	if (!strcmp(videosink_name, "waylandsink") || !strcmp(videosink_name, "xvimagesink") ||
+		!strcmp(videosink_name, "evaspixmapsink")) {
 		/* set rotation */
 		MMCAMCORDER_G_OBJECT_SET(vsink, "rotate", rotation);
 
@@ -727,6 +727,8 @@ int _mmcamcorder_client_videosink_window_set(MMHandleType handle, type_element* 
 			             "dst-roi-h", retheight,
 			             NULL);
 		}
+	} else {
+		_mmcam_dbg_warn("unsupported videosink [%s]", videosink_name);
 	}
 
 	return MM_ERROR_NONE;
@@ -1256,11 +1258,10 @@ int _mmcamcorder_client_create_preview_elements(MMHandleType handle, const char 
 	/* create sink */
 	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_CLIENT_VIDEOSINK_SINK, videosink_name, "client_videosink_sink", element_list, ret);
 
-	if (strcmp(videosink_name, "fakesink") &&
-	    strcmp(videosink_name, "tizenipcsink") &&
-	    strcmp(videosink_name, "shmsink")) {
+	if (strcmp(videosink_name, "fakesink") && strcmp(videosink_name, "tizenipcsink") &&
+		strcmp(videosink_name, "shmsink")) {
 		if (_mmcamcorder_client_videosink_window_set(handle, sc->VideosinkElement) != MM_ERROR_NONE) {
-			_mmcam_dbg_err("_mmcamcorder_videosink_window_set error");
+			_mmcam_dbg_err("_mmcamcorder_client_videosink_window_set error");
 			ret = MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
 			goto pipeline_creation_error;
 		}
