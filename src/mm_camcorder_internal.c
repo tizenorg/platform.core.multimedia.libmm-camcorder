@@ -327,7 +327,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 				goto _ERR_DEFAULT_VALUE_INIT;
 			}
 
-			ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, MM_CAMCONVERT_CATEGORY_CAMERA|MM_CAMCONVERT_CATEGORY_DISPLAY);
+			ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, MM_CAMCONVERT_CATEGORY_ALL);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("converting table initialize error!!");
 				ret = MM_ERROR_CAMCORDER_INTERNAL;
