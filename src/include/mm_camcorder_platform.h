@@ -187,7 +187,8 @@ typedef enum {
 typedef enum {
 	MM_CAMCONVERT_CATEGORY_CAMERA  = 1 << 0,
 	MM_CAMCONVERT_CATEGORY_DISPLAY = 1 << 1,
-	MM_CAMCONVERT_CATEGORY_AUDIO   = 1 << 2
+	MM_CAMCONVERT_CATEGORY_AUDIO   = 1 << 2,
+	MM_CAMCONVERT_CATEGORY_ALL = MM_CAMCONVERT_CATEGORY_CAMERA | MM_CAMCONVERT_CATEGORY_DISPLAY | MM_CAMCONVERT_CATEGORY_AUDIO
 } MMCamConvertingCategory;
 
 /*=======================================================================================

@@ -1049,7 +1049,6 @@ static gboolean __mmcamcorder_audio_add_metadata_info_m4a(MMHandleType handle)
 	gint64 udta_pos = 0;
 	// supporting audio geo tag for mobile
 	int gps_enable = 0;
-	char *err_name = NULL;
 	gdouble longitude = 0;
 	gdouble latitude = 0;
 	gdouble altitude = 0;
@@ -1069,12 +1068,12 @@ static gboolean __mmcamcorder_audio_add_metadata_info_m4a(MMHandleType handle)
 	mmf_return_val_if_fail(sc->info_audio, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
 
 	info = sc->info_audio;
-	mm_camcorder_get_attributes(handle, &err_name,
+	mm_camcorder_get_attributes(handle, NULL,
 	                            MMCAM_TAG_GPS_ENABLE, &gps_enable,
 	                            NULL);
 
 	if (gps_enable) {
-		mm_camcorder_get_attributes(handle, &err_name,
+		mm_camcorder_get_attributes(handle, NULL,
 		                            MMCAM_TAG_LATITUDE, &latitude,
 		                            MMCAM_TAG_LONGITUDE, &longitude,
 		                            MMCAM_TAG_ALTITUDE, &altitude,
@@ -1091,10 +1090,6 @@ static gboolean __mmcamcorder_audio_add_metadata_info_m4a(MMHandleType handle)
 	if (f == NULL) {
 		strerror_r(errno, err_msg, 128);
 		_mmcam_dbg_err("file open failed [%s]", err_msg);
-		if (err_name) {
-			free(err_name);
-			err_name = NULL;
-		}
 		return FALSE;
 	}
 
@@ -1184,27 +1179,16 @@ static gboolean __mmcamcorder_audio_add_metadata_info_m4a(MMHandleType handle)
 	}
 
 	fclose(f);
-	if (err_name) {
-		free(err_name);
-		err_name = NULL;
-	}
+
 	return TRUE;
 
 fail:
 	fclose(f);
-	if (err_name) {
-		free(err_name);
-		err_name = NULL;
-	}
 	return FALSE;
 
 ftell_fail:
 	_mmcam_dbg_err("ftell() returns negative value.");
 	fclose(f);
-	if (err_name) {
-		free(err_name);
-		err_name = NULL;
-	}
 	return FALSE;
 }
 
