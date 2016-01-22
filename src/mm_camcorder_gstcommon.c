@@ -694,7 +694,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 
 			caps_str = gst_caps_to_string(video_caps);
 			_mmcam_dbg_log("encodebin caps [%s]", caps_str);
-			free(caps_str);
+			g_free(caps_str);
 			caps_str = NULL;
 
 			MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_FILT].gst, "caps", video_caps);
@@ -717,12 +717,23 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->encode_element, _MMCAMCORDER_ENCSINK_ENCBIN, "encodebin", "encodesink_encbin", element_list, err);
 
 	/* check element availability */
-	mm_camcorder_get_attributes(handle, &err_name,
+	err = mm_camcorder_get_attributes(handle, &err_name,
 	                            MMCAM_AUDIO_ENCODER, &audio_enc,
 	                            MMCAM_AUDIO_CHANNEL, &channel,
 	                            MMCAM_VIDEO_ENCODER_BITRATE, &v_bitrate,
 	                            MMCAM_AUDIO_ENCODER_BITRATE, &a_bitrate,
 	                            NULL);
+
+	if (err != MM_ERROR_NONE) {
+		if (err_name) {
+			_mmcam_dbg_err("failed to get attributes [%s][0x%x]", err_name, err);
+			SAFE_FREE(err_name);
+		} else {
+			_mmcam_dbg_err("failed to get attributes [0x%x]", err);
+		}
+
+		return err;
+	}
 
 	_mmcam_dbg_log("Profile[%d]", profile);
 
@@ -1219,8 +1230,7 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 	if (err != MM_ERROR_NONE) {
 		if (err_name) {
 			_mmcam_dbg_err("failed to get attributes [%s][0x%x]", err_name, err);
-			free(err_name);
-			err_name = NULL;
+			SAFE_FREE(err_name);
 		} else {
 			_mmcam_dbg_err("failed to get attributes [0x%x]", err);
 		}
@@ -1353,7 +1363,7 @@ gboolean _mmcamcorder_get_device_info(MMHandleType handle)
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderSubContext *sc = NULL;
 	GstCameraControl *control = NULL;
-	GstCameraControlExifInfo exif_info;
+	GstCameraControlExifInfo exif_info = {0,};
 
 	mmf_return_val_if_fail(hcamcorder, FALSE);
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
@@ -1371,7 +1381,8 @@ gboolean _mmcamcorder_get_device_info(MMHandleType handle)
 			control = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
 			if (control != NULL) {
 				gst_camera_control_get_exif_info(control, &exif_info); //get video input device information
-				focal_len = ((double)exif_info.focal_len_numerator) / ((double) exif_info.focal_len_denominator);
+				if (exif_info.focal_len_denominator != 0)
+					focal_len = ((double)exif_info.focal_len_numerator) / ((double) exif_info.focal_len_denominator);
 			} else {
 				_mmcam_dbg_err("Fail to get camera control interface!");
 				focal_len = 0.0;
@@ -1384,10 +1395,7 @@ gboolean _mmcamcorder_get_device_info(MMHandleType handle)
 		                                  NULL);
 		if (err != MM_ERROR_NONE) {
 			_mmcam_dbg_err("Set attributes error(%s:%x)!", err_name, err);
-			if (err_name) {
-				free(err_name);
-				err_name = NULL;
-			}
+			SAFE_FREE(err_name);
 			return FALSE;
 		}
 	} else {
@@ -1760,7 +1768,7 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_push_buffer_to_record(Gst
 				char *caps_string = gst_caps_to_string(caps);
 				if (caps_string) {
 					_mmcam_dbg_log("%s", caps_string);
-					free(caps_string);
+					g_free(caps_string);
 					caps_string = NULL;
 				}
 				gst_caps_unref(caps);
@@ -2292,10 +2300,13 @@ bool _mmcamcorder_set_videosrc_caps(MMHandleType handle, unsigned int fourcc, in
 		}
 
 		_mmcam_dbg_log("vidoesrc new caps set. %"GST_PTR_FORMAT, caps);
-
-		MMCAMCORDER_G_OBJECT_SET_POINTER(sc->element[_MMCAMCORDER_VIDEOSRC_FILT].gst, "caps", caps);
-		gst_caps_unref(caps);
-		caps = NULL;
+		if (caps) {
+			MMCAMCORDER_G_OBJECT_SET_POINTER(sc->element[_MMCAMCORDER_VIDEOSRC_FILT].gst, "caps", caps);
+			gst_caps_unref(caps);
+			caps = NULL;
+		} else {
+			_mmcam_dbg_err("There are no caps");
+		}
 	}
 
 	if (hcamcorder->type != MM_CAMCORDER_MODE_AUDIO) {
