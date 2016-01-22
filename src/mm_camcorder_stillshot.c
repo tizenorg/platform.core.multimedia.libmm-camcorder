@@ -316,8 +316,7 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 	                            NULL);
 	if (err_name) {
 		_mmcam_dbg_warn("get_attributes err %s, ret 0x%x", err_name, ret);
-		free(err_name);
-		err_name = NULL;
+		SAFE_FREE(err_name);
 	}
 
 	ret = MM_ERROR_NONE;
@@ -462,8 +461,7 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 			                            NULL);
 			if (err_name) {
 				_mmcam_dbg_warn("get_attributes err %s", err_name);
-				free(err_name);
-				err_name = NULL;
+				SAFE_FREE(err_name);
 			}
 
 			/* set new caps */
@@ -501,8 +499,7 @@ int _mmcamcorder_image_cmd_capture(MMHandleType handle)
 		                                  NULL);
 		if (err_name) {
 			_mmcam_dbg_warn("get_attributes err %s, ret 0x%x", err_name, ret);
-			free(err_name);
-			err_name = NULL;
+			SAFE_FREE(err_name);
 		}
 
 		/* set JPEG quality */
@@ -716,6 +713,10 @@ int _mmcamcorder_image_cmd_preview_start(MMHandleType handle)
 				                            MMCAM_CAMERA_FPS, &fps,
 				                            MMCAM_CAMERA_ROTATION, &rotation,
 				                            NULL);
+				if (err_name) {
+					_mmcam_dbg_warn("get_attributes err %s, ret 0x%x", err_name, ret);
+					SAFE_FREE(err_name);
+				}
 
 				/* set new caps */
 				ret = _mmcamcorder_set_videosrc_caps(handle, sc->fourcc, width, height, fps, rotation);
