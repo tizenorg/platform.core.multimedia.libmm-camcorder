@@ -717,12 +717,23 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->encode_element, _MMCAMCORDER_ENCSINK_ENCBIN, "encodebin", "encodesink_encbin", element_list, err);
 
 	/* check element availability */
-	mm_camcorder_get_attributes(handle, &err_name,
+	err = mm_camcorder_get_attributes(handle, &err_name,
 	                            MMCAM_AUDIO_ENCODER, &audio_enc,
 	                            MMCAM_AUDIO_CHANNEL, &channel,
 	                            MMCAM_VIDEO_ENCODER_BITRATE, &v_bitrate,
 	                            MMCAM_AUDIO_ENCODER_BITRATE, &a_bitrate,
 	                            NULL);
+
+	if (err != MM_ERROR_NONE) {
+		if (err_name) {
+			_mmcam_dbg_err("failed to get attributes [%s][0x%x]", err_name, err);
+			SAFE_FREE(err_name);
+		} else {
+			_mmcam_dbg_err("failed to get attributes [0x%x]", err);
+		}
+
+		return err;
+	}
 
 	_mmcam_dbg_log("Profile[%d]", profile);
 
@@ -1219,8 +1230,7 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 	if (err != MM_ERROR_NONE) {
 		if (err_name) {
 			_mmcam_dbg_err("failed to get attributes [%s][0x%x]", err_name, err);
-			free(err_name);
-			err_name = NULL;
+			SAFE_FREE(err_name);
 		} else {
 			_mmcam_dbg_err("failed to get attributes [0x%x]", err);
 		}
@@ -1384,10 +1394,7 @@ gboolean _mmcamcorder_get_device_info(MMHandleType handle)
 		                                  NULL);
 		if (err != MM_ERROR_NONE) {
 			_mmcam_dbg_err("Set attributes error(%s:%x)!", err_name, err);
-			if (err_name) {
-				free(err_name);
-				err_name = NULL;
-			}
+			SAFE_FREE(err_name);
 			return FALSE;
 		}
 	} else {

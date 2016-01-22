@@ -31,6 +31,12 @@ extern "C" {
 ========================================================================================*/
 #define SAFE_FREE(x) \
 	if (x) {\
+		free(x); \
+		x = NULL; \
+	}
+
+#define SAFE_G_FREE(x) \
+	if (x) {\
 		g_free(x); \
 		x = NULL; \
 	}
