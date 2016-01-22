@@ -1215,11 +1215,11 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
 
 	/* Send recording report to application */
 	msg.id = MM_MESSAGE_CAMCORDER_VIDEO_CAPTURED;
-	report = (MMCamRecordingReport *)malloc(sizeof(MMCamRecordingReport));
+	report = (MMCamRecordingReport *)g_malloc(sizeof(MMCamRecordingReport));
 	if (!report) {
 		_mmcam_dbg_err("Recording report fail(%s). Out of memory.", info->filename);
 	} else {
-		report->recording_filename = strdup(info->filename);
+		report->recording_filename = g_strdup(info->filename);
 		msg.param.data= report;
 		msg.param.code = 1;
 		_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
@@ -2048,7 +2048,7 @@ int _mmcamcorder_video_prepare_record(MMHandleType handle)
 		                            MMCAM_TARGET_FILENAME, &temp_filename, &size,
 		                            NULL);
 		if (temp_filename) {
-			info->filename = strdup(temp_filename);
+			info->filename = g_strdup(temp_filename);
 		}
 
 		if (!info->filename) {
