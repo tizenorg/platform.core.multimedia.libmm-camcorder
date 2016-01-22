@@ -63,7 +63,7 @@
 	if (fputs(x_str, x_file) == EOF) \
 	{\
 		_mmcam_dbg_err("[Critical] fputs() returns fail.\n");\
-		SAFE_FREE(str);	\
+		SAFE_G_FREE(str);	\
 		return FALSE;\
 	}\
 }
@@ -410,7 +410,7 @@ gboolean _mmcamcorder_write_loci(FILE *f, _MMCamcorderLocationInfo info)
 	str = str_to_utf8("location_name");
 
 	FPUTS_CHECK(str, f); // name
-	SAFE_FREE(str);
+	SAFE_G_FREE(str);
 
 	FPUTC_CHECK('\0', f);
 	FPUTC_CHECK(0, f);		//role
@@ -426,13 +426,13 @@ gboolean _mmcamcorder_write_loci(FILE *f, _MMCamcorderLocationInfo info)
 
 	str = str_to_utf8("Astronomical_body");
 	FPUTS_CHECK(str, f);//Astronomical_body
-	SAFE_FREE(str);
+	SAFE_G_FREE(str);
 
 	FPUTC_CHECK('\0', f);
 
 	str = str_to_utf8("Additional_notes");
 	FPUTS_CHECK(str, f); // Additional_notes
-	SAFE_FREE(str);
+	SAFE_G_FREE(str);
 
 	FPUTC_CHECK('\0', f);
 
@@ -903,7 +903,7 @@ void _mmcamcorder_remove_buffer_probe(MMHandleType handle, _MMCamcorderHandlerCa
 
 			list = g_list_next(list);
 			hcamcorder->buffer_probes = g_list_remove(hcamcorder->buffer_probes, item);
-			SAFE_FREE(item);
+			SAFE_G_FREE(item);
 		} else {
 			_mmcam_dbg_log("Skip item : [ID : %lu], [Category : %x] ", item->handler_id, item->category);
 			list = g_list_next(list);
@@ -956,7 +956,7 @@ void _mmcamcorder_remove_one_buffer_probe(MMHandleType handle, void *object)
 
 			list = g_list_next(list);
 			hcamcorder->buffer_probes = g_list_remove(hcamcorder->buffer_probes, item);
-			SAFE_FREE(item);
+			SAFE_G_FREE(item);
 
 			break;
 		} else {
@@ -1006,7 +1006,7 @@ void _mmcamcorder_remove_event_probe(MMHandleType handle, _MMCamcorderHandlerCat
 
 			list = g_list_next(list);
 			hcamcorder->event_probes = g_list_remove(hcamcorder->event_probes, item);
-			SAFE_FREE(item);
+			SAFE_G_FREE(item);
 		} else {
 			_mmcam_dbg_log("Skip item : [ID : %lu], [Category : %x] ", item->handler_id, item->category);
 			list = g_list_next(list);
@@ -1064,7 +1064,7 @@ void _mmcamcorder_disconnect_signal(MMHandleType handle, _MMCamcorderHandlerCate
 
 			list = g_list_next(list);
 			hcamcorder->signals = g_list_remove(hcamcorder->signals, item);
-			SAFE_FREE(item);
+			SAFE_G_FREE(item);
 		} else {
 			_mmcam_dbg_log("Skip item : [ID : %lu], [Category : %x] ", item->handler_id, item->category);
 			list = g_list_next(list);
@@ -1179,8 +1179,7 @@ MSG_CALLBACK_DONE:
 		MMCamFaceDetectInfo *cam_fd_info = (MMCamFaceDetectInfo *)item->param.data;
 		if (cam_fd_info) {
 			SAFE_FREE(cam_fd_info->face_info);
-			free(cam_fd_info);
-			cam_fd_info = NULL;
+			SAFE_FREE(cam_fd_info);
 
 			item->param.data = NULL;
 			item->param.size = 0;
@@ -1190,12 +1189,9 @@ MSG_CALLBACK_DONE:
 		MMCamRecordingReport *report = (MMCamRecordingReport *)item->param.data;
 		if (report) {
 			if (report->recording_filename) {
-				free(report->recording_filename);
-				report->recording_filename = NULL;
+				SAFE_FREE(report->recording_filename);
 			}
-			free(report);
-			report = NULL;
-
+			SAFE_FREE(report);
 			item->param.data = NULL;
 		}
 	}
@@ -1203,8 +1199,7 @@ MSG_CALLBACK_DONE:
 	g_mutex_unlock(&item->lock);
 	g_mutex_clear(&item->lock);
 
-	free(item);
-	item = NULL;
+	SAFE_G_FREE(item);
 
 	/* For not being called again */
 	return FALSE;
@@ -1354,25 +1349,20 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 						MMCamFaceDetectInfo *cam_fd_info = (MMCamFaceDetectInfo *)item->param.data;
 						if (cam_fd_info) {
 							SAFE_FREE(cam_fd_info->face_info);
-							free(cam_fd_info);
-							cam_fd_info = NULL;
-
 							item->param.data = NULL;
 							item->param.size = 0;
 						}
+						SAFE_FREE(cam_fd_info);
 					} else if (item->id == MM_MESSAGE_CAMCORDER_VIDEO_CAPTURED ||
 					           item->id == MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED) {
 						MMCamRecordingReport *report = (MMCamRecordingReport *)item->param.data;
 						if (report) {
 							if (report->recording_filename) {
-								free(report->recording_filename);
-								report->recording_filename = NULL;
+								SAFE_FREE(report->recording_filename);
 							}
-							free(report);
-							report = NULL;
-
 							item->param.data = NULL;
 						}
+						SAFE_FREE(report);
 					}
 
 					hcamcorder->msg_data = g_list_remove(hcamcorder->msg_data, item);
@@ -1382,8 +1372,7 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 					if (ret == TRUE) {
 						g_mutex_clear(&item->lock);
 
-						free(item);
-						item = NULL;
+						SAFE_G_FREE(item);
 
 						_mmcam_dbg_log("remove msg done");
 					}
