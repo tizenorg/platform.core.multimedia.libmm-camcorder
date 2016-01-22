@@ -1368,7 +1368,7 @@ int _mmcamcorder_client_realize(MMHandleType handle, char *string_caps)
 
 	if (ret != MM_ERROR_NONE) {
 		_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, ret);
-		SAFE_FREE(err_name);
+		SAFE_G_FREE(err_name);
 		goto _ERR_CAMCORDER_SET_DISPLAY;
 	}
 

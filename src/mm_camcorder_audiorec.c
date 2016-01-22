@@ -398,7 +398,7 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 			                                  NULL);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("failed to get attribute. (%s:%x)", err_attr_name, ret);
-				SAFE_FREE(err_attr_name);
+				SAFE_G_FREE(err_attr_name);
 				goto _ERR_CAMCORDER_AUDIO_COMMAND;
 			}
 
@@ -408,7 +408,7 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 				goto _ERR_CAMCORDER_AUDIO_COMMAND;
 			}
 
-			info->filename = strdup(temp_filename);
+			info->filename = g_strdup(temp_filename);
 			if (!info->filename) {
 				_mmcam_dbg_err("STRDUP was failed");
 				goto _ERR_CAMCORDER_AUDIO_COMMAND;
@@ -540,9 +540,8 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 
 		if (info->filename) {
 			_mmcam_dbg_log("file delete(%s)", info->filename);
-			unlink(info->filename);
-			g_free(info->filename);
-			info->filename = NULL;
+			g_unlink(info->filename);
+			SAFE_G_FREE(info->filename);
 		}
 		break;
 
@@ -668,7 +667,7 @@ int _mmcamcorder_audio_handle_eos(MMHandleType handle)
 	}
 /* END TAG HERE */
 
-	report->recording_filename = strdup(info->filename);
+	report->recording_filename = g_strdup(info->filename);
 	msg.param.data= report;
 
 	_mmcamcorder_send_message(handle, &msg);
@@ -686,8 +685,7 @@ int _mmcamcorder_audio_handle_eos(MMHandleType handle)
 	sc->isMaxsizePausing = FALSE;
 	sc->isMaxtimePausing = FALSE;
 
-	g_free(info->filename);
-	info->filename = NULL;
+	SAFE_G_FREE(info->filename);
 
 	_mmcam_dbg_err("_MMCamcorder_CMD_COMMIT : end");
 
@@ -779,7 +777,7 @@ static GstPadProbeReturn __mmcamcorder_audio_dataprobe_voicerecorder(GstPad *pad
 									NULL);
 	if (err < 0) {
 		_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, err);
-		SAFE_FREE(err_name);
+		SAFE_G_FREE(err_name);
 		return err;
 	}
 

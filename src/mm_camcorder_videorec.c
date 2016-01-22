@@ -530,7 +530,7 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 			                                  NULL);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, ret);
-				SAFE_FREE (err_name);
+				SAFE_G_FREE (err_name);
 				goto _ERR_CAMCORDER_VIDEO_COMMAND;
 			}
 
@@ -771,7 +771,7 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 				_mmcamcorder_remove_recorder_pipeline((MMHandleType)hcamcorder);
 				if (info->filename) {
 					_mmcam_dbg_log("file delete(%s)", info->filename);
-					unlink(info->filename);
+					g_unlink(info->filename);
 				}
 				goto _ERR_CAMCORDER_VIDEO_COMMAND;
 			}
@@ -950,7 +950,7 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 		/* remove target file */
 		if (info->filename) {
 			_mmcam_dbg_log("file delete(%s)", info->filename);
-			unlink(info->filename);
+			g_unlink(info->filename);
 		}
 
 		sc->isMaxsizePausing = FALSE;
@@ -1219,7 +1219,7 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
 	if (!report) {
 		_mmcam_dbg_err("Recording report fail(%s). Out of memory.", info->filename);
 	} else {
-		report->recording_filename = strdup(info->filename);
+		report->recording_filename = g_strdup(info->filename);
 		msg.param.data= report;
 		msg.param.code = 1;
 		_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
@@ -1744,7 +1744,7 @@ static GstPadProbeReturn __mmcamcorder_audio_dataprobe_audio_mute(GstPad *pad, G
 	                                  NULL);
 	if (err != MM_ERROR_NONE) {
 		_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, err);
-		SAFE_FREE(err_name);
+		SAFE_G_FREE(err_name);
 		return err;
 	}
 
@@ -1857,7 +1857,7 @@ static gboolean __mmcamcorder_add_metadata_mp4(MMHandleType handle)
 	                            NULL);
 	if (err_name) {
 		_mmcam_dbg_warn("Get tag attrs fail. (%s:%x)", err_name, err);
-		SAFE_FREE (err_name);
+		SAFE_G_FREE (err_name);
 	}
 
 	location_info.longitude = _mmcamcorder_double_to_fix(longitude);
@@ -2080,7 +2080,7 @@ _ERR_PREPARE_RECORD:
 	_mmcamcorder_remove_recorder_pipeline((MMHandleType)hcamcorder);
 	if (info && info->filename) {
 		_mmcam_dbg_log("file delete(%s)", info->filename);
-		unlink(info->filename);
+		g_unlink(info->filename);
 	}
 
 	return ret;

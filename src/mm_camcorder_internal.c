@@ -1994,7 +1994,7 @@ int _mmcamcorder_adjust_focus(MMHandleType handle, int direction)
 	                                  NULL);
 	if (ret != MM_ERROR_NONE) {
 		_mmcam_dbg_warn("Get focus-mode fail. (%s:%x)", err_attr_name, ret);
-		SAFE_FREE (err_attr_name);
+		SAFE_G_FREE (err_attr_name);
 		_MMCAMCORDER_UNLOCK_CMD(handle);
 		return ret;
 	}
@@ -2371,31 +2371,28 @@ _MMCamcorderSubContext *_mmcamcorder_alloc_subcontext(int type)
 	/* alloc info for each mode */
 	switch (type) {
 	case MM_CAMCORDER_MODE_AUDIO:
-		sc->info_audio = malloc( sizeof(_MMCamcorderAudioInfo));
+		sc->info_audio = g_malloc0( sizeof(_MMCamcorderAudioInfo));
 		if(!sc->info_audio) {
 			_mmcam_dbg_err("Failed to alloc info structure");
 			goto ALLOC_SUBCONTEXT_FAILED;
 		}
-		memset(sc->info_audio, 0x00, sizeof(_MMCamcorderAudioInfo));
 		break;
 	case MM_CAMCORDER_MODE_VIDEO_CAPTURE:
 	default:
-		sc->info_image = malloc( sizeof(_MMCamcorderImageInfo));
+		sc->info_image = g_malloc0( sizeof(_MMCamcorderImageInfo));
 		if(!sc->info_image) {
 			_mmcam_dbg_err("Failed to alloc info structure");
 			goto ALLOC_SUBCONTEXT_FAILED;
 		}
-		memset(sc->info_image, 0x00, sizeof(_MMCamcorderImageInfo));
 
 		/* init sound status */
 		sc->info_image->sound_status = _SOUND_STATUS_INIT;
 
-		sc->info_video = malloc( sizeof(_MMCamcorderVideoInfo));
+		sc->info_video = g_malloc0( sizeof(_MMCamcorderVideoInfo));
 		if(!sc->info_video) {
 			_mmcam_dbg_err("Failed to alloc info structure");
 			goto ALLOC_SUBCONTEXT_FAILED;
 		}
-		memset(sc->info_video, 0x00, sizeof(_MMCamcorderVideoInfo));
 		g_mutex_init(&sc->info_video->size_check_lock);
 		break;
 	}
@@ -2433,19 +2430,12 @@ _MMCamcorderSubContext *_mmcamcorder_alloc_subcontext(int type)
 
 ALLOC_SUBCONTEXT_FAILED:
 	if (sc) {
-		if (sc->info_audio) {
-			free(sc->info_audio);
-			sc->info_audio = NULL;
-		}
-		if (sc->info_image) {
-			free(sc->info_image);
-			sc->info_image = NULL;
-		}
+		SAFE_G_FREE(sc->info_audio);
+		SAFE_G_FREE(sc->info_image);
 		if (sc->info_video) {
 			g_mutex_clear(&sc->info_video->size_check_lock);
-			free(sc->info_video);
-			sc->info_video = NULL;
 		}
+		SAFE_G_FREE(sc->info_video);
 		if (sc->element) {
 			free(sc->element);
 			sc->element = NULL;
@@ -2487,10 +2477,7 @@ void _mmcamcorder_dealloc_subcontext(_MMCamcorderSubContext *sc)
 
 		if (sc->info_video) {
 			_mmcam_dbg_log("release info_video");
-			if (sc->info_video->filename) {
-				free(sc->info_video->filename);
-				sc->info_video->filename = NULL;
-			}
+			SAFE_G_FREE(sc->info_video->filename);
 			g_mutex_clear(&sc->info_video->size_check_lock);
 			free(sc->info_video);
 			sc->info_video = NULL;
@@ -2498,10 +2485,7 @@ void _mmcamcorder_dealloc_subcontext(_MMCamcorderSubContext *sc)
 
 		if (sc->info_audio) {
 			_mmcam_dbg_log("release info_audio");
-			if (sc->info_audio->filename) {
-				free(sc->info_audio->filename);
-				sc->info_audio->filename = NULL;
-			}
+			SAFE_G_FREE(sc->info_audio->filename);
 			free(sc->info_audio);
 			sc->info_audio = NULL;
 		}
@@ -2829,13 +2813,10 @@ GstBusSyncReply _mmcamcorder_pipeline_bus_sync_callback(GstBus *bus, GstMessage 
 				goto DROP_MESSAGE;
 			}
 
-			cam_fd_info = (MMCamFaceDetectInfo *)malloc(sizeof(MMCamFaceDetectInfo));
+			cam_fd_info = (MMCamFaceDetectInfo *)g_malloc(sizeof(MMCamFaceDetectInfo));
 			if (cam_fd_info == NULL) {
 				_mmcam_dbg_warn("cam_fd_info alloc failed");
-
-				free(fd_info);
-				fd_info = NULL;
-
+				SAFE_G_FREE(fd_info);
 				goto DROP_MESSAGE;
 			}
 

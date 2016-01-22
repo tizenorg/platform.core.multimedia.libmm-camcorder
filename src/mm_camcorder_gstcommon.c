@@ -239,7 +239,7 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 	                                  NULL);
 	if (err != MM_ERROR_NONE) {
 		_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, err);
-		SAFE_FREE(err_name);
+		SAFE_G_FREE(err_name);
 		return err;
 	}
 
@@ -328,7 +328,7 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 		                                  NULL);
 		if (err != MM_ERROR_NONE) {
 			_mmcam_dbg_warn("Get socket path failed 0x%x", err);
-			SAFE_FREE(err_name);
+			SAFE_G_FREE(err_name);
 			goto pipeline_creation_error;
 		}
 
@@ -435,7 +435,7 @@ int _mmcamcorder_create_audiosrc_bin(MMHandleType handle)
 	                                  NULL);
 	if (err != MM_ERROR_NONE) {
 		_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, err);
-		SAFE_FREE(err_name);
+		SAFE_G_FREE(err_name);
 		return err;
 	}
 
@@ -1954,7 +1954,7 @@ int _mmcamcorder_check_audiocodec_fileformat_compatibility(MMHandleType handle)
 	                                  NULL);
 	if (err != MM_ERROR_NONE) {
 		_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, err);
-		SAFE_FREE(err_name);
+		SAFE_G_FREE(err_name);
 		return err;
 	}
 
@@ -1993,7 +1993,7 @@ int _mmcamcorder_check_videocodec_fileformat_compatibility(MMHandleType handle)
 	                                  NULL);
 	if (err != MM_ERROR_NONE) {
 		_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, err);
-		SAFE_FREE(err_name);
+		SAFE_G_FREE(err_name);
 		return err;
 	}
 

@@ -635,7 +635,7 @@ int _mmcamcorder_image_cmd_preview_start(MMHandleType handle)
 			                                  NULL);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, ret);
-				SAFE_FREE (err_name);
+				SAFE_G_FREE (err_name);
 			}
 
 			_mmcam_dbg_log("focus mode %d", focus_mode);
@@ -1800,7 +1800,7 @@ static ExifData *__mmcamcorder_update_exif_gps(MMHandleType handle, ExifData *ed
 		                                  MMCAM_TAG_ALTITUDE, &altitude, NULL);
 		if (ret != MM_ERROR_NONE) {
 			_mmcam_dbg_err("failed to get gps info [%x][%s]", ret, err_name);
-			SAFE_FREE(err_name);
+			SAFE_G_FREE(err_name);
 			goto exit;
 		}
 

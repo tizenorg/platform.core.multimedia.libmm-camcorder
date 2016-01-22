@@ -214,9 +214,12 @@ do { \
 } while(0)
 
 #ifndef SAFE_FREE
-#define SAFE_FREE(x)       if(x) {g_free(x); x = NULL;}
+#define SAFE_FREE(x)       if(x) {free(x); x = NULL;}
 #endif
 
+#ifndef SAFE_G_FREE
+#define SAFE_G_FREE(x)       if(x) {g_free(x); x = NULL;}
+#endif
 
 GTimeVal previous;
 GTimeVal current;
@@ -533,7 +536,7 @@ cam_utils_convert_YUYV_to_UYVY(unsigned char* dst, unsigned char* src, gint leng
 static int camcordertest_audio_stream_cb(MMCamcorderAudioStreamDataType *stream, void *user_param)
 {
 	audio_stream_cb_cnt++;
-	printf("audio_stream cb is called (stream:%p, data:%p, format:%d, channel:%d, volume_dB:%f, length:%d, timestamp:%d)\n",
+	g_print("audio_stream cb is called (stream:%p, data:%p, format:%d, channel:%d, volume_dB:%f, length:%d, timestamp:%d)\n",
 	       stream, stream->data, stream->format, stream->channel, stream->volume_dB, stream->length, stream->timestamp);
 
 	return TRUE;
@@ -544,7 +547,7 @@ static int camcordertest_video_stream_cb(MMCamcorderVideoStreamDataType *stream,
 {
 	video_stream_cb_cnt++;
 
-	printf("VIDEO STREAM CALLBACK total length :%u, size %dx%d\n", stream->length_total, stream->width, stream->height);
+	g_print("VIDEO STREAM CALLBACK total length :%u, size %dx%d\n", stream->length_total, stream->width, stream->height);
 
 	return TRUE;
 }
@@ -554,20 +557,20 @@ static void _file_write(char *path, void *data, int size)
 	FILE *fp = NULL;
 
 	if (!path || !data || size <= 0) {
-		printf("ERROR %p %p %d\n", path, data, size);
+		g_print("ERROR %p %p %d\n", path, data, size);
 		return;
 	}
 
 	fp = fopen(path, "w");
 	if (fp == NULL) {
-		printf("open error! [%s], errno %d\n", path, errno);
+		g_print("open error! [%s], errno %d\n", path, errno);
 		return;
 	} else {
-		printf("open success [%s]\n", path);
+		g_print("open success [%s]\n", path);
 		if (fwrite(data, size, 1, fp) != 1) {
-			printf("write error! errno %d\n", errno);
+			g_print("write error! errno %d\n", errno);
 		} else {
-			printf("write success [%s]\n", path);
+			g_print("write success [%s]\n", path);
 		}
 
 		fclose(fp);
@@ -580,20 +583,20 @@ static void _file_write2(const char *path, void *data, int size)
 	FILE *fp = NULL;
 
 	if (!path || !data || size <= 0) {
-		printf("ERROR %p %p %d\n", path, data, size);
+		g_print("ERROR %p %p %d\n", path, data, size);
 		return;
 	}
 
 	fp = fopen(path, "w");
 	if (fp == NULL) {
-		printf("open error! [%s], errno %d\n", path, errno);
+		g_print("open error! [%s], errno %d\n", path, errno);
 		return;
 	} else {
-		printf("open success [%s]\n", path);
+		g_print("open success [%s]\n", path);
 		if (fwrite(data, size, 1, fp) != 1) {
-			printf("write error! errno %d\n", errno);
+			g_print("write error! errno %d\n", errno);
 		} else {
-			printf("write success [%s]\n", path);
+			g_print("write success [%s]\n", path);
 		}
 
 		fclose(fp);
@@ -635,14 +638,12 @@ camcordertest_video_capture_cb(MMCamcorderCaptureDataType *main, MMCamcorderCapt
 		if (nret) {
 			_file_write(m_filename, dst, dst_size);
 		} else {
-			printf("Failed to encode YUV(%d) -> JPEG. \n", main->format);
+			g_print("Failed to encode YUV(%d) -> JPEG. \n", main->format);
 		}
-
-		free(dst);
-		dst = NULL;
+		SAFE_FREE(dst);
 	} else if (!hcamcorder->isMultishot) {
 
-		printf("MM_PIXEL_FORMAT_ENCODED main->data=%p main->length=%d, main->width=%d, main->heigtht=%d \n",
+		g_print("MM_PIXEL_FORMAT_ENCODED main->data=%p main->length=%d, main->width=%d, main->heigtht=%d \n",
 		       main->data, main->length, main->width, main->height);
 
 		/* main image */
@@ -660,7 +661,7 @@ camcordertest_video_capture_cb(MMCamcorderCaptureDataType *main, MMCamcorderCapt
 		if (scrnl != NULL) {
 			_file_write2(IMAGE_CAPTURE_SCREENNAIL_PATH, scrnl->data, scrnl->length);
 		} else {
-			printf( "Screennail buffer is NULL.\n" );
+			g_print( "Screennail buffer is NULL.\n" );
 		}
 
 		/* EXIF data */
@@ -688,7 +689,6 @@ static gboolean test_idle_capture_start()
 	if (err < 0) {
 		warn_msg_t("Multishot mm_camcorder_capture_start = %x", err);
 	}
-
 	return FALSE;
 }
 
@@ -706,7 +706,7 @@ int camcordertest_set_attr_int(const char * attr_subcategory, int value)
 			                                  NULL);
 			if (err != MM_ERROR_NONE) {
 				err_msg_t("camcordertest_set_attr_int : Error(%s:%x)!!!!!!!", err_attr_name, err);
-				SAFE_FREE(err_attr_name);
+				SAFE_G_FREE(err_attr_name);
 				return FALSE;
 			}
 
@@ -737,11 +737,12 @@ int camcordertest_set_attr_xypair(cam_xypair_t pair)
 									NULL);
 			if (err < 0) {
 				err_msg_t("camcordertest_set_attr_xypair : Error(%s:%x)!!", err_attr_name, err);
-				SAFE_FREE (err_attr_name);
+				SAFE_G_FREE(err_attr_name);
 				return FALSE;
 			}
 
 			//success
+			SAFE_G_FREE(err_attr_name);
 			return TRUE;
 		}
 
@@ -959,10 +960,10 @@ static void main_menu(gchar buf)
 					if(hcamcorder->isMultishot) {
 						int interval = 0;
 						flush_stdin();
-						printf("\ninput interval(ms) \n");
+						g_print("\ninput interval(ms) \n");
 						err = scanf("%d", &interval);
 						if (err == EOF) {
-							printf("\nscanf error : errno %d\n", errno);
+							g_print("\nscanf error : errno %d\n", errno);
 							interval = 300;
 						}
 						err = mm_camcorder_set_attributes(hcamcorder->camcorder, &err_attr_name,
@@ -970,7 +971,7 @@ static void main_menu(gchar buf)
 						                                  NULL);
 						if (err != MM_ERROR_NONE) {
 							err_msg_t("Attribute setting fail : (%s:%x)", err_attr_name, err);
-							SAFE_FREE (err_attr_name);
+							SAFE_G_FREE(err_attr_name);
 						}
 					} else {
 						err = mm_camcorder_set_attributes(hcamcorder->camcorder, &err_attr_name,
@@ -978,7 +979,7 @@ static void main_menu(gchar buf)
 						                                  NULL);
 						if (err != MM_ERROR_NONE) {
 							err_msg_t("Attribute setting fail : (%s:%x)", err_attr_name, err);
-							SAFE_FREE (err_attr_name);
+							SAFE_G_FREE(err_attr_name);
 						}
 					}
 
@@ -1202,7 +1203,7 @@ static void setting_menu(gchar buf)
 					}
 					err = scanf("%d",&idx);
 					if (err == EOF) {
-						printf("\nscanf error : errno %d\n", errno);
+						g_print("\nscanf error : errno %d\n", errno);
 					} else {
 						if( idx > 0 && idx <= width_count ) {
 							//Set capture size first
@@ -1253,7 +1254,7 @@ static void setting_menu(gchar buf)
 					}
 					err = scanf("%d",&idx);
 					if (err == EOF) {
-						printf("\nscanf error : errno %d\n", errno);
+						g_print("\nscanf error : errno %d\n", errno);
 					} else {
 						if( idx > 0 && idx <= width_count ) {
 							//Set capture size first
@@ -1933,8 +1934,7 @@ static void setting_menu(gchar buf)
 
 				if( err != MM_ERROR_NONE ) {
 					g_print( "Failed to set touch AF area.(%x)(%s)\n", err, err_attr_name );
-					free( err_attr_name );
-					err_attr_name = NULL;
+					SAFE_G_FREE(err_attr_name);
 				} else {
 					g_print( "Succeed to set touch AF area.\n" );
 				}
@@ -1978,8 +1978,7 @@ static void setting_menu(gchar buf)
 				                                  NULL);
 				if (err != MM_ERROR_NONE) {
 					g_print("Failed to set Camcorder Motion Rate %f [err:0x%x]\n", motion_rate, err);
-					free( err_attr_name );
-					err_attr_name = NULL;
+					SAFE_G_FREE(err_attr_name);
 				} else {
 					g_print("Succeed to set Motion Rate %f\n", motion_rate);
 				}
@@ -1999,12 +1998,11 @@ static void setting_menu(gchar buf)
 		hcamcorder->menu_state = MENU_STATE_MAIN;
 	}
 
-	if(err_attr_name){
-		free( err_attr_name );
-		err_attr_name = NULL;
-	}
-
 	g_print("\t bret : 0x%x \n", bret);
+
+	SAFE_G_FREE(err_attr_name);
+
+	return;
 }
 
 
@@ -2048,9 +2046,7 @@ static gboolean cmd_input(GIOChannel *channel)
 				break;
 		}
 
-		g_free(buf);
-		buf = NULL;
-
+		SAFE_G_FREE(buf);
 		print_menu();
 	} else {
 		debug_msg_t("No read input");
@@ -2061,26 +2057,26 @@ static gboolean cmd_input(GIOChannel *channel)
 
 void validity_print(MMCamAttrsInfo *info)
 {
-			printf("info(%d,%d, %d))\n", info->type, info->flag, info->validity_type);
+			g_print("info(%d,%d, %d))\n", info->type, info->flag, info->validity_type);
 			if (info->validity_type == MM_CAM_ATTRS_VALID_TYPE_INT_ARRAY)
 			{
-				printf("int array(%p, %d)\n", info->int_array.array, info->int_array.count);
+				g_print("int array(%p, %d)\n", info->int_array.array, info->int_array.count);
 			}
 			else if (info->validity_type == MM_CAM_ATTRS_VALID_TYPE_INT_RANGE)
 			{
-				printf("int range(%d, %d)\n", info->int_range.min, info->int_range.max);
+				g_print("int range(%d, %d)\n", info->int_range.min, info->int_range.max);
 			}
 			else if (info->validity_type == MM_CAM_ATTRS_VALID_TYPE_DOUBLE_ARRAY)
 			{
-				printf("double array(%p, %d)\n", info->double_array.array, info->double_array.count);
+				g_print("double array(%p, %d)\n", info->double_array.array, info->double_array.count);
 			}
 			else if(info->validity_type == MM_CAM_ATTRS_VALID_TYPE_DOUBLE_RANGE)
 			{
-				printf("double range(%f, %f)\n", info->double_range.min, info->double_range.max);
+				g_print("double range(%f, %f)\n", info->double_range.min, info->double_range.max);
 			}
 			else
 			{
-				printf("validity none\n");
+				g_print("validity none\n");
 			}
 			return;
 }
@@ -2170,7 +2166,7 @@ static gboolean init(int type)
 
 		if (err != MM_ERROR_NONE) {
 			warn_msg_t("Init fail. (%s:%x)", err_attr_name, err);
-			SAFE_FREE (err_attr_name);
+			SAFE_G_FREE(err_attr_name);
 			goto ERROR;
 		}
 
@@ -2200,7 +2196,7 @@ static gboolean init(int type)
 
 		if (err < 0) {
 			warn_msg_t("Init fail. (%s:%x)", err_attr_name, err);
-			SAFE_FREE (err_attr_name);
+			SAFE_G_FREE(err_attr_name);
 			goto ERROR;
 		}
 
@@ -2208,7 +2204,7 @@ static gboolean init(int type)
 		mm_camcorder_set_audio_stream_callback(hcamcorder->camcorder, (mm_camcorder_audio_stream_callback)camcordertest_audio_stream_cb, (void*)hcamcorder->camcorder);
 #endif /* USE_AUDIO_STREAM_CB */
 	}
-
+	SAFE_G_FREE(err_attr_name);
 	debug_msg_t("Init DONE.");
 
 	return TRUE;
