@@ -2955,11 +2955,8 @@ bool _mmcamcorder_commit_target_filename(MMHandleType handle, int attr_idx, cons
 	}
 
 	if (sc->info_video) {
-		if (sc->info_video->filename) {
-			free(sc->info_video->filename);
-			sc->info_video->filename = NULL;
-		}
-		sc->info_video->filename = strdup(filename);
+		SAFE_G_FREE(sc->info_video->filename);
+		sc->info_video->filename = g_strdup(filename);
 		if (sc->info_video->filename == NULL) {
 			_mmcam_dbg_err("failed to strdup filename [%s]", filename);
 			return FALSE;
