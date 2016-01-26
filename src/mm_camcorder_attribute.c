@@ -698,7 +698,7 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			"display-surface",
 			MMF_VALUE_TYPE_INT,
 			MM_ATTRS_FLAG_RW,
-			{(void*)MM_DISPLAY_SURFACE_X},
+			{(void*)MM_DISPLAY_SURFACE_OVERLAY},
 			MM_ATTRS_VALID_TYPE_INT_ARRAY,
 			{0},
 			{0},

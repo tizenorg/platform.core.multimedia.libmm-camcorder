@@ -787,7 +787,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 	int state = MM_CAMCORDER_STATE_NONE;
 	int state_FROM = MM_CAMCORDER_STATE_NULL;
 	int state_TO = MM_CAMCORDER_STATE_READY;
-	int display_surface_type = MM_DISPLAY_SURFACE_X;
+	int display_surface_type = MM_DISPLAY_SURFACE_OVERLAY;
 	int pid_for_sound_focus = 0;
 	double motion_rate = _MMCAMCORDER_DEFAULT_RECORDING_MOTION_RATE;
 	char *videosink_element_type = NULL;
@@ -920,8 +920,8 @@ int _mmcamcorder_realize(MMHandleType handle)
 		videosink_element_type = strdup("VideosinkElementNull");
 	} else {
 		switch (display_surface_type) {
-		case MM_DISPLAY_SURFACE_X:
-			videosink_element_type = strdup("VideosinkElementX");
+		case MM_DISPLAY_SURFACE_OVERLAY:
+			videosink_element_type = strdup("VideosinkElementOverlay");
 			break;
 		case MM_DISPLAY_SURFACE_EVAS:
 			videosink_element_type = strdup("VideosinkElementEvas");
@@ -936,7 +936,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 			videosink_element_type = strdup("VideosinkElementRemote");
 			break;
 		default:
-			videosink_element_type = strdup("VideosinkElementX");
+			videosink_element_type = strdup("VideosinkElementOverlay");
 			break;
 		}
 	}
@@ -986,7 +986,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 		mm_camcorder_get_attributes(handle, NULL,
                                             MMCAM_DISPLAY_SURFACE, &display_surface_type,
                                             NULL);
-		if(display_surface_type == MM_DISPLAY_SURFACE_X) {
+		if(display_surface_type == MM_DISPLAY_SURFACE_OVERLAY) {
 			if((_mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, RESOURCE_TYPE_VIDEO_OVERLAY))) {
 				_mmcam_dbg_err("could not prepare for video overlay resource");
 				ret = MM_ERROR_CAMCORDER_INTERNAL;

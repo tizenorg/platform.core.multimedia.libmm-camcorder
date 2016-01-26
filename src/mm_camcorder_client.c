@@ -832,7 +832,7 @@ MMHandleType _mmcamcorder_client_alloc_attribute(MMHandleType handle)
 			"display-surface",
 			MMF_VALUE_TYPE_INT,
 			MM_ATTRS_FLAG_RW,
-			{(void*)MM_DISPLAY_SURFACE_X},
+			{(void*)MM_DISPLAY_SURFACE_OVERLAY},
 			MM_ATTRS_VALID_TYPE_INT_ARRAY,
 			{0},
 			{0},
@@ -1339,7 +1339,7 @@ int _mmcamcorder_client_realize(MMHandleType handle, char *string_caps)
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
 	_MMCamcorderSubContext *sc;
-	int display_surface_type = MM_DISPLAY_SURFACE_X;
+	int display_surface_type = MM_DISPLAY_SURFACE_OVERLAY;
 	char *videosink_element_type = NULL;
 	const char *videosink_name = NULL;
 	char *err_name = NULL;
@@ -1375,8 +1375,8 @@ int _mmcamcorder_client_realize(MMHandleType handle, char *string_caps)
 	_mmcam_dbg_warn("display_surface_type : %d", display_surface_type);
 
 	switch (display_surface_type) {
-	case MM_DISPLAY_SURFACE_X:
-		videosink_element_type = strdup("VideosinkElementX");
+	case MM_DISPLAY_SURFACE_OVERLAY:
+		videosink_element_type = strdup("VideosinkElementOverlay");
 		break;
 	case MM_DISPLAY_SURFACE_EVAS:
 		videosink_element_type = strdup("VideosinkElementEvas");
@@ -1388,7 +1388,7 @@ int _mmcamcorder_client_realize(MMHandleType handle, char *string_caps)
 		videosink_element_type = strdup("VideosinkElementNull");
 		break;
 	default:
-		videosink_element_type = strdup("VideosinkElementX");
+		videosink_element_type = strdup("VideosinkElementOverlay");
 		break;
 	}
 

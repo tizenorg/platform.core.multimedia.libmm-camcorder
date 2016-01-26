@@ -116,9 +116,9 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		&___videosink_default_rotation,
 	};
 	static type_string* __videosink_default_string_array[] = { NULL };
-	static type_element _videosink_element_x_default = {
-		"VideosinkElementX",
-		"xvimagesink",
+	static type_element _videosink_element_overlay_default = {
+		"VideosinkElementOverlay",
+		"waylandsink",
 		__videosink_default_int_array,
 		sizeof( __videosink_default_int_array ) / sizeof( type_int* ),
 		__videosink_default_string_array,
@@ -637,17 +637,17 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 
 	/* [VideoOutput] matching table */
 	static conf_info_table conf_main_video_output_table[] = {
-		{ "DisplayDevice",         CONFIGURE_VALUE_INT_ARRAY, {NULL} },
-		{ "DisplayMode",           CONFIGURE_VALUE_INT_ARRAY, {NULL} },
-		{ "Videosink",             CONFIGURE_VALUE_INT_ARRAY, {NULL} },
-		{ "VideosinkElementX",     CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_x_default} },
-		{ "VideosinkElementEvas",  CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_evas_default} },
-		{ "VideosinkElementGL",    CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_gl_default} },
-		{ "VideosinkElementRemote",CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_remote_default} },
-		{ "VideosinkElementNull",  CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_null_default} },
-		{ "UseVideoscale",         CONFIGURE_VALUE_INT,       {.value_int = 0} },
-		{ "VideoscaleElement",     CONFIGURE_VALUE_ELEMENT,   {&_videoscale_element_default} },
-		{ "VideoconvertElement",   CONFIGURE_VALUE_ELEMENT,   {&_videoconvert_element_default} },
+		{ "DisplayDevice",           CONFIGURE_VALUE_INT_ARRAY, {NULL} },
+		{ "DisplayMode",             CONFIGURE_VALUE_INT_ARRAY, {NULL} },
+		{ "Videosink",               CONFIGURE_VALUE_INT_ARRAY, {NULL} },
+		{ "VideosinkElementOverlay", CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_overlay_default} },
+		{ "VideosinkElementEvas",    CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_evas_default} },
+		{ "VideosinkElementGL",      CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_gl_default} },
+		{ "VideosinkElementRemote",  CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_remote_default} },
+		{ "VideosinkElementNull",    CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_null_default} },
+		{ "UseVideoscale",           CONFIGURE_VALUE_INT,       {.value_int = 0} },
+		{ "VideoscaleElement",       CONFIGURE_VALUE_ELEMENT,   {&_videoscale_element_default} },
+		{ "VideoconvertElement",     CONFIGURE_VALUE_ELEMENT,   {&_videoconvert_element_default} },
 	};
 
 	/* [Capture] matching table */

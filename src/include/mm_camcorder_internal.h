@@ -255,7 +255,7 @@ extern "C" {
 /**
  * Default videosink type
  */
-#define _MMCAMCORDER_DEFAULT_VIDEOSINK_TYPE     "VideosinkElementX"
+#define _MMCAMCORDER_DEFAULT_VIDEOSINK_TYPE     "VideosinkElementOverlay"
 
 /**
  * Default recording motion rate
