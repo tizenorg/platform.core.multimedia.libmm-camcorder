@@ -2141,7 +2141,7 @@ static gboolean init(int type)
 		                                   MMCAM_TAG_LATITUDE, 35.3036944,
 		                                   MMCAM_TAG_LONGITUDE, 176.67837,
 		                                   MMCAM_TAG_ALTITUDE, 190.3455,
-		                                   MMCAM_DISPLAY_SURFACE, MM_DISPLAY_SURFACE_X,
+		                                   MMCAM_DISPLAY_SURFACE, MM_DISPLAY_SURFACE_OVERLAY,
 		                                   MMCAM_DISPLAY_GEOMETRY_METHOD, MM_DISPLAY_METHOD_LETTER_BOX,
 		                                   MMCAM_CAPTURE_COUNT, IMAGE_CAPTURE_COUNT_STILL,
 		                                   MMCAM_TAG_GPS_ENABLE, TRUE,
