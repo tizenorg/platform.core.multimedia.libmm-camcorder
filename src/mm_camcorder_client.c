@@ -619,8 +619,7 @@ int _mmcamcorder_client_videosink_window_set(MMHandleType handle, type_element* 
 	if (err != MM_ERROR_NONE) {
 		if (err_name) {
 			_mmcam_dbg_err("failed to get attributes [%s][0x%x]", err_name, err);
-			free(err_name);
-			err_name = NULL;
+			SAFE_FREE(err_name);
 		} else {
 			_mmcam_dbg_err("failed to get attributes [0x%x]", err);
 		}
