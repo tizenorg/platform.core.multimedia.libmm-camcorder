@@ -1664,10 +1664,8 @@ int _mmcamcorder_conf_add_info(MMHandleType handle, int type, conf_detail** info
 					} else {
 						_mmcam_dbg_err("allocation failed");
 					}
-				}
-				else
-				{
-					_mmcam_dbg_err("invalid count - %d", new_element->count_int);
+				} else {
+					/*_mmcam_dbg_err("invalid count - %d", new_element->count_int);*/
 					new_element->value_int = NULL;
 				}
 
@@ -1693,7 +1691,7 @@ int _mmcamcorder_conf_add_info(MMHandleType handle, int type, conf_detail** info
 						_mmcam_dbg_err("malloc failed : %d", sizeof(type_string2*)*(new_element->count_string));
 					}
 				} else {
-					_mmcam_dbg_err("invalid count - %d", new_element->count_string);
+					/*_mmcam_dbg_err("invalid count - %d", new_element->count_string);*/
 					new_element->value_string = NULL;
 				}
 

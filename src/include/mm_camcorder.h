@@ -1797,14 +1797,12 @@ typedef struct _MMCamFaceDetectInfo {
  * Wayland information
  */
 typedef struct _MMCamWaylandInfo {
-	void *evas_obj;
-	void *window;
-	void *surface;
-	void *display;
+	int parent_id;
 	int window_x;
 	int window_y;
 	int window_width;
 	int window_height;
+	void *evas_obj;
 } MMCamWaylandInfo;
 #endif /* HAVE_WAYLAND */
 
@@ -1813,10 +1811,10 @@ typedef struct _MMCamWaylandInfo {
 ========================================================================================*/
 /**
  *	Function definition for video stream callback.
- *  Be careful! In this function, you can't call functions that change the state of camcorder such as mm_camcorder_stop(), 
+ *  Be careful! In this function, you can't call functions that change the state of camcorder such as mm_camcorder_stop(),
  *  mm_camcorder_unrealize(), mm_camcorder_record(), mm_camcorder_commit(), and mm_camcorder_cancel(), etc.
- *  Please don't hang this function long. It may cause low performance of preview or occur timeout error from video source. 
- *  Also, you're not allowed to call mm_camcorder_stop() even in other context, while you're hanging this function. 
+ *  Please don't hang this function long. It may cause low performance of preview or occur timeout error from video source.
+ *  Also, you're not allowed to call mm_camcorder_stop() even in other context, while you're hanging this function.
  *  I recommend to you releasing this function ASAP.
  *
  *	@param[in]	stream			Reference pointer to video stream data
