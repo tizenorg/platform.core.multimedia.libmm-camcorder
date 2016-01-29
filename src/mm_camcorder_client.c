@@ -155,21 +155,12 @@ bool _mmcamcorder_client_commit_display_handle(MMHandleType handle, int attr_idx
 #ifdef HAVE_WAYLAND
 		} else if (!strcmp(videosink_name, "waylandsink")) {
 			MMCamWaylandInfo *wl_info = (MMCamWaylandInfo *)p_handle;
-			GstContext *context = NULL;
 
-			context = gst_wayland_display_handle_context_new((struct wl_display *)wl_info->display);
-			if (context) {
-				gst_element_set_context(sc->element[_MMCAMCORDER_CLIENT_VIDEOSINK_SINK].gst, context);
-			} else {
-				_mmcam_dbg_warn("gst_wayland_display_handle_context_new failed");
-			}
+			_mmcam_dbg_log("parent id : %d", wl_info->parent_id);
 
-			gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(sc->element[_MMCAMCORDER_CLIENT_VIDEOSINK_SINK].gst), (guintptr)wl_info->surface);
+			gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(sc->element[_MMCAMCORDER_CLIENT_VIDEOSINK_SINK].gst), (guintptr)wl_info->parent_id);
 			gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(sc->element[_MMCAMCORDER_CLIENT_VIDEOSINK_SINK].gst),
-							       wl_info->window_x,
-							       wl_info->window_y,
-							       wl_info->window_width,
-							       wl_info->window_height);
+				wl_info->window_x, wl_info->window_y, wl_info->window_width, wl_info->window_height);
 #endif /* HAVE_WAYLAND */
 		} else {
 			_mmcam_dbg_warn("Commit : Nothing to commit with this element[%s]", videosink_name);
@@ -662,21 +653,10 @@ int _mmcamcorder_client_videosink_window_set(MMHandleType handle, type_element* 
 	} else if (!strcmp(videosink_name, "waylandsink")) {
 		MMCamWaylandInfo *wl_info = (MMCamWaylandInfo *)overlay;
 		if (wl_info) {
-			GstContext *context = NULL;
-
-			context = gst_wayland_display_handle_context_new((struct wl_display *)wl_info->display);
-			if (context) {
-				gst_element_set_context(vsink, context);
-			} else {
-				_mmcam_dbg_warn("gst_wayland_display_handle_context_new failed");
-			}
-
-			gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(vsink), (guintptr)wl_info->surface);
+			_mmcam_dbg_log("parent id : %d", wl_info->parent_id);
+			gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(vsink), (guintptr)wl_info->parent_id);
 			gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(vsink),
-							       wl_info->window_x,
-							       wl_info->window_y,
-							       wl_info->window_width,
-							       wl_info->window_height);
+				wl_info->window_x, wl_info->window_y, wl_info->window_width, wl_info->window_height);
 		} else {
 			_mmcam_dbg_warn("Handle is NULL. skip setting.");
 		}
@@ -1055,7 +1035,7 @@ MMHandleType _mmcamcorder_client_alloc_attribute(MMHandleType handle)
 
 	for (idx = 0; idx < attr_count; idx++)
 	{
-		_mmcam_dbg_log("Valid type [%s]", hcamcorder->cam_attrs_const_info[idx].name);
+		/*_mmcam_dbg_log("Valid type [%s]", hcamcorder->cam_attrs_const_info[idx].name);*/
 
 		mmf_attrs_set_valid_type (attrs, idx, hcamcorder->cam_attrs_const_info[idx].validity_type);
 
@@ -1071,7 +1051,6 @@ MMHandleType _mmcamcorder_client_alloc_attribute(MMHandleType handle)
 				}
 			break;
 			case MM_ATTRS_VALID_TYPE_INT_RANGE:
-				_mmcam_dbg_err("MM_ATTRS_VALID_TYPE_INT_RANGE");
 				mmf_attrs_set_valid_range(attrs, idx,
 				                          hcamcorder->cam_attrs_const_info[idx].validity_value_1.int_min,
 				                          hcamcorder->cam_attrs_const_info[idx].validity_value_2.int_max,
