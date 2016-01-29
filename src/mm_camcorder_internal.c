@@ -823,10 +823,9 @@ int _mmcamcorder_realize(MMHandleType handle)
 	_mmcam_dbg_log("Profile mode [%d]", hcamcorder->type);
 
 	mm_camcorder_get_attributes(handle, NULL,
-	                            MMCAM_DISPLAY_SURFACE, &display_surface_type,
-	                            MMCAM_CAMERA_RECORDING_MOTION_RATE, &motion_rate,
-	                            MMCAM_DISPLAY_SOCKET_PATH, &socket_path, &socket_path_len,
-	                            NULL);
+		MMCAM_DISPLAY_SURFACE, &display_surface_type,
+		MMCAM_CAMERA_RECORDING_MOTION_RATE, &motion_rate,
+		NULL);
 
 	/* sound focus */
 	if (hcamcorder->sound_focus_register) {
@@ -912,30 +911,32 @@ int _mmcamcorder_realize(MMHandleType handle)
 		_mmcam_dbg_warn("SupportDualStream [%d]", hcamcorder->sub_context->info_video->support_dual_stream);
 	}
 
-	if (socket_path == NULL) {
-		_mmcam_dbg_warn("Socket Path is not properly set, -> to NullSink.");
+	switch (display_surface_type) {
+	case MM_DISPLAY_SURFACE_OVERLAY:
+		videosink_element_type = strdup("VideosinkElementOverlay");
+		break;
+	case MM_DISPLAY_SURFACE_EVAS:
+		videosink_element_type = strdup("VideosinkElementEvas");
+		break;
+	case MM_DISPLAY_SURFACE_GL:
+		videosink_element_type = strdup("VideosinkElementGL");
+		break;
+	case MM_DISPLAY_SURFACE_NULL:
 		videosink_element_type = strdup("VideosinkElementNull");
-	} else {
-		switch (display_surface_type) {
-		case MM_DISPLAY_SURFACE_OVERLAY:
-			videosink_element_type = strdup("VideosinkElementOverlay");
-			break;
-		case MM_DISPLAY_SURFACE_EVAS:
-			videosink_element_type = strdup("VideosinkElementEvas");
-			break;
-		case MM_DISPLAY_SURFACE_GL:
-			videosink_element_type = strdup("VideosinkElementGL");
-			break;
-		case MM_DISPLAY_SURFACE_NULL:
+		break;
+	case MM_DISPLAY_SURFACE_REMOTE:
+		mm_camcorder_get_attributes(handle, NULL,
+			MMCAM_DISPLAY_SOCKET_PATH, &socket_path, &socket_path_len,
+			NULL);
+		if (socket_path == NULL) {
+			_mmcam_dbg_warn("REMOTE surface, but socket path is NULL -> to NullSink");
 			videosink_element_type = strdup("VideosinkElementNull");
-			break;
-		case MM_DISPLAY_SURFACE_REMOTE:
+		} else
 			videosink_element_type = strdup("VideosinkElementRemote");
-			break;
-		default:
-			videosink_element_type = strdup("VideosinkElementOverlay");
-			break;
-		}
+		break;
+	default:
+		videosink_element_type = strdup("VideosinkElementOverlay");
+		break;
 	}
 
 	/* check string of videosink element */

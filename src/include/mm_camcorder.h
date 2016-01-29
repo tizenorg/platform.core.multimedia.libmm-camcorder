@@ -194,7 +194,7 @@
 	* Attribute @n
 	Attribute system is an interface to operate camcorder. Depending on each attribute, camcorder behaves differently.
 	Attribute system provides get/set functions. Setting proper attributes, a user can control camcorder as he want. (mm_camcorder_set_attributes())
-	Also, a user can comprehend current status of the camcorder, calling getter function(mm_camcorder_get_attributes()). 
+	Also, a user can comprehend current status of the camcorder, calling getter function(mm_camcorder_get_attributes()).
 	Beware, arguments of mm_camcorder_set_attributes() and mm_camcorder_get_attributes() should be finished with 'NULL'.
 	This is a rule for the variable argument.
 	@par
@@ -923,7 +923,7 @@ extern "C" {
 #define MMCAM_FILTER_SHARPNESS                  "filter-sharpness"
 
 /**
- * Pixel format that you want to capture. If you set MM_PIXEL_FORMAT_ENCODED, 
+ * Pixel format that you want to capture. If you set MM_PIXEL_FORMAT_ENCODED,
  * the result will be encoded by image codec specified in #MMCAM_IMAGE_ENCODER.
  * If not, the result will be raw data.
  *
@@ -1092,7 +1092,7 @@ extern "C" {
 #define MMCAM_TARGET_MAX_SIZE                   "target-max-size"
 
 /**
- * Time limit(Second) of recording file. If the elapsed time of recording reaches this value, 
+ * Time limit(Second) of recording file. If the elapsed time of recording reaches this value,
  * camcorder will send 'MM_MESSAGE_CAMCORDER_TIME_LIMIT' message.
  */
 #define MMCAM_TARGET_TIME_LIMIT                 "target-time-limit"
@@ -1797,14 +1797,12 @@ typedef struct _MMCamFaceDetectInfo {
  * Wayland information
  */
 typedef struct _MMCamWaylandInfo {
-	void *evas_obj;
-	void *window;
-	void *surface;
-	void *display;
+	int parent_id;
 	int window_x;
 	int window_y;
 	int window_width;
 	int window_height;
+	void *evas_obj;
 } MMCamWaylandInfo;
 #endif /* HAVE_WAYLAND */
 
@@ -1813,10 +1811,10 @@ typedef struct _MMCamWaylandInfo {
 ========================================================================================*/
 /**
  *	Function definition for video stream callback.
- *  Be careful! In this function, you can't call functions that change the state of camcorder such as mm_camcorder_stop(), 
+ *  Be careful! In this function, you can't call functions that change the state of camcorder such as mm_camcorder_stop(),
  *  mm_camcorder_unrealize(), mm_camcorder_record(), mm_camcorder_commit(), and mm_camcorder_cancel(), etc.
- *  Please don't hang this function long. It may cause low performance of preview or occur timeout error from video source. 
- *  Also, you're not allowed to call mm_camcorder_stop() even in other context, while you're hanging this function. 
+ *  Please don't hang this function long. It may cause low performance of preview or occur timeout error from video source.
+ *  Also, you're not allowed to call mm_camcorder_stop() even in other context, while you're hanging this function.
  *  I recommend to you releasing this function ASAP.
  *
  *	@param[in]	stream			Reference pointer to video stream data
@@ -1860,12 +1858,12 @@ typedef gboolean (*mm_camcorder_video_capture_callback)(MMCamcorderCaptureDataTy
 ========================================================================================*/
 /**
  *    mm_camcorder_create:\n
- *  Create camcorder object. This is the function that an user who wants to use mm_camcorder calls first. 
+ *  Create camcorder object. This is the function that an user who wants to use mm_camcorder calls first.
  *  This function creates handle structure and initialize mutex, attributes, gstreamer.
- *  When this function success, it will return  a handle of newly created object. 
+ *  When this function success, it will return  a handle of newly created object.
  *  A user have to put the handle when he calls every function of mm_camcorder. \n
  *  Second argument of this function is the field to decribe pre-setting information of mm_camcorder such as which camera device it will use.
- *  Normally, MM_VIDEO_DEVICE_CAMERA0 is for Main camera(or Mega camera, Back camera), 
+ *  Normally, MM_VIDEO_DEVICE_CAMERA0 is for Main camera(or Mega camera, Back camera),
  *  and MM_VIDEO_DEVICE_CAMERA1 is for VGA camera (or Front camera). If you want audio recording,
  *  please set MM_VIDEO_DEVICE_NONE. (No camera device is needed.)
  *
@@ -2155,7 +2153,7 @@ int mm_camcorder_realize(MMHandleType camcorder);
  *    mm_camcorder_unrealize:\n
  *  Uninitialize camcoder resources and free allocated memory.
  *  Most important resource that is released here is gstreamer pipeline of mm_camcorder.
- *  Because most of resources, such as camera device, video display device, and audio I/O device, are operating on the gstreamer pipeline, 
+ *  Because most of resources, such as camera device, video display device, and audio I/O device, are operating on the gstreamer pipeline,
  *  this function should be called to release its resources.
  *  Moreover, mm_camcorder is controlled by audio session manager. If an user doesn't call this function when he want to release mm_camcorder,
  *  other multimedia frameworks may face session problem. For more detail information, please refer mm_session module.
@@ -2640,8 +2638,8 @@ int mm_camcorder_pause(MMHandleType camcorder);
  *  Some encoder or muxer require a certain type of finalizing such as adding some information to header.
  *  This function takes that roll. So if you don't call this function after recording, the result file may not be playable.\n
  *  After committing successfully, camcorder resumes displaying preview (video recording case).
- *  Because this is the function for saving the recording result, the operation is available 
- *  only when the mode of camcorder is MM_CAMCORDER_MODE_AUDIO or MM_CAMCORDER_MODE_VIDEO. 
+ *  Because this is the function for saving the recording result, the operation is available
+ *  only when the mode of camcorder is MM_CAMCORDER_MODE_AUDIO or MM_CAMCORDER_MODE_VIDEO.
  *
  *	@param[in]	camcorder	A handle of camcorder.
  *	@return		This function returns zero(MM_ERROR_NONE) on success, or negative value with error code.\n
@@ -2692,8 +2690,8 @@ int mm_camcorder_commit(MMHandleType camcorder);
  *	When a user want to finish recording without saving the result file, this function can be used.
  *	Like mm_camcorder_commit(), this function also stops recording, release related resources(like codec) ,and goes back to preview status.
  *	However, instead of saving file, this function unlinks(delete) the result.\n
- *	Because this is the function for canceling recording, the operation is available 
- *	only when mode is MM_CAMCORDER_MODE_AUDIO or MM_CAMCORDER_MODE_VIDEO. 
+ *	Because this is the function for canceling recording, the operation is available
+ *	only when mode is MM_CAMCORDER_MODE_AUDIO or MM_CAMCORDER_MODE_VIDEO.
  *
  *	@param[in]	camcorder	A handle of camcorder.
  *	@return		This function returns zero(MM_ERROR_NONE) on success, or negative value with error code.\n
@@ -2773,7 +2771,7 @@ int mm_camcorder_set_message_callback(MMHandleType camcorder, MMMessageCallback 
 /**
  *    mm_camcorder_set_video_stream_callback:\n
  *  Set callback for user defined video stream callback function.
- *  Users can retrieve video frame using registered callback. 
+ *  Users can retrieve video frame using registered callback.
  *  The callback function holds the same buffer that will be drawed on the display device.
  *  So if an user change the buffer, it will be displayed on the device.
  *
@@ -2809,7 +2807,7 @@ int mm_camcorder_set_video_stream_callback(MMHandleType camcorder, mm_camcorder_
  *  mm_camcorder deliever captured image through the callback.\n
  *  Normally, this function provides main captured image and thumnail image. But depending on the environment,
  *  thumnail would not be available. Information related with main captured image and thumnail image is also included
- *  in the argument of the callback function. 
+ *  in the argument of the callback function.
  *  For more detail information of callback, please refer 'mm_camcorder_video_capture_callback'.
  *
  *	@param[in]	camcorder	A handle of camcorder.
@@ -2909,7 +2907,7 @@ int mm_camcorder_get_state(MMHandleType camcorder, MMCamcorderStateType *state);
 /**
  *    mm_camcorder_get_attributes:\n
  *  Get attributes of camcorder with given attribute names. This function can get multiple attributes
- *  simultaneously. If one of attribute fails, this function will stop at the point. 
+ *  simultaneously. If one of attribute fails, this function will stop at the point.
  *  'err_attr_name' let you know the name of the attribute.
  *
  *	@param[in]	camcorder	Specifies the camcorder  handle.
@@ -2957,7 +2955,7 @@ int mm_camcorder_get_attributes(MMHandleType camcorder,  char **err_attr_name, c
 /**
  *    mm_camcorder_set_attributes:\n
  *  Set attributes of camcorder with given attribute names. This function can set multiple attributes
- *  simultaneously. If one of attribute fails, this function will stop at the point. 
+ *  simultaneously. If one of attribute fails, this function will stop at the point.
  *  'err_attr_name' let you know the name of the attribute.
  *
  *	@param[in]	camcorder	Specifies the camcorder  handle.
@@ -3161,8 +3159,8 @@ int mm_camcorder_init_focusing(MMHandleType camcorder);
  *  Start focusing. \n
  *  This function command to start focusing opeartion. Because focusing operation depends on mechanic or electric module,
  *  it may take small amount of time. (For ex, 500ms ~ 3sec). \n
- *  This function works asynchronously. When an user call this function,  it will return immediately. 
- *  However, focusing operation will continue until it gets results. 
+ *  This function works asynchronously. When an user call this function,  it will return immediately.
+ *  However, focusing operation will continue until it gets results.
  *  After finishing operation, you can get 'MM_MESSAGE_CAMCORDER_FOCUS_CHANGED' message.
  *  'param.code' of the message structure describes the fucusing was success or not.
  *
@@ -3223,7 +3221,7 @@ int mm_camcorder_start_focusing(MMHandleType camcorder);
  *	@return		This function returns zero(MM_ERROR_NONE) on success, or negative value with error code.\n
  *			Please refer 'mm_error.h' to know the exact meaning of the error.
  *	@see		mm_camcorder_init_focusing, mm_camcorder_start_focusing
- *	@pre		mm_camcorder_start_focusing() should be called before calling this function. 
+ *	@pre		mm_camcorder_start_focusing() should be called before calling this function.
  *	@post		None
  *	@remarks	None
  *	@par example

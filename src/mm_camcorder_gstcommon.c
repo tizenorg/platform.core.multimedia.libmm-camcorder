@@ -1267,21 +1267,10 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 	} else if (!strcmp(videosink_name, "waylandsink")) {
 		MMCamWaylandInfo *wl_info = (MMCamWaylandInfo *)overlay;
 		if (wl_info) {
-			GstContext *context = NULL;
-
-			context = gst_wayland_display_handle_context_new((struct wl_display *)wl_info->display);
-			if (context) {
-				gst_element_set_context(vsink, context);
-			} else {
-				_mmcam_dbg_warn("gst_wayland_display_handle_context_new failed");
-			}
-
-			gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(vsink), (guintptr)wl_info->surface);
+			_mmcam_dbg_log("parent id : %d", wl_info->parent_id);
+			gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(vsink), (guintptr)wl_info->parent_id);
 			gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(vsink),
-							       wl_info->window_x,
-							       wl_info->window_y,
-							       wl_info->window_width,
-							       wl_info->window_height);
+				wl_info->window_x, wl_info->window_y, wl_info->window_width, wl_info->window_height);
 		} else {
 			_mmcam_dbg_warn("Handle is NULL. skip setting.");
 		}
@@ -1294,7 +1283,7 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 	               videosink_name, display_geometry_method, origin_size, visible, rotation, flip);
 
 	/* Set attribute */
-	if (!strcmp(videosink_name, "xvimagesink") ||
+	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "waylandsink") ||
 	    !strcmp(videosink_name, "evaspixmapsink")) {
 		/* set rotation */
 		MMCAMCORDER_G_OBJECT_SET(vsink, "rotate", rotation);
