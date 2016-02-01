@@ -1179,7 +1179,7 @@ void _mmcamcorder_sound_focus_cb(int id, mm_sound_focus_type_e focus_type,
 void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_sound_focus_state_e focus_state,
                                        const char *reason_for_change, const char *additional_info, void *user_data);
 
-/* For hand over the server's caps informations to client */
+/* For hand over the server's caps information to client */
 int _mmcamcorder_get_video_caps(MMHandleType handle, char **caps);
 
 #ifdef __cplusplus

@@ -35,7 +35,6 @@
 
 #include "mm_camcorder_internal.h"
 #include "mm_camcorder_gstcommon.h"
-#include "mm_camcorder_client.h"
 
 /*-----------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal				|

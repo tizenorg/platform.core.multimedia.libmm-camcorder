@@ -4,8 +4,7 @@ lib_LTLIBRARIES = libmmfcamcorder.la
 
 includelibmmfcamcorderdir = $(includedir)/mmf
 
-includelibmmfcamcorder_HEADERS = include/mm_camcorder.h \
-				 include/mm_camcorder_client.h
+includelibmmfcamcorder_HEADERS = include/mm_camcorder.h
 
 noinst_HEADERS = include/mm_camcorder_audiorec.h \
 		 include/mm_camcorder_attribute.h \
@@ -33,7 +32,6 @@ libmmfcamcorder_la_SOURCES = mm_camcorder.c \
 			     mm_camcorder_util.c \
 			     mm_camcorder_exifinfo.c \
 			     mm_camcorder_sound.c \
-			     mm_camcorder_client.c \
 			     mm_camcorder_resource.c
 
 libmmfcamcorder_la_CFLAGS = -I$(srcdir)/include \
