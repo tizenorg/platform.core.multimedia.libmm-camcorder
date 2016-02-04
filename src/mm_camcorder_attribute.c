@@ -3268,7 +3268,7 @@ bool _mmcamcorder_commit_display_handle(MMHandleType handle, int attr_idx, const
 
 			_mmcam_dbg_log("parent id : %d", wl_info->parent_id);
 
-			gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst), (guintptr)wl_info->parent_id);
+			gst_video_overlay_set_wl_window_wl_surface_id(GST_VIDEO_OVERLAY(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst), (guintptr)wl_info->parent_id);
 			gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst),
 				wl_info->window_x, wl_info->window_y, wl_info->window_width, wl_info->window_height);
 #endif /* HAVE_WAYLAND */
