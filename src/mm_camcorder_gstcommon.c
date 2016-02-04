@@ -1267,7 +1267,7 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 		MMCamWaylandInfo *wl_info = (MMCamWaylandInfo *)overlay;
 		if (wl_info) {
 			_mmcam_dbg_log("parent id : %d", wl_info->parent_id);
-			gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(vsink), (guintptr)wl_info->parent_id);
+			gst_video_overlay_set_wl_window_wl_surface_id(GST_VIDEO_OVERLAY(vsink), (guintptr)wl_info->parent_id);
 			gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(vsink),
 				wl_info->window_x, wl_info->window_y, wl_info->window_width, wl_info->window_height);
 		} else {
