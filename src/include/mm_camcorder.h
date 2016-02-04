@@ -1797,7 +1797,7 @@ typedef struct _MMCamFaceDetectInfo {
  * Wayland information
  */
 typedef struct _MMCamWaylandInfo {
-	int parent_id;
+	int global_surface_id;
 	int window_x;
 	int window_y;
 	int window_width;
