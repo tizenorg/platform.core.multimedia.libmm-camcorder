@@ -893,60 +893,57 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 }
 
 
-int _mmcamcorder_conf_get_info(MMHandleType handle, int type, const char* ConfFile, camera_conf** configure_info)
+int _mmcamcorder_conf_get_info(MMHandleType handle, int type, const char *ConfFile, camera_conf **configure_info)
 {
-	int ret         = MM_ERROR_NONE;
-	FILE* fd        = NULL;
-	char* conf_path = NULL;
+	int ret = MM_ERROR_NONE;
+	FILE *fd = NULL;
+	char *conf_path = NULL;
 
-	_mmcam_dbg_log( "Opening...[%s]", ConfFile );
+	_mmcam_dbg_log("Opening...[%s]", ConfFile);
 
-	mmf_return_val_if_fail( ConfFile, FALSE );
+	mmf_return_val_if_fail(ConfFile, FALSE);
 
-	conf_path = (char*)malloc( strlen(ConfFile)+strlen(CONFIGURE_PATH)+3 );
-
-	if( conf_path == NULL )
-	{
-		_mmcam_dbg_err( "malloc failed." );
+	conf_path = (char *)malloc(strlen(ConfFile) + strlen(CONFIGURE_PATH) + 3);
+	if (conf_path == NULL) {
+		_mmcam_dbg_err("malloc failed.");
 		return MM_ERROR_CAMCORDER_LOW_MEMORY;
 	}
 
-	snprintf( conf_path, strlen(ConfFile)+strlen(CONFIGURE_PATH)+2, "%s/%s", CONFIGURE_PATH, ConfFile );
-	_mmcam_dbg_log( "Try open Configure File[%s]", conf_path );
+	snprintf(conf_path, strlen(ConfFile) + strlen(CONFIGURE_PATH) + 2, "%s/%s", CONFIGURE_PATH, ConfFile);
+	_mmcam_dbg_log("Try open Configure File[%s]", conf_path);
 
-	fd = fopen( conf_path, "r" );
-	if( fd == NULL )
-	{
-		_mmcam_dbg_warn( "File open failed.[%s] retry...", conf_path );
-		snprintf( conf_path, strlen(ConfFile)+strlen(CONFIGURE_PATH_RETRY)+2, "%s/%s", CONFIGURE_PATH_RETRY, ConfFile );
-		_mmcam_dbg_log( "Try open Configure File[%s]", conf_path );
-		fd = fopen( conf_path, "r" );
-		if( fd == NULL )
-		{
-			_mmcam_dbg_warn("open failed.[%s] But keep going... Type[%d]", conf_path, type);
+	fd = fopen(conf_path, "r");
+	if (fd == NULL) {
+		_mmcam_dbg_warn("File open failed.[%s] retry...", conf_path);
+		snprintf(conf_path, strlen(ConfFile) + strlen(CONFIGURE_PATH_RETRY) + 2, "%s/%s", CONFIGURE_PATH_RETRY, ConfFile);
+		_mmcam_dbg_log("Try open Configure File[%s]", conf_path);
+		fd = fopen(conf_path, "r");
+		if (fd == NULL) {
+			_mmcam_dbg_warn("open failed.[%s] errno [%d]", conf_path, errno);
 		}
 	}
 
-	if( fd != NULL )
-	{
-		ret = _mmcamcorder_conf_parse_info( handle, type, fd, configure_info );
-		fclose( fd );
-	}
-	else
-	{
-		ret = MM_ERROR_CAMCORDER_CREATE_CONFIGURE;
+	if (fd != NULL) {
+		ret = _mmcamcorder_conf_parse_info(handle, type, fd, configure_info);
+		fclose(fd);
+	} else {
+		if (errno == ENOENT) {
+			ret = MM_ERROR_CAMCORDER_NOT_SUPPORTED;
+		} else {
+			ret = MM_ERROR_CAMCORDER_CREATE_CONFIGURE;
+		}
 	}
 
-	if( conf_path != NULL )
-	{
-		free( conf_path );
+	if (conf_path != NULL) {
+		free(conf_path);
 		conf_path = NULL;
 	}
 
-	_mmcam_dbg_log( "Leave..." );
+	_mmcam_dbg_log("Leave...");
 
 	return ret;
 }
+
 
 int _mmcamcorder_conf_parse_info(MMHandleType handle, int type, FILE* fd, camera_conf** configure_info)
 {

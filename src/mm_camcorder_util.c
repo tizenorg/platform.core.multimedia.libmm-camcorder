@@ -30,7 +30,6 @@
 #include <sys/stat.h>
 #include <gst/video/video-info.h>
 #include <gio/gio.h>
-#include <errno.h>
 
 #include "mm_camcorder_internal.h"
 #include "mm_camcorder_util.h"

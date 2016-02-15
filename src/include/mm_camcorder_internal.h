@@ -38,6 +38,7 @@
 #include <vconf.h>
 #include <gst/video/video-format.h>
 #include <ttrace.h>
+#include <errno.h>
 
 #include "mm_camcorder.h"
 #include "mm_debug.h"

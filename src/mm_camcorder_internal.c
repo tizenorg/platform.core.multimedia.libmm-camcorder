@@ -261,12 +261,9 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	}
 
 	/* Get Camera Configure information from Camcorder INI file */
-	_mmcamcorder_conf_get_info((MMHandleType)hcamcorder, CONFIGURE_TYPE_MAIN, CONFIGURE_MAIN_FILE, &hcamcorder->conf_main);
-
-	if (!(hcamcorder->conf_main)) {
-		_mmcam_dbg_err( "Failed to get configure(main) info." );
-
-		ret = MM_ERROR_CAMCORDER_CREATE_CONFIGURE;
+	ret = _mmcamcorder_conf_get_info((MMHandleType)hcamcorder, CONFIGURE_TYPE_MAIN, CONFIGURE_MAIN_FILE, &hcamcorder->conf_main);
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("Failed to get configure(main) info.");
 		goto _ERR_DEFAULT_VALUE_INIT;
 	}
 
@@ -309,17 +306,15 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 
 			_mmcam_dbg_log("videodev_type : [%d], ConfCtrlPath : [%s]", info->videodev_type, ConfCtrlFile);
 
-			_mmcamcorder_conf_get_info((MMHandleType)hcamcorder, CONFIGURE_TYPE_CTRL, ConfCtrlFile, &hcamcorder->conf_ctrl);
+			ret = _mmcamcorder_conf_get_info((MMHandleType)hcamcorder, CONFIGURE_TYPE_CTRL, ConfCtrlFile, &hcamcorder->conf_ctrl);
+			if (ret != MM_ERROR_NONE) {
+				_mmcam_dbg_err("Failed to get configure(control) info.");
+				goto _ERR_DEFAULT_VALUE_INIT;
+			}
 /*
 			_mmcamcorder_conf_print_info(&hcamcorder->conf_main);
 			_mmcamcorder_conf_print_info(&hcamcorder->conf_ctrl);
 */
-			if (!(hcamcorder->conf_ctrl)) {
-				_mmcam_dbg_err( "Failed to get configure(control) info." );
-				ret = MM_ERROR_CAMCORDER_CREATE_CONFIGURE;
-				goto _ERR_DEFAULT_VALUE_INIT;
-			}
-
 			ret = _mmcamcorder_init_convert_table((MMHandleType)hcamcorder);
 			if (ret != MM_ERROR_NONE) {
 				_mmcam_dbg_warn("converting table initialize error!!");
