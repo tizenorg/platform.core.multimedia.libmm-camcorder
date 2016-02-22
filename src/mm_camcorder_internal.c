@@ -459,8 +459,8 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 
 		ret = _mmcamcorder_init_attr_from_configure((MMHandleType)hcamcorder, MM_CAMCONVERT_CATEGORY_AUDIO);
 		if (ret != MM_ERROR_NONE) {
-			_mmcam_dbg_warn("init attribute from configure error : 0x%x", ret);
-			ret = MM_ERROR_CAMCORDER_INTERNAL;
+			_mmcam_dbg_err("there is no audio device");
+			ret = MM_ERROR_CAMCORDER_NOT_SUPPORTED;
 			goto _ERR_DEFAULT_VALUE_INIT;
 		}
 	}
@@ -577,11 +577,11 @@ _ERR_DEFAULT_VALUE_INIT:
 	g_mutex_clear(&hcamcorder->restart_preview_lock);
 
 	if (hcamcorder->conf_ctrl) {
-		_mmcamcorder_conf_release_info(handle, &hcamcorder->conf_ctrl);
+		_mmcamcorder_conf_release_info((MMHandleType)hcamcorder, &hcamcorder->conf_ctrl);
 	}
 
 	if (hcamcorder->conf_main) {
-		_mmcamcorder_conf_release_info(handle, &hcamcorder->conf_main);
+		_mmcamcorder_conf_release_info((MMHandleType)hcamcorder, &hcamcorder->conf_main);
 	}
 
 	if (hcamcorder->model_name) {
