@@ -400,6 +400,9 @@ int _mmcamcorder_create_audiosrc_bin(MMHandleType handle)
 	char *err_name = NULL;
 	const char *audiosrc_name = NULL;
 	char *cat_name = NULL;
+	char *stream_type = NULL;
+	char stream_type_len = 0;
+	int stream_index = 0;
 
 	GstCaps *caps = NULL;
 	GstPad *pad = NULL;
@@ -424,14 +427,16 @@ int _mmcamcorder_create_audiosrc_bin(MMHandleType handle)
 	}
 
 	err = mm_camcorder_get_attributes(handle, &err_name,
-	                                  MMCAM_AUDIO_DEVICE, &a_dev,
-	                                  MMCAM_AUDIO_ENCODER, &a_enc,
-	                                  MMCAM_AUDIO_ENCODER_BITRATE, &val,
-	                                  MMCAM_AUDIO_SAMPLERATE, &rate,
-	                                  MMCAM_AUDIO_FORMAT, &format,
-	                                  MMCAM_AUDIO_CHANNEL, &channel,
-	                                  MMCAM_AUDIO_VOLUME, &volume,
-	                                  NULL);
+		MMCAM_AUDIO_DEVICE, &a_dev,
+		MMCAM_AUDIO_ENCODER, &a_enc,
+		MMCAM_AUDIO_ENCODER_BITRATE, &val,
+		MMCAM_AUDIO_SAMPLERATE, &rate,
+		MMCAM_AUDIO_FORMAT, &format,
+		MMCAM_AUDIO_CHANNEL, &channel,
+		MMCAM_AUDIO_VOLUME, &volume,
+		MMCAM_SOUND_STREAM_TYPE, &stream_type, &stream_type_len,
+		MMCAM_SOUND_STREAM_INDEX, &stream_index,
+		NULL);
 	if (err != MM_ERROR_NONE) {
 		_mmcam_dbg_warn("Get attrs fail. (%s:%x)", err_name, err);
 		SAFE_FREE(err_name);
@@ -475,6 +480,10 @@ int _mmcamcorder_create_audiosrc_bin(MMHandleType handle)
 
 	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->encode_element, _MMCAMCORDER_AUDIOSRC_SRC, audiosrc_name, "audiosrc_src", element_list, err);
 
+	/* set sound stream info */
+	_mmcamcorder_set_sound_stream_info(sc->encode_element[_MMCAMCORDER_AUDIOSRC_SRC].gst, stream_type, stream_index);
+
+	/* set audiosrc properties in ini configuration */
 	_mmcamcorder_conf_set_value_element_property(sc->encode_element[_MMCAMCORDER_AUDIOSRC_SRC].gst, AudiosrcElement);
 
 	_MMCAMCORDER_ELEMENT_MAKE(sc, sc->encode_element, _MMCAMCORDER_AUDIOSRC_FILT, "capsfilter", "audiosrc_capsfilter", element_list, err);
@@ -2551,3 +2560,35 @@ bool _mmcamcorder_set_encoded_preview_gop_interval(MMHandleType handle, int inte
 
 	return TRUE;
 }
+
+
+bool _mmcamcorder_set_sound_stream_info(GstElement *element, char *stream_type, int stream_index)
+{
+	GstStructure *props = NULL;
+	char stream_props[64] = {'\0',};
+
+	if (element == NULL || stream_type == NULL || stream_index < 0) {
+		_mmcam_dbg_err("invalid argument %p %p %d", element, stream_type, stream_index);
+		return FALSE;
+	}
+
+	snprintf(stream_props, sizeof(stream_props) - 1,
+		"props,media.role=%s, media.parent_id=%d",
+		stream_type, stream_index);
+
+	_mmcam_dbg_log("stream type %s, index %d -> [%s]", stream_type, stream_index, stream_props);
+
+	props = gst_structure_from_string(stream_props, NULL);
+	if (!props) {
+		_mmcam_dbg_err("failed to create GstStructure");
+		return FALSE;
+	}
+
+	MMCAMCORDER_G_OBJECT_SET_POINTER(element, "stream-properties", props);
+
+	gst_structure_free(props);
+	props = NULL;
+
+	return TRUE;
+}
+

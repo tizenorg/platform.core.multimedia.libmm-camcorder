@@ -1250,7 +1250,13 @@ extern "C" {
 /**
  * GOP interval for encoded preview stream
  */
-#define MMCAM_ENCODED_PREVIEW_GOP_INTERVAL   "encoded-preview-gop-interval"
+#define MMCAM_ENCODED_PREVIEW_GOP_INTERVAL      "encoded-preview-gop-interval"
+
+/**
+ * Stream type and index for sound route
+ */
+#define MMCAM_SOUND_STREAM_TYPE                 "sound-stream-type"
+#define MMCAM_SOUND_STREAM_INDEX                "sound-stream-index"
 
 /*=======================================================================================
 | ENUM DEFINITIONS									|

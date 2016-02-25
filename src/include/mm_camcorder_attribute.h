@@ -177,6 +177,8 @@ typedef enum
 	MM_CAM_DISPLAY_SOCKET_PATH,
 	MM_CAM_PID_FOR_SOUND_FOCUS,
 	MM_CAM_ROOT_DIRECTORY,		/* 120 */
+	MM_CAM_SOUND_STREAM_TYPE,
+	MM_CAM_SOUND_STREAM_INDEX,
 	MM_CAM_ATTRIBUTE_NUM
 }MMCamcorderAttrsID;
 
@@ -371,6 +373,8 @@ bool _mmcamcorder_commit_camera_hdr_capture(MMHandleType handle, int attr_idx, c
 bool _mmcamcorder_commit_encoded_preview_bitrate(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_encoded_preview_gop_interval(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_pid_for_sound_focus(MMHandleType handle, int attr_idx, const mmf_value_t *value);
+bool _mmcamcorder_commit_sound_stream_info(MMHandleType handle, int attr_idx, const mmf_value_t *value);
+
 
 /**
  * This function initialize effect setting.

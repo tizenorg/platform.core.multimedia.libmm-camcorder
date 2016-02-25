@@ -169,6 +169,7 @@ bool _mmcamcorder_set_videosrc_stabilization(MMHandleType handle, int stabilizat
 bool _mmcamcorder_set_camera_resolution(MMHandleType handle, int width, int height);
 bool _mmcamcorder_set_encoded_preview_bitrate(MMHandleType handle, int bitrate);
 bool _mmcamcorder_set_encoded_preview_gop_interval(MMHandleType handle, int gop);
+bool _mmcamcorder_set_sound_stream_info(GstElement *element, char *stream_type, int stream_index);
 #ifdef __cplusplus
 }
 #endif

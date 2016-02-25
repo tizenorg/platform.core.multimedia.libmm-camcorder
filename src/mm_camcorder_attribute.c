@@ -1479,6 +1479,28 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			{0},
 			{0},
 			NULL,
+		},
+		{
+			MM_CAM_SOUND_STREAM_TYPE,
+			"sound-stream-type",
+			MMF_VALUE_TYPE_STRING,
+			MM_ATTRS_FLAG_RW,
+			{(void*)NULL},
+			MM_ATTRS_VALID_TYPE_NONE,
+			{0},
+			{0},
+			NULL,
+		},
+		{
+			MM_CAM_SOUND_STREAM_INDEX,
+			"sound-stream-index",
+			MMF_VALUE_TYPE_INT,
+			MM_ATTRS_FLAG_RW,
+			{(void*)-1},
+			MM_ATTRS_VALID_TYPE_INT_RANGE,
+			{.int_min = -1},
+			{.int_max = _MMCAMCORDER_MAX_INT},
+			_mmcamcorder_commit_sound_stream_info,
 		}
 	};
 
@@ -4101,6 +4123,39 @@ bool _mmcamcorder_commit_pid_for_sound_focus(MMHandleType handle, int attr_idx, 
 	}
 
 	return TRUE;
+}
+
+
+bool _mmcamcorder_commit_sound_stream_info(MMHandleType handle, int attr_idx, const mmf_value_t *value)
+{
+	char *stream_type = NULL;
+	int stream_type_len = 0;
+	_MMCamcorderSubContext *sc = NULL;
+
+	if ((void *)handle == NULL) {
+		_mmcam_dbg_warn("handle is NULL");
+		return FALSE;
+	}
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	if (!sc || !sc->encode_element ||
+	    !sc->encode_element[_MMCAMCORDER_AUDIOSRC_SRC].gst) {
+		_mmcam_dbg_log("audiosrc element is not initialized, it will be set later");
+		return TRUE;
+	}
+
+	mm_camcorder_get_attributes(handle, NULL,
+		MMCAM_SOUND_STREAM_TYPE, &stream_type, &stream_type_len,
+		NULL);
+
+	if (stream_type == NULL) {
+		_mmcam_dbg_err("stream type is not set");
+		return FALSE;
+	}
+
+	_mmcam_dbg_log("Commit : sound stream info - type %s", stream_type);
+
+	return _mmcamcorder_set_sound_stream_info(sc->encode_element[_MMCAMCORDER_AUDIOSRC_SRC].gst, stream_type, value->value.i_val);
 }
 
 
