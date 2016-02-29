@@ -1810,6 +1810,32 @@ int _mmcamcorder_set_video_stream_callback(MMHandleType handle, mm_camcorder_vid
 }
 
 
+int _mmcamcorder_set_video_stream_evas_callback(MMHandleType handle, mm_camcorder_video_stream_callback callback, void *user_data)
+{
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
+
+	/*_mmcam_dbg_log("");*/
+
+	mmf_return_val_if_fail(hcamcorder, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
+
+	if (callback == NULL) {
+		_mmcam_dbg_warn("Video Stream Callback is disabled, because application sets it to NULL");
+	}
+
+	if (!_MMCAMCORDER_TRYLOCK_VSTREAM_CALLBACK(hcamcorder)) {
+		_mmcam_dbg_warn("Application's video stream callback is running now");
+		return MM_ERROR_CAMCORDER_INVALID_CONDITION;
+	}
+
+	hcamcorder->vstream_evas_cb = callback;
+	hcamcorder->vstream_evas_cb_param = user_data;
+
+	_MMCAMCORDER_UNLOCK_VSTREAM_CALLBACK(hcamcorder);
+
+	return MM_ERROR_NONE;
+}
+
+
 int _mmcamcorder_set_audio_stream_callback(MMHandleType handle, mm_camcorder_audio_stream_callback callback, void *user_data)
 {
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
