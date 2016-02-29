@@ -2800,6 +2800,8 @@ gboolean setting_video_stream_callback()
  */
 int mm_camcorder_set_video_stream_callback(MMHandleType camcorder, mm_camcorder_video_stream_callback callback, void *user_data);
 
+int mm_camcorder_set_video_stream_callback2(MMHandleType camcorder, mm_camcorder_video_stream_callback callback, void *user_data);
+
 
 /**
  *    mm_camcorder_set_video_capture_callback:\n

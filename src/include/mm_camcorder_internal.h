@@ -645,6 +645,8 @@ typedef struct mmf_camcorder {
 	void *msg_cb_param;                                     /**< message callback parameter */
 	mm_camcorder_video_stream_callback vstream_cb;          /**< Video stream callback */
 	void *vstream_cb_param;                                 /**< Video stream callback parameter */
+	mm_camcorder_video_stream_callback vstream_cb2;    /**< Video stream callback2 */
+	void *vstream_cb2_param;                           /**< Video stream callback2 parameter */
 	mm_camcorder_audio_stream_callback astream_cb;          /**< Audio stream callback */
 	void *astream_cb_param;                                 /**< Audio stream callback parameter */
 	mm_camcorder_video_capture_callback vcapture_cb;        /**< Video capture callback */
@@ -924,6 +926,10 @@ int _mmcamcorder_set_message_callback(MMHandleType hcamcorder,
  *	@see		mmcamcorder_error_type
  */
 int _mmcamcorder_set_video_stream_callback(MMHandleType hcamcorder,
+					   mm_camcorder_video_stream_callback callback,
+					   void *user_data);
+
+int _mmcamcorder_set_video_stream_callback2(MMHandleType hcamcorder,
 					   mm_camcorder_video_stream_callback callback,
 					   void *user_data);
 
