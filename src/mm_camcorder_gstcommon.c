@@ -1253,7 +1253,8 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 			gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(vsink), 0);
 		}
 	} else if (!strcmp(videosink_name, "evasimagesink") ||
-	           !strcmp(videosink_name, "evaspixmapsink")) {
+	           !strcmp(videosink_name, "evaspixmapsink") ||
+	           !strcmp(videosink_name, "fakesink")) {
 		_mmcam_dbg_log("videosink : %s, handle : %p", videosink_name, overlay);
 		if (overlay) {
 			MMCAMCORDER_G_OBJECT_SET_POINTER(vsink, "evas-object", overlay);
@@ -1283,7 +1284,7 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 
 	/* Set attribute */
 	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "waylandsink") ||
-	    !strcmp(videosink_name, "evaspixmapsink")) {
+	    !strcmp(videosink_name, "evaspixmapsink") || !strcmp(videosink_name, "fakesink")) {
 		/* set rotation */
 		MMCAMCORDER_G_OBJECT_SET(vsink, "rotate", rotation);
 
@@ -1423,6 +1424,8 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 
 	current_state = hcamcorder->state;
 
+	_mmcam_dbg_log("Enter");
+
 	if (sc->drop_vframe > 0) {
 		if (sc->pass_first_vframe > 0) {
 			sc->pass_first_vframe--;
@@ -1447,9 +1450,9 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 		if (kpi->init_video_time.tv_sec == kpi->last_video_time.tv_sec &&
 		    kpi->init_video_time.tv_usec == kpi->last_video_time.tv_usec &&
 		    kpi->init_video_time.tv_usec  == 0) {
-			/*
+			
 			_mmcam_dbg_log("START to measure FPS");
-			*/
+			
 			gettimeofday(&(kpi->init_video_time), NULL);
 		}
 
@@ -1468,14 +1471,14 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 			kpi->last_framecount = frame_count;
 			kpi->last_video_time.tv_sec = current_video_time.tv_sec;
 			kpi->last_video_time.tv_usec = current_video_time.tv_usec;
-			/*
+			
 			_mmcam_dbg_log("current fps(%d), average(%d)", kpi->current_fps, kpi->average_fps);
-			*/
+			
 		}
 	}
 
 	/* video stream callback */
-	if (hcamcorder->vstream_cb && buffer) {
+	if ((hcamcorder->vstream_cb || hcamcorder->vstream_cb2) && buffer) {
 		GstCaps *caps = NULL;
 		GstStructure *structure = NULL;
 		int state = MM_CAMCORDER_STATE_NULL;
@@ -1552,12 +1555,12 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 					stream.data.yuv420sp.length_y = stream.width * stream.height;
 					stream.data.yuv420sp.uv = mm_buf->data[1];
 					stream.data.yuv420sp.length_uv = stream.data.yuv420sp.length_y >> 1;
-					/*
+					
 					_mmcam_dbg_log("format[%d][num_planes:%d] [Y]p:0x%x,size:%d [UV]p:0x%x,size:%d",
 					               stream.format, stream.num_planes,
 					               stream.data.yuv420sp.y, stream.data.yuv420sp.length_y,
 					               stream.data.yuv420sp.uv, stream.data.yuv420sp.length_uv);
-					*/
+					
 				} else {
 					stream.data_type = MM_CAM_STREAM_DATA_YUV420P;
 					stream.num_planes = 3;
@@ -1567,13 +1570,13 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 					stream.data.yuv420p.length_u = stream.data.yuv420p.length_y >> 2;
 					stream.data.yuv420p.v = mm_buf->data[2];
 					stream.data.yuv420p.length_v = stream.data.yuv420p.length_u;
-					/*
+					
 					_mmcam_dbg_log("S420[num_planes:%d] [Y]p:0x%x,size:%d [U]p:0x%x,size:%d [V]p:0x%x,size:%d",
 					                stream.num_planes,
 					                stream.data.yuv420p.y, stream.data.yuv420p.length_y,
 					                stream.data.yuv420p.u, stream.data.yuv420p.length_u,
 					                stream.data.yuv420p.v, stream.data.yuv420p.length_v);
-					*/
+					
 				}
 			} else {
 				gst_memory_map(dataBlock, &mapinfo, GST_MAP_READWRITE);
@@ -1585,12 +1588,12 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 					stream.data.yuv420sp.length_y = stream.width * stream.height;
 					stream.data.yuv420sp.uv = stream.data.yuv420sp.y + stream.data.yuv420sp.length_y;
 					stream.data.yuv420sp.length_uv = stream.data.yuv420sp.length_y >> 1;
-					/*
+					
 					_mmcam_dbg_log("format[%d][num_planes:%d] [Y]p:0x%x,size:%d [UV]p:0x%x,size:%d",
 					               stream.format, stream.num_planes,
 					               stream.data.yuv420sp.y, stream.data.yuv420sp.length_y,
 					               stream.data.yuv420sp.uv, stream.data.yuv420sp.length_uv);
-					*/
+					
 				} else {
 					stream.data_type = MM_CAM_STREAM_DATA_YUV420P;
 					stream.num_planes = 3;
@@ -1600,13 +1603,13 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 					stream.data.yuv420p.length_u = stream.data.yuv420p.length_y >> 2;
 					stream.data.yuv420p.v = stream.data.yuv420p.u + stream.data.yuv420p.length_u;
 					stream.data.yuv420p.length_v = stream.data.yuv420p.length_u;
-					/*
+					
 					_mmcam_dbg_log("I420[num_planes:%d] [Y]p:0x%x,size:%d [U]p:0x%x,size:%d [V]p:0x%x,size:%d",
 					                stream.num_planes,
 					                stream.data.yuv420p.y, stream.data.yuv420p.length_y,
 					                stream.data.yuv420p.u, stream.data.yuv420p.length_u,
 					                stream.data.yuv420p.v, stream.data.yuv420p.length_v);
-					*/
+					
 				}
 			}
 		} else {
@@ -1636,11 +1639,11 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 			}
 
 			stream.num_planes = 1;
-			/*
+			
 			_mmcam_dbg_log("%c%c%c%c[num_planes:%d] [0]p:0x%x,size:%d",
 			               fourcc, fourcc>>8, fourcc>>16, fourcc>>24,
 			               stream.num_planes, stream.data.yuv420.yuv, stream.data.yuv420.length_yuv);
-			*/
+			
 		}
 
 		/* set tbm bo */
@@ -1650,6 +1653,8 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 				stream.bo[i] = (void *)mm_buf->handle.bo[i];
 				stream.stride[i] = mm_buf->stride_width[i];
 				stream.elevation[i] = mm_buf->stride_height[i];
+
+				_mmcam_dbg_log("mm_buf->handle.bo[%d]=0x%x", i, mm_buf->handle.bo[i]);
 			}
 
 			/* set gst buffer */
@@ -1660,6 +1665,13 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 		_MMCAMCORDER_LOCK_VSTREAM_CALLBACK(hcamcorder);
 		if (hcamcorder->vstream_cb) {
 			hcamcorder->vstream_cb(&stream, hcamcorder->vstream_cb_param);
+
+			for (i = 0 ; i < MM_VIDEO_BUFFER_PLANE_MAX && stream.bo[i] ; i++) {
+				tbm_bo_map(stream.bo[i], TBM_DEVICE_CPU, TBM_OPTION_READ|TBM_OPTION_WRITE);
+				tbm_bo_unmap(stream.bo[i]);
+			}
+		} else if (hcamcorder->vstream_cb2) {
+			hcamcorder->vstream_cb2(&stream, hcamcorder->vstream_cb2_param);
 
 			for (i = 0 ; i < MM_VIDEO_BUFFER_PLANE_MAX && stream.bo[i] ; i++) {
 				tbm_bo_map(stream.bo[i], TBM_DEVICE_CPU, TBM_OPTION_READ|TBM_OPTION_WRITE);
@@ -2551,3 +2563,5 @@ bool _mmcamcorder_set_encoded_preview_gop_interval(MMHandleType handle, int inte
 
 	return TRUE;
 }
+
+
