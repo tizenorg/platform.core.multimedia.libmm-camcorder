@@ -2808,6 +2808,39 @@ int mm_camcorder_set_video_stream_callback(MMHandleType camcorder, mm_camcorder_
 
 
 /**
+ *    mm_camcorder_set_video_stream_callback:\n
+ *  Set callback for user defined video stream callback function.
+ *  Users can retrieve video frame using registered callback.
+ *  The callback function holds the same buffer that will be drawed on the display device.
+ *  So if an user change the buffer, it will be displayed on the device.
+ *
+ *	@param[in]	camcorder	A handle of camcorder.
+ *	@param[in]	callback	Function pointer of callback function.
+ *	@param[in]	user_data	User parameter for passing to callback function.
+ *	@return		This function returns zero(MM_ERROR_NONE) on success, or negative value with error code.\n
+ *			Please refer 'mm_error.h' to know the exact meaning of the error.
+ *	@see		mm_camcorder_video_stream_callback
+ *	@pre		None
+ *	@post		None
+ *	@remarks	registered 'callback' is called on internal thread of camcorder. Regardless of the status of main loop, this function will be called.
+ *	@par example
+ *	@code
+
+#include <mm_camcorder.h>
+
+gboolean setting_video_stream_callback()
+{
+	//set callback
+	mm_camcorder_set_video_stream_callback(hcam, (mm_camcorder_video_stream_callback)camcordertest_video_stream_cb, (void*)hcam);
+
+	return TRUE;
+}
+ *	@endcode
+ */
+int mm_camcorder_set_video_stream_callback2(MMHandleType camcorder, mm_camcorder_video_stream_callback callback, void *user_data);
+
+
+/**
  *    mm_camcorder_set_video_capture_callback:\n
  *  Set callback for user defined video capture callback function.  (Image mode only)
  *  mm_camcorder deliever captured image through the callback.\n
