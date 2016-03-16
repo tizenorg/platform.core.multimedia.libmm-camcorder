@@ -192,7 +192,7 @@ typedef bool (*mmf_cam_commit_func_t)(MMHandleType handle, int attr_idx, const m
 ========================================================================================*/
 typedef struct {
 	MMCamcorderAttrsID attrid;
-	const char *name;
+	char *name;
 	int value_type;
 	int flags;
 	union {

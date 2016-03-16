@@ -30,6 +30,7 @@ BuildRequires:  pkgconfig(storage)
 BuildRequires:  pkgconfig(murphy-resource)
 BuildRequires:  pkgconfig(murphy-glib)
 BuildRequires:  pkgconfig(ttrace)
+BuildRequires:  pkgconfig(libtzplatform-config)
 
 %description
 Camera and recorder function supported library.
@@ -51,9 +52,9 @@ Camera and recorder function supported library for development.
 
 %build
 %if %{with wayland}
-export CFLAGS+=" -DHAVE_WAYLAND"
+export CFLAGS+=" -DHAVE_WAYLAND -DGST_USE_UNSTABLE_API"
 %endif
-export CFLAGS+=" -D_LARGEFILE64_SOURCE"
+export CFLAGS+=" -D_LARGEFILE64_SOURCE -DSYSCONFDIR=\\\"%{_sysconfdir}\\\" -DTZ_SYS_ETC=\\\"%{TZ_SYS_ETC}\\\""
 ./autogen.sh
 %configure \
 %if %{with wayland}
@@ -63,8 +64,8 @@ export CFLAGS+=" -D_LARGEFILE64_SOURCE"
 make %{?jobs:-j%jobs}
 
 %install
-mkdir -p %{buildroot}/usr/share/license
-cp LICENSE.APLv2 %{buildroot}/usr/share/license/%{name}
+mkdir -p %{buildroot}%{_datadir}/license
+cp LICENSE.APLv2 %{buildroot}%{_datadir}/license/%{name}
 %make_install
 
 
@@ -78,7 +79,7 @@ cp LICENSE.APLv2 %{buildroot}/usr/share/license/%{name}
 %defattr(-,root,root,-)
 %{_bindir}/*
 %{_libdir}/*.so.*
-/usr/share/sounds/mm-camcorder/*
+%{_datadir}/sounds/mm-camcorder/*
 %{_datadir}/license/%{name}
 
 %files devel

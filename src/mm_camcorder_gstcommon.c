@@ -793,7 +793,7 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 		}
 
 		if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ENCODED_H264) {
-			gst_element_venc_name = strdup("capsfilter");
+			gst_element_venc_name = "capsfilter";
 		} else {
 			_mmcamcorder_conf_get_value_element_name(VideoencElement, &gst_element_venc_name);
 		}
@@ -847,11 +847,6 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 		                                &use_venc_queue);
 		if (use_venc_queue) {
 			_MMCAMCORDER_ENCODEBIN_ELMGET(sc, _MMCAMCORDER_ENCSINK_VENC_QUE, "use-venc-queue", err);
-		}
-
-		if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ENCODED_H264) {
-			free(gst_element_venc_name);
-			gst_element_venc_name = NULL;
 		}
 	}
 

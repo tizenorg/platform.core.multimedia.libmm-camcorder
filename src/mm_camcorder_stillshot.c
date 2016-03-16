@@ -1315,14 +1315,6 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstSample *sampl
 						thumb.data = malloc(ed->size);
 						memcpy(thumb.data,ed->data,ed->size);
 						thumb.length = ed->size;
-						#if 0
-						{
-						    FILE *fp = NULL;
-						    fp = fopen ("/opt/usr/media/thumbnail_test.jpg", "a+");
-						    fwrite (thumb.data, 1, thumb.length, fp);
-						    fclose (fp);
-						}
-						#endif
 						thumb.format = MM_PIXEL_FORMAT_ENCODED;
 						thumb.width = atoi(width);
 						thumb.height = atoi(height);

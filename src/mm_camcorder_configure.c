@@ -33,8 +33,6 @@
 /*-----------------------------------------------------------------------
 |    MACRO DEFINITIONS:							|
 -----------------------------------------------------------------------*/
-#define CONFIGURE_PATH          "/usr/etc"
-#define CONFIGURE_PATH_RETRY    "/opt/etc"
 
 /*-----------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS					|
@@ -897,25 +895,20 @@ int _mmcamcorder_conf_get_info(MMHandleType handle, int type, const char *ConfFi
 {
 	int ret = MM_ERROR_NONE;
 	FILE *fd = NULL;
-	char *conf_path = NULL;
+	char conf_path[60] = {'\0',};
 
 	_mmcam_dbg_log("Opening...[%s]", ConfFile);
 
 	mmf_return_val_if_fail(ConfFile, FALSE);
 
-	conf_path = (char *)malloc(strlen(ConfFile) + strlen(CONFIGURE_PATH) + 3);
-	if (conf_path == NULL) {
-		_mmcam_dbg_err("malloc failed.");
-		return MM_ERROR_CAMCORDER_LOW_MEMORY;
-	}
-
-	snprintf(conf_path, strlen(ConfFile) + strlen(CONFIGURE_PATH) + 2, "%s/%s", CONFIGURE_PATH, ConfFile);
+	snprintf(conf_path, sizeof(conf_path), "%s/multimedia/%s", SYSCONFDIR, ConfFile);
 	_mmcam_dbg_log("Try open Configure File[%s]", conf_path);
 
 	fd = fopen(conf_path, "r");
 	if (fd == NULL) {
 		_mmcam_dbg_warn("File open failed.[%s] retry...", conf_path);
-		snprintf(conf_path, strlen(ConfFile) + strlen(CONFIGURE_PATH_RETRY) + 2, "%s/%s", CONFIGURE_PATH_RETRY, ConfFile);
+
+		snprintf(conf_path, sizeof(conf_path), "%s/multimedia/%s", TZ_SYS_ETC, ConfFile);
 		_mmcam_dbg_log("Try open Configure File[%s]", conf_path);
 		fd = fopen(conf_path, "r");
 		if (fd == NULL) {
@@ -932,11 +925,6 @@ int _mmcamcorder_conf_get_info(MMHandleType handle, int type, const char *ConfFi
 		} else {
 			ret = MM_ERROR_CAMCORDER_CREATE_CONFIGURE;
 		}
-	}
-
-	if (conf_path != NULL) {
-		free(conf_path);
-		conf_path = NULL;
 	}
 
 	_mmcam_dbg_log("Leave...");
