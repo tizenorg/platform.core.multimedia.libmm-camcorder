@@ -73,8 +73,7 @@ libmmfcamcorder_la_LIBADD = \
 
 libmmfcamcorder_la_CFLAGS += -DMMF_LOG_OWNER=0x010 -D_FILE_OFFSET_BITS=64
 libmmfcamcorder_la_CFLAGS += -fdata-sections -ffunction-sections -Wl,--gc-sections
-libmmfcamcorder_la_LDFLAGS = -Wl,--gc-sections \
-			     -Wl,-init,_mmcamcorder_constructor
+libmmfcamcorder_la_LDFLAGS = -Wl,--gc-sections
 libmmfcamcorder_la_LIBADD += $(SYSTEMINFO_LIBS)
 
 if WAYLAND_SUPPORT

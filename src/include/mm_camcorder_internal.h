@@ -210,7 +210,24 @@ extern "C" {
 
 #define _MM_GST_PAD_LINK_UNREF(srcpad, sinkpad, err, if_fail_goto)\
 {\
-	GstPadLinkReturn ret = _MM_GST_PAD_LINK(srcpad, sinkpad);\
+	GstPadLinkReturn ret = GST_PAD_LINK_OK;\
+	if (srcpad == NULL || sinkpad == NULL) {\
+		if (srcpad == NULL) {\
+			_mmcam_dbg_err("srcpad is NULL");\
+		} else {\
+			gst_object_unref(srcpad);\
+			srcpad = NULL;\
+		}\
+		if (sinkpad == NULL) {\
+			_mmcam_dbg_err("sinkpad is NULL");\
+		} else {\
+			gst_object_unref(sinkpad);\
+			sinkpad = NULL;\
+		}\
+		err = MM_ERROR_CAMCORDER_GST_LINK;\
+		goto if_fail_goto;\
+	}\
+	ret = _MM_GST_PAD_LINK(srcpad, sinkpad);\
 	if (ret != GST_PAD_LINK_OK) {\
 		GstObject *src_parent = gst_pad_get_parent(srcpad);\
 		GstObject *sink_parent = gst_pad_get_parent(sinkpad);\
