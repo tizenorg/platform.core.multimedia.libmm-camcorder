@@ -44,14 +44,6 @@
 
 #include <murphy/common/glib-glue.h>
 
-/*---------------------------------------------------------------------------------------
-|    GLOBAL VARIABLE DEFINITIONS for internal						|
----------------------------------------------------------------------------------------*/
-struct sigaction mm_camcorder_int_old_action;
-struct sigaction mm_camcorder_abrt_old_action;
-struct sigaction mm_camcorder_segv_old_action;
-struct sigaction mm_camcorder_term_old_action;
-struct sigaction mm_camcorder_sys_old_action;
 
 /*---------------------------------------------------------------------------------------
 |    LOCAL VARIABLE DEFINITIONS for internal						|
@@ -82,75 +74,12 @@ static gboolean __mmcamcorder_handle_gst_warning(MMHandleType handle, GstMessage
 static gboolean __mmcamcorder_set_attr_to_camsensor_cb(gpointer data);
 #endif /* _MMCAMCORDER_USE_SET_ATTR_CB */
 
-static void __mm_camcorder_signal_handler(int signo);
-static void _mmcamcorder_constructor() __attribute__((constructor));
-
 /*=======================================================================================
 |  FUNCTION DEFINITIONS									|
 =======================================================================================*/
 /*---------------------------------------------------------------------------------------
 |    GLOBAL FUNCTION DEFINITIONS:							|
 ---------------------------------------------------------------------------------------*/
-
-
-static void __mm_camcorder_signal_handler(int signo)
-{
-	pid_t my_pid = getpid();
-
-	_mmcam_dbg_warn("start - signo [%d], pid [%d]", signo, my_pid);
-
-	/* call old signal handler */
-	switch (signo) {
-	case SIGINT:
-		sigaction(SIGINT, &mm_camcorder_int_old_action, NULL);
-		raise(signo);
-		break;
-	case SIGABRT:
-		sigaction(SIGABRT, &mm_camcorder_abrt_old_action, NULL);
-		raise(signo);
-		break;
-	case SIGSEGV:
-		sigaction(SIGSEGV, &mm_camcorder_segv_old_action, NULL);
-		raise(signo);
-		break;
-	case SIGTERM:
-		sigaction(SIGTERM, &mm_camcorder_term_old_action, NULL);
-		raise(signo);
-		break;
-	case SIGSYS:
-		sigaction(SIGSYS, &mm_camcorder_sys_old_action, NULL);
-		raise(signo);
-		break;
-	default:
-		break;
-	}
-
-	_mmcam_dbg_warn("done");
-
-	return;
-}
-
-
-static void _mmcamcorder_constructor()
-{
-	struct sigaction mm_camcorder_action;
-	mm_camcorder_action.sa_handler = __mm_camcorder_signal_handler;
-	mm_camcorder_action.sa_flags = SA_NOCLDSTOP;
-
-	_mmcam_dbg_warn("start");
-
-	sigemptyset(&mm_camcorder_action.sa_mask);
-
-	sigaction(SIGINT, &mm_camcorder_action, &mm_camcorder_int_old_action);
-	sigaction(SIGABRT, &mm_camcorder_action, &mm_camcorder_abrt_old_action);
-	sigaction(SIGSEGV, &mm_camcorder_action, &mm_camcorder_segv_old_action);
-	sigaction(SIGTERM, &mm_camcorder_action, &mm_camcorder_term_old_action);
-	sigaction(SIGSYS, &mm_camcorder_action, &mm_camcorder_sys_old_action);
-
-	_mmcam_dbg_warn("done");
-
-	return;
-}
 
 /* Internal command functions {*/
 int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
