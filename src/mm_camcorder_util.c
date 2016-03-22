@@ -1340,7 +1340,6 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 						MMCamFaceDetectInfo *cam_fd_info = (MMCamFaceDetectInfo *)item->param.data;
 						if (cam_fd_info) {
 							SAFE_G_FREE(cam_fd_info->face_info);
-							item->param.size = 0;
 						}
 						SAFE_G_FREE(cam_fd_info);
 					} else if (item->id == MM_MESSAGE_CAMCORDER_VIDEO_CAPTURED ||
