@@ -192,8 +192,14 @@ int _mmcamcorder_sound_solo_play(MMHandleType handle, const char *sample_name, g
 
 	_mmcam_dbg_log("Play start - sample name [%s]", sample_name);
 
-	_mmcamcorder_send_sound_play_message(hcamcorder->gdbus_conn,
-		&hcamcorder->gdbus_info_solo_sound, sample_name, "system", "shutter1", sync_play);
+	if (hcamcorder->shutter_sound_policy == VCONFKEY_CAMERA_SHUTTER_SOUND_POLICY_ON ||
+		hcamcorder->sub_context->info_image->sound_status) {
+		_mmcamcorder_send_sound_play_message(hcamcorder->gdbus_conn,
+			&hcamcorder->gdbus_info_solo_sound, sample_name, "system", "shutter1", sync_play);
+	} else {
+		_mmcam_dbg_warn("skip shutter sound : sound policy %d, sound status %d",
+			hcamcorder->shutter_sound_policy, hcamcorder->sub_context->info_image->sound_status);
+	}
 
 	_mmcam_dbg_log("Done");
 
