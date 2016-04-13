@@ -51,6 +51,7 @@ Camera and recorder function supported library for development.
 
 
 %build
+export CFLAGS+=" -flto "
 %if %{with wayland}
 export CFLAGS+=" -DHAVE_WAYLAND -DGST_USE_UNSTABLE_API"
 %endif
