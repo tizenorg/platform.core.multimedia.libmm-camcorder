@@ -43,7 +43,7 @@
 
 	@par
 	Recording state and paused state exists when the mode of camcorder is
-	video-capture or audio-capture mode. In case of image-capture mode, CAPTURING state will 
+	video-capture or audio-capture mode. In case of image-capture mode, CAPTURING state will
 	exsit.
 
 	@par
@@ -1258,6 +1258,10 @@ extern "C" {
 #define MMCAM_SOUND_STREAM_TYPE                 "sound-stream-type"
 #define MMCAM_SOUND_STREAM_INDEX                "sound-stream-index"
 
+#ifndef EXPORT_API
+#define EXPORT_API
+#endif // EXPORT_API
+
 /*=======================================================================================
 | ENUM DEFINITIONS									|
 ========================================================================================*/
@@ -1912,7 +1916,7 @@ gboolean initialize_camcorder()
 
  *	@endcode
  */
-int mm_camcorder_create(MMHandleType *camcorder, MMCamPreset *info);
+EXPORT_API int mm_camcorder_create(MMHandleType *camcorder, MMCamPreset *info);
 
 
 /**
@@ -1921,7 +1925,7 @@ int mm_camcorder_create(MMHandleType *camcorder, MMCamPreset *info);
  *  This is the finalizing function of mm_camcorder. If this function is not called or fails to call, the handle isn't released fully.
  *  This function releases attributes, mutexes, sessions, and handle itself. This function also removes all of remaining messages.
  *  So if your application should wait a certain message of mm_camcorder, please wait to call this function till getting the message.
- *	
+ *
  *
  *	@param[in]	camcorder	A handle of camcorder.
  *	@return		This function returns zero(MM_ERROR_NONE) on success, or negative value with error code.\n
@@ -1951,7 +1955,7 @@ gboolean destroy_camcorder()
 
  *	@endcode
  */
-int mm_camcorder_destroy(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_destroy(MMHandleType camcorder);
 
 
 /**
@@ -2152,7 +2156,7 @@ gboolean initialize_audio_capture()
 }
  *	@endcode
  */
-int mm_camcorder_realize(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_realize(MMHandleType camcorder);
 
 
 /**
@@ -2192,7 +2196,7 @@ gboolean unrealize_camcorder()
 
  *	@endcode
  */
-int mm_camcorder_unrealize(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_unrealize(MMHandleType camcorder);
 
 
 /**
@@ -2408,7 +2412,7 @@ gboolean initialize_audio_capture()
 }
  *	@endcode
  */
-int mm_camcorder_start(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_start(MMHandleType camcorder);
 
 
 /**
@@ -2447,7 +2451,7 @@ gboolean stop_camcorder()
 
  *	@endcode
  */
-int mm_camcorder_stop(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_stop(MMHandleType camcorder);
 
 
 /**
@@ -2470,7 +2474,7 @@ int mm_camcorder_stop(MMHandleType camcorder);
  *	@pre		Previous state of mm-camcorder should be MM_CAMCORDER_STATE_PREPARE
  *	@post		Next state of mm-camcorder will be MM_CAMCORDER_STATE_CAPTURING
  *	@remarks	To call this function, preview should be started successfully.\n
- *			This function is a pair of mm_camcorder_capture_stop(). 
+ *			This function is a pair of mm_camcorder_capture_stop().
  *			So user should call mm_camcorder_capture_stop() after getting captured image.
  *	@par example
  *	@code
@@ -2482,7 +2486,7 @@ gboolean capturing_picture()
 	int err;
 
 	err =  mm_camcorder_capture_start(hcam);
-	if (err < 0) 
+	if (err < 0)
 	{
 		printf("Fail to call mm_camcorder_capture_start  = %x\n", err);
 		return FALSE;
@@ -2497,7 +2501,7 @@ gboolean capturing_picture()
 
  *	@endcode
  */
-int mm_camcorder_capture_start(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_capture_start(MMHandleType camcorder);
 
 
 /**
@@ -2539,7 +2543,7 @@ gboolean capturing_picture_stop()
 
  *	@endcode
  */
-int mm_camcorder_capture_stop(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_capture_stop(MMHandleType camcorder);
 
 
 /**
@@ -2577,7 +2581,7 @@ gboolean record_and_cancel_video_file()
 
  *	@endcode
  */
-int mm_camcorder_record(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_record(MMHandleType camcorder);
 
 
 /**
@@ -2634,7 +2638,7 @@ gboolean record_pause_and_resume_recording()
 
  *	@endcode
  */
-int mm_camcorder_pause(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_pause(MMHandleType camcorder);
 
 
 /**
@@ -2687,7 +2691,7 @@ gboolean record_and_save_video_file()
 
  *	@endcode
  */
-int mm_camcorder_commit(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_commit(MMHandleType camcorder);
 
 
 /**
@@ -2736,7 +2740,7 @@ gboolean record_and_cancel_video_file()
 
  *	@endcode
  */
-int mm_camcorder_cancel(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_cancel(MMHandleType camcorder);
 
 
 /**
@@ -2771,7 +2775,7 @@ gboolean setting_msg_callback()
 
  *	@endcode
  */
-int mm_camcorder_set_message_callback(MMHandleType camcorder, MMMessageCallback callback, void *user_data);
+EXPORT_API int mm_camcorder_set_message_callback(MMHandleType camcorder, MMMessageCallback callback, void *user_data);
 
 
 /**
@@ -2804,7 +2808,7 @@ gboolean setting_video_stream_callback()
 }
  *	@endcode
  */
-int mm_camcorder_set_video_stream_callback(MMHandleType camcorder, mm_camcorder_video_stream_callback callback, void *user_data);
+EXPORT_API int mm_camcorder_set_video_stream_callback(MMHandleType camcorder, mm_camcorder_video_stream_callback callback, void *user_data);
 
 
 /**
@@ -2839,7 +2843,7 @@ gboolean setting_capture_callback()
 }
  *	@endcode
  */
-int mm_camcorder_set_video_capture_callback(MMHandleType camcorder, mm_camcorder_video_capture_callback callback, void *user_data);
+EXPORT_API int mm_camcorder_set_video_capture_callback(MMHandleType camcorder, mm_camcorder_video_capture_callback callback, void *user_data);
 
 
 /**
@@ -2872,7 +2876,7 @@ gboolean setting_audio_stream_callback()
 }
  * 	@endcode
  */
-int mm_camcorder_set_audio_stream_callback(MMHandleType camcorder, mm_camcorder_audio_stream_callback callback, void *user_data);
+EXPORT_API int mm_camcorder_set_audio_stream_callback(MMHandleType camcorder, mm_camcorder_audio_stream_callback callback, void *user_data);
 
 
 /**
@@ -2907,7 +2911,7 @@ gboolean get_state_of_camcorder()
 
  *	@endcode
  */
-int mm_camcorder_get_state(MMHandleType camcorder, MMCamcorderStateType *state);
+EXPORT_API int mm_camcorder_get_state(MMHandleType camcorder, MMCamcorderStateType *state);
 
 
 /**
@@ -3061,7 +3065,7 @@ gboolean getting_info_from_attribute()
 }
  *	@endcode
  */
-int mm_camcorder_get_attribute_info(MMHandleType camcorder, const char *attribute_name, MMCamAttrsInfo *info);
+EXPORT_API int mm_camcorder_get_attribute_info(MMHandleType camcorder, const char *attribute_name, MMCamAttrsInfo *info);
 
 
 /**
@@ -3103,7 +3107,7 @@ gboolean getting_info_from_attribute()
 }
  *	@endcode
  */
-int mm_camcorder_get_fps_list_by_resolution(MMHandleType camcorder, int width, int height, MMCamAttrsInfo *fps_info);
+EXPORT_API int mm_camcorder_get_fps_list_by_resolution(MMHandleType camcorder, int width, int height, MMCamAttrsInfo *fps_info);
 
 
 /**
@@ -3157,7 +3161,7 @@ gboolean start_autofocus()
 
  *	@endcode
  */
-int mm_camcorder_init_focusing(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_init_focusing(MMHandleType camcorder);
 
 
 /**
@@ -3214,7 +3218,7 @@ gboolean start_autofocus()
 
  *	@endcode
  */
-int mm_camcorder_start_focusing(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_start_focusing(MMHandleType camcorder);
 
 
 /**
@@ -3247,7 +3251,7 @@ gboolean stop_autofocus()
 
  *	@endcode
  */
-int mm_camcorder_stop_focusing(MMHandleType camcorder);
+EXPORT_API int mm_camcorder_stop_focusing(MMHandleType camcorder);
 
 /**
  *    mm_camcorder_get_video_caps:
@@ -3267,7 +3271,7 @@ int mm_camcorder_stop_focusing(MMHandleType camcorder);
  *	@par example
  *	@code
  */
-int mm_camcorder_get_video_caps(MMHandleType handle, char **caps);
+EXPORT_API int mm_camcorder_get_video_caps(MMHandleType handle, char **caps);
 
 /**
 	@}

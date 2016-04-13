@@ -51,7 +51,7 @@ Camera and recorder function supported library for development.
 
 
 %build
-export CFLAGS+=" -flto "
+export CFLAGS+=" -flto -fvisibility=hidden -DEXPORT_API=\"__attribute__((visibility(\\\"default\\\")))\" "
 %if %{with wayland}
 export CFLAGS+=" -DHAVE_WAYLAND -DGST_USE_UNSTABLE_API"
 %endif
@@ -78,7 +78,6 @@ cp LICENSE.APLv2 %{buildroot}%{_datadir}/license/%{name}
 %files
 %manifest libmm-camcorder.manifest
 %defattr(-,root,root,-)
-%{_bindir}/*
 %{_libdir}/*.so.*
 %{_datadir}/sounds/mm-camcorder/*
 %{_datadir}/license/%{name}

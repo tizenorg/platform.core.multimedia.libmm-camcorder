@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS='-I m4'
 
-SUBDIRS = src test
+SUBDIRS = src
 
 pcfiles = mm-camcorder.pc
 pkgconfigdir = $(libdir)/pkgconfig
