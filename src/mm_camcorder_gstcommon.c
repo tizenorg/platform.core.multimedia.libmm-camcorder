@@ -670,25 +670,30 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 		MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_SRC].gst, "max-bytes", 0); /* unlimited */
 
 		/* set capsfilter */
-		if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ENCODED_H264) {
-			_mmcam_dbg_log("get pad from videosrc_filter");
-			pad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSRC_FILT].gst, "src");
-		} else {
-			_mmcam_dbg_log("get pad from videosrc_que");
-			pad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "src");
-		}
-		if (!pad) {
-			_mmcam_dbg_err("get videosrc_que src pad failed");
-			err = MM_ERROR_CAMCORDER_RESOURCE_CREATION;
-			goto pipeline_creation_error;
-		}
+		if (profile == MM_CAMCORDER_ENCBIN_PROFILE_VIDEO) {
+			if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ENCODED_H264) {
+				_mmcam_dbg_log("get pad from videosrc_filter");
+				pad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSRC_FILT].gst, "src");
+			} else {
+				_mmcam_dbg_log("get pad from videosrc_que");
+				pad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "src");
+			}
+			if (!pad) {
+				_mmcam_dbg_err("get videosrc_que src pad failed");
+				err = MM_ERROR_CAMCORDER_RESOURCE_CREATION;
+				goto pipeline_creation_error;
+			}
 
-		caps_from_pad = gst_pad_get_allowed_caps(pad);
-		video_caps = gst_caps_copy(caps_from_pad);
-		gst_caps_unref(caps_from_pad);
-		caps_from_pad = NULL;
-		gst_object_unref(pad);
-		pad = NULL;
+			caps_from_pad = gst_pad_get_allowed_caps(pad);
+			video_caps = gst_caps_copy(caps_from_pad);
+			gst_caps_unref(caps_from_pad);
+			caps_from_pad = NULL;
+			gst_object_unref(pad);
+			pad = NULL;
+		} else {
+			/* Image */
+			MMCAMCORDER_G_OBJECT_GET(sc->element[_MMCAMCORDER_VIDEOSRC_FILT].gst, "caps", &video_caps);
+		}
 
 		if (video_caps) {
 			char *caps_str = NULL;
@@ -704,6 +709,10 @@ int _mmcamcorder_create_encodesink_bin(MMHandleType handle, MMCamcorderEncodebin
 			_mmcam_dbg_log("encodebin caps [%s]", caps_str);
 			g_free(caps_str);
 			caps_str = NULL;
+
+				gst_caps_set_simple(video_caps,
+				                    "interlace-mode", G_TYPE_STRING, "progressive",
+				                    NULL);
 
 			MMCAMCORDER_G_OBJECT_SET_POINTER(sc->encode_element[_MMCAMCORDER_ENCSINK_FILT].gst, "caps", video_caps);
 			gst_caps_unref(video_caps);
