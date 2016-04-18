@@ -1253,6 +1253,36 @@ extern "C" {
 #define MMCAM_ENCODED_PREVIEW_GOP_INTERVAL      "encoded-preview-gop-interval"
 
 /**
+ * The degree to move the camera horizontally
+ */
+#define MMCAM_CAMERA_PAN_DEGREE                  "camera-pan-degree"
+
+/**
+ * The lower limit for pan position
+ */
+#define MMCAM_CAMERA_PAN_RANGE_MIN               "camera-pan-range-min"
+
+/**
+ * The upper limit for pan position
+ */
+#define MMCAM_CAMERA_PAN_RANGE_MAX               "camera-pan-range-max"
+
+/**
+ * The degree to move the camera vertically
+ */
+#define MMCAM_CAMERA_TILT_DEGREE                 "camera-tilt-degree"
+
+/**
+ * The lower limit for tilt position
+ */
+#define MMCAM_CAMERA_TILT_RANGE_MIN              "camera-tilt-range-min"
+
+/**
+ * The upper limit for tilt position
+ */
+#define MMCAM_CAMERA_TILT_RANGE_MAX              "camera-tilt-range-max"
+
+/**
  * Stream type and index for sound route
  */
 #define MMCAM_SOUND_STREAM_TYPE                 "sound-stream-type"
