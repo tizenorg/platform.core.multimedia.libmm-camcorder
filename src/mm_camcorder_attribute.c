@@ -1359,6 +1359,28 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 		},
 		//110
 		{
+			MM_CAM_CAMERA_PAN,
+			"camera-pan",
+			MMF_VALUE_TYPE_INT,
+			MM_ATTRS_FLAG_RW,
+			{(void*)0},
+			MM_ATTRS_VALID_TYPE_INT_RANGE,
+			{.int_min = -10},
+			{.int_max = 10},
+			_mmcamcorder_commit_camera_pan,
+		},
+		{
+			MM_CAM_CAMERA_TILT,
+			"camera-tilt",
+			MMF_VALUE_TYPE_INT,
+			MM_ATTRS_FLAG_RW,
+			{(void*)0},
+			MM_ATTRS_VALID_TYPE_INT_RANGE,
+			{.int_min = -10},
+			{.int_max = 10},
+			_mmcamcorder_commit_camera_tilt,
+		},
+		{
 			MM_CAM_VIDEO_WIDTH,
 			"video-width",
 			MMF_VALUE_TYPE_INT,
@@ -1446,6 +1468,7 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			{.int_max = TRUE},
 			NULL,
 		},
+		//120
 		{
 			MM_CAM_DISPLAY_SOCKET_PATH,
 			"display-socket-path",
@@ -1468,7 +1491,6 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			{.int_max = _MMCAMCORDER_MAX_INT},
 			_mmcamcorder_commit_pid_for_sound_focus,
 		},
-		//120
 		{
 			MM_CAM_ROOT_DIRECTORY,
 			"root-directory",
@@ -2358,6 +2380,106 @@ bool _mmcamcorder_commit_camera_zoom (MMHandleType handle, int attr_idx, const m
 		}
 	} else {
 		_mmcam_dbg_log("pointer of video src is null");
+	}
+
+	return FALSE;
+}
+
+
+bool _mmcamcorder_commit_camera_pan(MMHandleType handle, int attr_idx, const mmf_value_t *value)
+{
+	_MMCamcorderSubContext *sc = NULL;
+	int current_state = MM_CAMCORDER_STATE_NONE;
+
+	GstCameraControl *CameraControl = NULL;
+	GstCameraControlChannel *CameraControlChannel = NULL;
+	const GList *controls = NULL;
+	const GList *item = NULL;
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	mmf_return_val_if_fail(sc, TRUE);
+
+	_mmcam_dbg_log("pan : %d", value->value.i_val);
+
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_PREPARE ||
+	    current_state == MM_CAMCORDER_STATE_CAPTURING) {
+		_mmcam_dbg_err("invalid state[%d]", current_state);
+		return FALSE;
+	}
+
+	if (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst) {
+		CameraControl = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		controls = gst_camera_control_list_channels(CameraControl);
+		if (controls != NULL) {
+			for (item = controls ; item && item->data ; item = item->next) {
+				CameraControlChannel = item->data;
+				_mmcam_dbg_log("CameraControlChannel->label %s", CameraControlChannel->label);
+				if (!strcmp(CameraControlChannel->label, "pan")) {
+					if (gst_camera_control_set_value(CameraControl, CameraControlChannel, value->value.i_val)) {
+						_mmcam_dbg_warn("set pan %d done", value->value.i_val);
+						return TRUE;
+					} else {
+						_mmcam_dbg_err("failed to set pan %d", value->value.i_val);
+						return FALSE;
+					}
+				}
+			}
+
+			if (item == NULL) {
+				_mmcam_dbg_warn("failed to find pan control channel");
+			}
+		}
+	}
+
+	return FALSE;
+}
+
+
+bool _mmcamcorder_commit_camera_tilt(MMHandleType handle, int attr_idx, const mmf_value_t *value)
+{
+	_MMCamcorderSubContext *sc = NULL;
+	int current_state = MM_CAMCORDER_STATE_NONE;
+
+	GstCameraControl *CameraControl = NULL;
+	GstCameraControlChannel *CameraControlChannel = NULL;
+	const GList *controls = NULL;
+	const GList *item = NULL;
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	mmf_return_val_if_fail(sc, TRUE);
+
+	_mmcam_dbg_log("tilt : %d", value->value.i_val);
+
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_PREPARE ||
+	    current_state == MM_CAMCORDER_STATE_CAPTURING) {
+		_mmcam_dbg_err("invalid state[%d]", current_state);
+		return FALSE;
+	}
+
+	if (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst) {
+		CameraControl = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		controls = gst_camera_control_list_channels(CameraControl);
+		if (controls != NULL) {
+			for (item = controls ; item && item->data ; item = item->next) {
+				CameraControlChannel = item->data;
+				_mmcam_dbg_log("CameraControlChannel->label %s", CameraControlChannel->label);
+				if (!strcmp(CameraControlChannel->label, "tilt")) {
+					if (gst_camera_control_set_value(CameraControl, CameraControlChannel, value->value.i_val)) {
+						_mmcam_dbg_warn("set tilt %d done", value->value.i_val);
+						return TRUE;
+					} else {
+						_mmcam_dbg_err("failed to set tilt %d", value->value.i_val);
+						return FALSE;
+					}
+				}
+			}
+
+			if (item == NULL) {
+				_mmcam_dbg_warn("failed to find tilt control channel");
+			}
+		}
 	}
 
 	return FALSE;
