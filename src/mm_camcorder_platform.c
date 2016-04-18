@@ -301,6 +301,24 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 	},
 	{
 		CONFIGURE_TYPE_CTRL,
+		CONFIGURE_CATEGORY_CTRL_CAMERA,
+		MM_CAM_CAMERA_PAN,
+		MM_CAMCORDER_ATTR_NONE,
+		"PanRange",
+		MM_CAMCONVERT_TYPE_INT_RANGE,
+		NULL,
+	},
+	{
+		CONFIGURE_TYPE_CTRL,
+		CONFIGURE_CATEGORY_CTRL_CAMERA,
+		MM_CAM_CAMERA_TILT,
+		MM_CAMCORDER_ATTR_NONE,
+		"TiltRange",
+		MM_CAMCONVERT_TYPE_INT_RANGE,
+		NULL,
+	},
+	{
+		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_STROBE,
 		MM_CAM_STROBE_CONTROL,
 		MM_CAMCORDER_ATTR_NONE,
@@ -326,7 +344,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 		MM_CAMCONVERT_TYPE_INT_ARRAY,
 		&_mmcamcorder_enum_conv_strobe_mode,
 	},
-	{
+	{/* 10 */
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_EFFECT,
 		MM_CAM_FILTER_BRIGHTNESS,
@@ -344,7 +362,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 		MM_CAMCONVERT_TYPE_INT_RANGE,
 		NULL,
 	},
-	{/* 10 */
+	{
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_EFFECT,
 		MM_CAM_FILTER_SATURATION,
@@ -416,7 +434,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 		MM_CAMCONVERT_TYPE_INT_ARRAY,
 		&_mmcamcorder_enum_conv_rotation_ctrl,
 	},
-	{
+	{/* 20 */
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_PHOTOGRAPH,
 		MM_CAM_CAMERA_DIGITAL_ZOOM,
@@ -434,7 +452,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 		MM_CAMCONVERT_TYPE_INT_RANGE,
 		NULL,
 	},
-	{/* 20 */
+	{
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_PHOTOGRAPH,
 		MM_CAM_CAMERA_FOCUS_MODE,
@@ -506,7 +524,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 		MM_CAMCONVERT_TYPE_INT_ARRAY,
 		&_mmcamcorder_enum_conv_prgrm,
 	},
-	{
+	{/* 30 */
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_PHOTOGRAPH,
 		MM_CAM_CAMERA_ANTI_HANDSHAKE,
@@ -524,7 +542,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 		MM_CAMCONVERT_TYPE_INT_ARRAY,
 		NULL,
 	},
-	{/* 30 */
+	{
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_CAPTURE,
 		MM_CAM_IMAGE_ENCODER_QUALITY,
@@ -596,7 +614,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 		MM_CAMCONVERT_TYPE_INT_ARRAY,
 		NULL,
 	},
-	{
+	{/* 40 */
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_CAMERA,
 		MM_CAM_RECOMMEND_CAMERA_WIDTH,
@@ -614,7 +632,7 @@ static _MMCamcorderInfoConverting	g_caminfo_convert[CAMINFO_CONVERT_NUM] = {
 		MM_CAMCONVERT_TYPE_INT_ARRAY,
 		&_mmcamcorder_enum_conv_video_stabilization,
 	},
-	{/* 40 */
+	{
 		CONFIGURE_TYPE_CTRL,
 		CONFIGURE_CATEGORY_CTRL_CAMERA,
 		MM_CAM_VIDEO_WIDTH,
