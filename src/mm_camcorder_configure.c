@@ -744,28 +744,28 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 
 	/* [Camera] matching table */
 	static conf_info_table conf_ctrl_camera_table[] = {
-		{ "InputIndex",        CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "DeviceName",        CONFIGURE_VALUE_STRING,         {NULL} },
-		{ "PreviewResolution", CONFIGURE_VALUE_INT_PAIR_ARRAY, {NULL} },
-		{ "CaptureResolution", CONFIGURE_VALUE_INT_PAIR_ARRAY, {NULL} },
-		{ "VideoResolution",   CONFIGURE_VALUE_INT_PAIR_ARRAY, {NULL} },
-		{ "FPS0",              CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "FPS1",              CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "FPS2",              CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "FPS3",              CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "FPS4",              CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "FPS5",              CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "FPS6",              CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "FPS7",              CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "FPS8",              CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "FPS9",              CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "PictureFormat",     CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
-		{ "Overlay",           CONFIGURE_VALUE_INT_RANGE,      {NULL} },
+		{ "InputIndex",           CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "DeviceName",           CONFIGURE_VALUE_STRING,         {NULL} },
+		{ "PreviewResolution",    CONFIGURE_VALUE_INT_PAIR_ARRAY, {NULL} },
+		{ "CaptureResolution",    CONFIGURE_VALUE_INT_PAIR_ARRAY, {NULL} },
+		{ "VideoResolution",      CONFIGURE_VALUE_INT_PAIR_ARRAY, {NULL} },
+		{ "FPS0",                 CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "FPS1",                 CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "FPS2",                 CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "FPS3",                 CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "FPS4",                 CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "FPS5",                 CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "FPS6",                 CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "FPS7",                 CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "FPS8",                 CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "FPS9",                 CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "PictureFormat",        CONFIGURE_VALUE_INT_ARRAY,      {NULL} },
+		{ "Overlay",              CONFIGURE_VALUE_INT_RANGE,      {NULL} },
 		{ "RecommendDisplayRotation", CONFIGURE_VALUE_INT,     {.value_int = 3}    },
 		{ "RecommendPreviewFormatCapture", CONFIGURE_VALUE_INT, {.value_int = MM_PIXEL_FORMAT_YUYV} },
 		{ "RecommendPreviewFormatRecord",  CONFIGURE_VALUE_INT, {.value_int = MM_PIXEL_FORMAT_NV12} },
 		{ "RecommendPreviewResolution", CONFIGURE_VALUE_INT_PAIR_ARRAY, {NULL} },
-		{ "FacingDirection", CONFIGURE_VALUE_INT, {.value_int = MM_CAMCORDER_CAMERA_FACING_DIRECTION_REAR} },
+		{ "FacingDirection",      CONFIGURE_VALUE_INT, {.value_int = MM_CAMCORDER_CAMERA_FACING_DIRECTION_REAR} },
 	};
 
 	/* [Strobe] matching table */
@@ -808,6 +808,10 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		{ "VideoStabilization",   CONFIGURE_VALUE_INT_ARRAY, {NULL} },
 		{ "FaceZoomMode",         CONFIGURE_VALUE_INT_ARRAY, {NULL} },
 		{ "FaceZoomLevel",        CONFIGURE_VALUE_INT_RANGE, {NULL} },
+		{ "PanMecha",             CONFIGURE_VALUE_INT_RANGE, {NULL} },
+		{ "PanElec",              CONFIGURE_VALUE_INT_RANGE, {NULL} },
+		{ "TiltMecha",            CONFIGURE_VALUE_INT_RANGE, {NULL} },
+		{ "TiltElec",             CONFIGURE_VALUE_INT_RANGE, {NULL} },
 	};
 
 	/* [Capture] matching table */
@@ -822,10 +826,10 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 
 	/* [Detect] matching table */
 	static conf_info_table conf_ctrl_detect_table[] = {
-		{ "DetectMode",         CONFIGURE_VALUE_INT_ARRAY, {NULL} },
-		{ "DetectNumber",       CONFIGURE_VALUE_INT_RANGE, {NULL} },
-		{ "DetectSelect",       CONFIGURE_VALUE_INT_RANGE, {NULL} },
-		{ "DetectSelectNumber", CONFIGURE_VALUE_INT_RANGE, {NULL} },
+		{ "DetectMode",           CONFIGURE_VALUE_INT_ARRAY, {NULL} },
+		{ "DetectNumber",         CONFIGURE_VALUE_INT_RANGE, {NULL} },
+		{ "DetectSelect",         CONFIGURE_VALUE_INT_RANGE, {NULL} },
+		{ "DetectSelectNumber",   CONFIGURE_VALUE_INT_RANGE, {NULL} },
 	};
 
 	if (hcamcorder == NULL) {
