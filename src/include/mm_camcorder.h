@@ -1253,6 +1253,16 @@ extern "C" {
 #define MMCAM_ENCODED_PREVIEW_GOP_INTERVAL      "encoded-preview-gop-interval"
 
 /**
+ * The degree to move the camera horizontally
+ */
+#define MMCAM_CAMERA_PAN                        "camera-pan"
+
+/**
+ * The degree to move the camera vertically
+ */
+#define MMCAM_CAMERA_TILT                       "camera-tilt"
+
+/**
  * Stream type and index for sound route
  */
 #define MMCAM_SOUND_STREAM_TYPE                 "sound-stream-type"
