@@ -1253,6 +1253,30 @@ extern "C" {
 #define MMCAM_ENCODED_PREVIEW_GOP_INTERVAL      "encoded-preview-gop-interval"
 
 /**
+ * The distance to move the camera horizontally and physically
+ */
+#define MMCAM_CAMERA_PAN_MECHA                  "camera-pan-mecha"
+
+/**
+ * The distance to move the camera horizontally
+ */
+#define MMCAM_CAMERA_PAN_ELEC                   "camera-pan-elec"
+
+/**
+ * The distance to move the camera vertically and physically
+ */
+#define MMCAM_CAMERA_TILT_MECHA                 "camera-tilt-mecha"
+
+/**
+ * The distance to move the camera vertically
+ */
+#define MMCAM_CAMERA_TILT_ELEC                  "camera-tilt-elec"
+
+/**
+ * The type of PTZ(Pan Tilt Zoom). Mechanical or Electonic PTZ.
+ */
+#define MMCAM_CAMERA_PTZ_TYPE                   "camera-ptz-type"
+/**
  * Stream type and index for sound route
  */
 #define MMCAM_SOUND_STREAM_TYPE                 "sound-stream-type"

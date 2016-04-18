@@ -156,7 +156,7 @@ typedef enum
 	MM_CAM_CAMERA_FLIP,
 	MM_CAM_CAMERA_HDR_CAPTURE,
 	MM_CAM_DISPLAY_MODE,
-	MM_CAM_AUDIO_DISABLE,			/* 100 */
+	MM_CAM_AUDIO_DISABLE,				/* 100 */
 	MM_CAM_RECOMMEND_CAMERA_WIDTH,
 	MM_CAM_RECOMMEND_CAMERA_HEIGHT,
 	MM_CAM_CAPTURED_EXIF_RAW_DATA,
@@ -166,17 +166,22 @@ typedef enum
 	MM_CAM_DISPLAY_FLIP,
 	MM_CAM_CAMERA_VIDEO_STABILIZATION,
 	MM_CAM_TAG_VIDEO_ORIENTATION,
-	MM_CAM_VIDEO_WIDTH,			/* 110 */
+	MM_CAM_CAMERA_PAN_MECHA,			/* 110 */
+	MM_CAM_CAMERA_PAN_ELEC,
+	MM_CAM_CAMERA_TILT_MECHA,
+	MM_CAM_CAMERA_TILT_ELEC,
+	MM_CAM_CAMERA_PTZ_TYPE,
+	MM_CAM_VIDEO_WIDTH,
 	MM_CAM_VIDEO_HEIGHT,
 	MM_CAM_SUPPORT_ZSL_CAPTURE,
 	MM_CAM_SUPPORT_ZERO_COPY_FORMAT,
 	MM_CAM_SUPPORT_MEDIA_PACKET_PREVIEW_CB,
-	MM_CAM_ENCODED_PREVIEW_BITRATE,
+	MM_CAM_ENCODED_PREVIEW_BITRATE,		/* 120 */
 	MM_CAM_ENCODED_PREVIEW_GOP_INTERVAL,
 	MM_CAM_RECORDER_TAG_ENABLE,
 	MM_CAM_DISPLAY_SOCKET_PATH,
 	MM_CAM_PID_FOR_SOUND_FOCUS,
-	MM_CAM_ROOT_DIRECTORY,		/* 120 */
+	MM_CAM_ROOT_DIRECTORY,
 	MM_CAM_SOUND_STREAM_TYPE,
 	MM_CAM_SOUND_STREAM_INDEX,
 	MM_CAM_ATTRIBUTE_NUM
@@ -344,6 +349,9 @@ bool _mmcamcorder_commit_camera_width(MMHandleType handle, int attr_idx, const m
 bool _mmcamcorder_commit_camera_height(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_video_size(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_zoom(MMHandleType handle, int attr_idx, const mmf_value_t *value);
+bool _mmcamcorder_commit_camera_ptz_type(MMHandleType handle, int attr_idx, const mmf_value_t *value);
+bool _mmcamcorder_commit_camera_pan(MMHandleType handle, int attr_idx, const mmf_value_t *value);
+bool _mmcamcorder_commit_camera_tilt(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_focus_mode(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_af_scan_range(MMHandleType handle, int attr_idx, const mmf_value_t *value);
 bool _mmcamcorder_commit_camera_af_touch_area(MMHandleType handle, int attr_idx, const mmf_value_t *value);
