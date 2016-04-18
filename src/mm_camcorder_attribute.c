@@ -1359,6 +1359,39 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 		},
 		//110
 		{
+			MM_CAM_CAMERA_PAN,
+			"camera-pan",
+			MMF_VALUE_TYPE_INT,
+			MM_ATTRS_FLAG_RW,
+			{(void*)0},
+			MM_ATTRS_VALID_TYPE_INT_RANGE,
+			{.int_min = 0},
+			{.int_max = -1},
+			_mmcamcorder_commit_camera_pan,
+		},
+		{
+			MM_CAM_CAMERA_TILT,
+			"camera-tilt",
+			MMF_VALUE_TYPE_INT,
+			MM_ATTRS_FLAG_RW,
+			{(void*)0},
+			MM_ATTRS_VALID_TYPE_INT_RANGE,
+			{.int_min = 0},
+			{.int_max = -1},
+			_mmcamcorder_commit_camera_tilt,
+		},
+		{
+			MM_CAM_CAMERA_PTZ_TYPE,
+			"camera-ptz-type",
+			MMF_VALUE_TYPE_INT,
+			MM_ATTRS_FLAG_RW,
+			{(void*)0},
+			MM_ATTRS_VALID_TYPE_INT_ARRAY,
+			{0},
+			{0},
+			_mmcamcorder_commit_camera_ptz_type,
+		},
+		{
 			MM_CAM_VIDEO_WIDTH,
 			"video-width",
 			MMF_VALUE_TYPE_INT,
@@ -1435,6 +1468,7 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			{.int_max = _MMCAMCORDER_MAX_INT},
 			_mmcamcorder_commit_encoded_preview_gop_interval,
 		},
+		//120
 		{
 			MM_CAM_RECORDER_TAG_ENABLE,
 			"recorder-tag-enable",
@@ -1468,7 +1502,6 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			{.int_max = _MMCAMCORDER_MAX_INT},
 			_mmcamcorder_commit_pid_for_sound_focus,
 		},
-		//120
 		{
 			MM_CAM_ROOT_DIRECTORY,
 			"root-directory",
@@ -2358,6 +2391,195 @@ bool _mmcamcorder_commit_camera_zoom (MMHandleType handle, int attr_idx, const m
 		}
 	} else {
 		_mmcam_dbg_log("pointer of video src is null");
+	}
+
+	return FALSE;
+}
+
+
+bool _mmcamcorder_commit_camera_ptz_type(MMHandleType handle, int attr_idx, const mmf_value_t *value)
+{
+	_MMCamcorderSubContext *sc = NULL;
+	int current_state = MM_CAMCORDER_STATE_NONE;
+
+	GstCameraControl *CameraControl = NULL;
+	GstCameraControlChannel *CameraControlChannel = NULL;
+	const GList *controls = NULL;
+	const GList *item = NULL;
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	mmf_return_val_if_fail(sc, TRUE);
+
+	_mmcam_dbg_log("ptz type : %d", value->value.i_val);
+
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_PREPARE ||
+	    current_state == MM_CAMCORDER_STATE_CAPTURING) {
+		_mmcam_dbg_err("invalid state[%d]", current_state);
+		return FALSE;
+	}
+
+	if (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst) {
+		if (!GST_IS_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst)) {
+			_mmcam_dbg_log("Can't cast Video source into camera control.");
+			return FALSE;
+		}
+
+		CameraControl = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (CameraControl == NULL) {
+			_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+			return FALSE;
+		}
+
+		controls = gst_camera_control_list_channels(CameraControl);
+		if (controls == NULL) {
+			_mmcam_dbg_err("gst_camera_control_list_channels failed");
+			return FALSE;
+		}
+
+		for (item = controls ; item && item->data ; item = item->next) {
+			CameraControlChannel = item->data;
+			_mmcam_dbg_log("CameraControlChannel->label %s", CameraControlChannel->label);
+			if (!strcmp(CameraControlChannel->label, "ptz")) {
+				if (gst_camera_control_set_value(CameraControl, CameraControlChannel, value->value.i_val)) {
+					_mmcam_dbg_warn("set ptz type %d done", value->value.i_val);
+					return TRUE;
+				} else {
+					_mmcam_dbg_err("failed to set ptz type %d", value->value.i_val);
+					return FALSE;
+				}
+			}
+		}
+
+		if (item == NULL) {
+			_mmcam_dbg_warn("failed to find tilt control channel");
+		}
+	}
+
+	return FALSE;
+}
+
+
+bool _mmcamcorder_commit_camera_pan(MMHandleType handle, int attr_idx, const mmf_value_t *value)
+{
+	_MMCamcorderSubContext *sc = NULL;
+	int current_state = MM_CAMCORDER_STATE_NONE;
+
+	GstCameraControl *CameraControl = NULL;
+	GstCameraControlChannel *CameraControlChannel = NULL;
+	const GList *controls = NULL;
+	const GList *item = NULL;
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	mmf_return_val_if_fail(sc, TRUE);
+
+	_mmcam_dbg_log("pan : %d", value->value.i_val);
+
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_PREPARE ||
+	    current_state == MM_CAMCORDER_STATE_CAPTURING) {
+		_mmcam_dbg_err("invalid state[%d]", current_state);
+		return FALSE;
+	}
+
+	if (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst) {
+		if (!GST_IS_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst)) {
+			_mmcam_dbg_log("Can't cast Video source into camera control.");
+			return FALSE;
+		}
+
+		CameraControl = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (CameraControl == NULL) {
+			_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+			return FALSE;
+		}
+
+		controls = gst_camera_control_list_channels(CameraControl);
+		if (controls == NULL) {
+			_mmcam_dbg_err("gst_camera_control_list_channels failed");
+			return FALSE;
+		}
+
+		for (item = controls ; item && item->data ; item = item->next) {
+			CameraControlChannel = item->data;
+			_mmcam_dbg_log("CameraControlChannel->label %s", CameraControlChannel->label);
+			if (!strcmp(CameraControlChannel->label, "pan")) {
+				if (gst_camera_control_set_value(CameraControl, CameraControlChannel, value->value.i_val)) {
+					_mmcam_dbg_warn("set pan %d done", value->value.i_val);
+					return TRUE;
+				} else {
+					_mmcam_dbg_err("failed to set pan %d", value->value.i_val);
+					return FALSE;
+				}
+			}
+		}
+
+		if (item == NULL) {
+			_mmcam_dbg_warn("failed to find pan control channel");
+		}
+	}
+
+	return FALSE;
+}
+
+
+bool _mmcamcorder_commit_camera_tilt(MMHandleType handle, int attr_idx, const mmf_value_t *value)
+{
+	_MMCamcorderSubContext *sc = NULL;
+	int current_state = MM_CAMCORDER_STATE_NONE;
+
+	GstCameraControl *CameraControl = NULL;
+	GstCameraControlChannel *CameraControlChannel = NULL;
+	const GList *controls = NULL;
+	const GList *item = NULL;
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	mmf_return_val_if_fail(sc, TRUE);
+
+	_mmcam_dbg_log("tilt : %d", value->value.i_val);
+
+	current_state = _mmcamcorder_get_state(handle);
+	if (current_state < MM_CAMCORDER_STATE_PREPARE ||
+	    current_state == MM_CAMCORDER_STATE_CAPTURING) {
+		_mmcam_dbg_err("invalid state[%d]", current_state);
+		return FALSE;
+	}
+
+	if (sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst) {
+		if (!GST_IS_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst)) {
+			_mmcam_dbg_log("Can't cast Video source into camera control.");
+			return FALSE;
+		}
+
+		CameraControl = GST_CAMERA_CONTROL(sc->element[_MMCAMCORDER_VIDEOSRC_SRC].gst);
+		if (CameraControl == NULL) {
+			_mmcam_dbg_err("cast CAMERA_CONTROL failed");
+			return FALSE;
+		}
+
+		controls = gst_camera_control_list_channels(CameraControl);
+		if (controls == NULL) {
+			_mmcam_dbg_err("gst_camera_control_list_channels failed");
+			return FALSE;
+		}
+
+		for (item = controls ; item && item->data ; item = item->next) {
+			CameraControlChannel = item->data;
+			_mmcam_dbg_log("CameraControlChannel->label %s", CameraControlChannel->label);
+			if (!strcmp(CameraControlChannel->label, "tilt")) {
+				if (gst_camera_control_set_value(CameraControl, CameraControlChannel, value->value.i_val)) {
+					_mmcam_dbg_warn("set tilt %d done", value->value.i_val);
+					return TRUE;
+				} else {
+					_mmcam_dbg_err("failed to set tilt %d", value->value.i_val);
+					return FALSE;
+				}
+			}
+		}
+
+		if (item == NULL) {
+			_mmcam_dbg_warn("failed to find tilt control channel");
+		}
 	}
 
 	return FALSE;
@@ -3481,7 +3703,7 @@ bool _mmcamcorder_commit_display_geometry_method (MMHandleType handle, int attr_
 	if (!strcmp(videosink_name, "xvimagesink") || !strcmp(videosink_name, "waylandsink") ||
 	    !strcmp(videosink_name, "evaspixmapsink") || !strcmp(videosink_name, "evasimagesink")) {
 		method = value->value.i_val;
-		MMCAMCORDER_G_OBJECT_SET( sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "display-geometry-method", method);
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "display-geometry-method", method);
 		return TRUE;
 	} else {
 		_mmcam_dbg_warn("videosink[%s] does not support geometry method.", videosink_name);
@@ -3494,7 +3716,9 @@ bool _mmcamcorder_commit_display_rect(MMHandleType handle, int attr_idx, const m
 {
 	int current_state = MM_CAMCORDER_STATE_NONE;
 	int method = 0;
+	int ret = MM_ERROR_NONE;
 	const char *videosink_name = NULL;
+	int display_surface_type = MM_DISPLAY_SURFACE_OVERLAY;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderSubContext *sc = NULL;
@@ -3584,14 +3808,36 @@ bool _mmcamcorder_commit_display_rect(MMHandleType handle, int attr_idx, const m
 		}
 
 		if (!(flags & MM_ATTRS_FLAG_MODIFIED)) {
-			_mmcam_dbg_log("RECT(x,y,w,h) = (%d,%d,%d,%d)",
-			               rect_x, rect_y, rect_width, rect_height);
-			g_object_set(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst,
-			             "dst-roi-x", rect_x,
-			             "dst-roi-y", rect_y,
-			             "dst-roi-w", rect_width,
-			             "dst-roi-h", rect_height,
-			             NULL);
+			_mmcam_dbg_log("RECT(x,y,w,h) = (%d,%d,%d,%d)", rect_x, rect_y, rect_width, rect_height);
+
+#ifdef HAVE_WAYLAND
+			ret = mm_camcorder_get_attributes(handle, NULL,
+							MMCAM_DISPLAY_SURFACE, &display_surface_type,
+							NULL);
+
+			if(ret != MM_ERROR_NONE) {
+				_mmcam_dbg_err("FAILED : coult not get display surface type.");
+				return FALSE;
+			}
+
+			if (display_surface_type == MM_DISPLAY_SURFACE_OVERLAY) {
+				ret = gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst),
+					rect_x, rect_y, rect_width, rect_height);
+				if (!ret) {
+					_mmcam_dbg_err("FAILED : could not set render rectangle.");
+					return FALSE;
+				}
+			} else {
+#endif /* HAVE_WAYLAND */
+				g_object_set(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst,
+							"dst-roi-x", rect_x,
+							"dst-roi-y", rect_y,
+							"dst-roi-w", rect_width,
+							"dst-roi-h", rect_height,
+							NULL);
+#ifdef HAVE_WAYLAND
+			}
+#endif /* HAVE_WAYLAND */
 		}
 
 		return TRUE;
