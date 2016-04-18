@@ -145,7 +145,7 @@ extern "C" {
 #define _MMCAMCORDER_SENSOR_ENUM_NONE 	-255
 
 /* camera information related */
-#define CAMINFO_CONVERT_NUM		40
+#define CAMINFO_CONVERT_NUM		45
 
 
 /*=======================================================================================
