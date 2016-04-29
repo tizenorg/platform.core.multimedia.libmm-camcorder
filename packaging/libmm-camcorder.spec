@@ -31,6 +31,7 @@ BuildRequires:  pkgconfig(murphy-resource)
 BuildRequires:  pkgconfig(murphy-glib)
 BuildRequires:  pkgconfig(ttrace)
 BuildRequires:  pkgconfig(libtzplatform-config)
+BuildRequires:  pkgconfig(dpm)
 
 %description
 Camera and recorder function supported library.
