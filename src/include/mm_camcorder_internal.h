@@ -39,6 +39,7 @@
 #include <gst/video/video-format.h>
 #include <ttrace.h>
 #include <errno.h>
+#include <dpm/restriction.h> /* device policy manager */
 
 #include "mm_camcorder.h"
 #include "mm_debug.h"
@@ -543,6 +544,7 @@ typedef enum {
 	_MMCAMCORDER_STATE_CHANGE_NORMAL = 0,
 	_MMCAMCORDER_STATE_CHANGE_BY_ASM,
 	_MMCAMCORDER_STATE_CHANGE_BY_RM,
+	_MMCAMCORDER_STATE_CHANGE_BY_DPM
 } _MMCamcorderStateChange;
 
 
@@ -717,6 +719,12 @@ typedef struct mmf_camcorder {
 	GDBusConnection *gdbus_conn;                            /**< gdbus connection */
 	_MMCamcorderGDbusCbInfo gdbus_info_sound;               /**< Informations for the gbus cb of sound play */
 	_MMCamcorderGDbusCbInfo gdbus_info_solo_sound;          /**< Informations for the gbus cb of solo sound play */
+
+	/* DPM(device policy manager) */
+	dpm_context_h dpm_context;                              /**< DPM context handle */
+	dpm_restriction_policy_h dpm_policy;                    /**< DPM restriction policy handle */
+	int dpm_camera_cb_id;                                   /**< DPM camera policy changed callback id */
+	int dpm_mic_cb_id;                                      /**< DPM microphone policy changed callback id */
 
 	int reserved[4];                                        /**< reserved */
 } mmf_camcorder_t;
@@ -1196,6 +1204,9 @@ void _mmcamcorder_sound_focus_cb(int id, mm_sound_focus_type_e focus_type,
                                  const char *additional_info, void *user_data);
 void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_sound_focus_state_e focus_state,
                                        const char *reason_for_change, const char *additional_info, void *user_data);
+
+/* device policy manager */
+void _mmcamcorder_dpm_camera_policy_changed_cb(const char *name, const char *value, void *user_data);
 
 /* For hand over the server's caps information to client */
 int _mmcamcorder_get_video_caps(MMHandleType handle, char **caps);
