@@ -5,6 +5,7 @@ mm_camcorder_testsuite_SOURCES = mm_camcorder_testsuite.c
 mm_camcorder_testsuite_CFLAGS = -I$(srcdir)/../src/include \
 			     $(GLIB_CFLAGS)\
 			     $(GST_CFLAGS)\
+			     $(DPM_CFLAGS)\
 			     $(MM_COMMON_CFLAGS)\
 			     $(MM_SOUND_CFLAGS)
 
