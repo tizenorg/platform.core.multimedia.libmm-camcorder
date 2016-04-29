@@ -2,7 +2,7 @@
 
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.10.42
+Version:    0.10.44
 Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
@@ -31,6 +31,7 @@ BuildRequires:  pkgconfig(murphy-resource)
 BuildRequires:  pkgconfig(murphy-glib)
 BuildRequires:  pkgconfig(ttrace)
 BuildRequires:  pkgconfig(libtzplatform-config)
+BuildRequires:  pkgconfig(dpm)
 
 %description
 Camera and recorder function supported library.

@@ -114,6 +114,10 @@ PKG_CHECK_MODULES(TTRACE, ttrace)
 AC_SUBST(TTRACE_CFLAGS)
 AC_SUBST(TTRACE_LIBS)
 
+PKG_CHECK_MODULES(DPM, dpm)
+AC_SUBST(DPM_CFLAGS)
+AC_SUBST(DPM_LIBS)
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([fcntl.h memory.h stdlib.h string.h sys/time.h unistd.h])
