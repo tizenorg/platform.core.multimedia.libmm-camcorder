@@ -46,7 +46,7 @@
 |    LOCAL FUNCTION PROTOTYPES:								|
 ---------------------------------------------------------------------------------------*/
 /* STATIC INTERNAL FUNCTION */
-static void __mmcamcorder_video_stream_cb(GstElement *element, GstSample *sample, gpointer u_data);
+static gboolean __mmcamcorder_video_stream_cb(GstElement *element, GstSample *sample, gpointer u_data);
 static GstPadProbeReturn __mmcamcorder_audio_dataprobe_check(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
 static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
 static GstPadProbeReturn __mmcamcorder_audioque_dataprobe(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
@@ -62,18 +62,18 @@ static GstPadProbeReturn __mmcamcorder_eventprobe_monitor(GstPad *pad, GstPadPro
 /*---------------------------------------------------------------------------------------
 |    GLOBAL FUNCTION DEFINITIONS:							|
 ---------------------------------------------------------------------------------------*/
-static void __mmcamcorder_video_stream_cb(GstElement *element, GstSample *sample, gpointer u_data)
+static gboolean __mmcamcorder_video_stream_cb(GstElement *element, GstSample *sample, gpointer u_data)
 {
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
 	_MMCamcorderSubContext *sc = NULL;
 
 	GstBuffer *buffer = gst_sample_get_buffer(sample);
-	mmf_return_if_fail(buffer);
-	mmf_return_if_fail(gst_buffer_n_memory(buffer));
-	mmf_return_if_fail(hcamcorder);
+	mmf_return_val_if_fail(buffer, FALSE);
+	mmf_return_val_if_fail(gst_buffer_n_memory(buffer), FALSE);
+	mmf_return_val_if_fail(hcamcorder, FALSE);
 
 	sc = MMF_CAMCORDER_SUBCONTEXT(hcamcorder);
-	mmf_return_if_fail(sc);
+	mmf_return_val_if_fail(sc, FALSE);
 
 	/*
 	_mmcam_dbg_log("ENTER - push_encoding_buffer %d, buffer %p, MALLOCDATA %p, size %d",
@@ -123,7 +123,7 @@ static void __mmcamcorder_video_stream_cb(GstElement *element, GstSample *sample
 		buffer = NULL;
 	}
 
-	return;
+	return TRUE;
 }
 
 
