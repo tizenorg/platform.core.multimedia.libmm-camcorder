@@ -55,6 +55,9 @@
 #define __MMCAMCORDER_SOUND_WAIT_TIMEOUT        3
 #define __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN   64
 
+#define DPM_ALLOWED                             1
+#define DPM_DISALLOWED                          0
+
 
 /*---------------------------------------------------------------------------------------
 |    LOCAL FUNCTION PROTOTYPES:								|
@@ -371,6 +374,29 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			_mmcam_dbg_log( "Disable Configure Control system." );
 			hcamcorder->conf_ctrl = NULL;
 		}
+
+		/* get DPM context for camera restriction */
+		hcamcorder->dpm_context = dpm_context_create();
+		if (hcamcorder->dpm_context) {
+			hcamcorder->dpm_policy = dpm_context_acquire_restriction_policy(hcamcorder->dpm_context);
+			if (hcamcorder->dpm_policy == NULL) {
+				_mmcam_dbg_err("dpm_context_acquire_restriction_policy failed");
+				dpm_context_destroy(hcamcorder->dpm_context);
+				hcamcorder->dpm_context = NULL;
+			}
+
+			/* add DPM camera policy changed callback */
+			if (dpm_context_add_policy_changed_cb(hcamcorder->dpm_context,
+				"camera", _mmcamcorder_dpm_camera_policy_changed_cb,
+				(void *)hcamcorder, &hcamcorder->dpm_camera_cb_id) != DPM_ERROR_NONE) {
+				_mmcam_dbg_err("add DPM changed cb failed, keep going...");
+				hcamcorder->dpm_camera_cb_id = 0;
+			}
+
+			_mmcam_dbg_log("DPM camera changed cb id %d", hcamcorder->dpm_camera_cb_id);
+		}
+
+		_mmcam_dbg_log("DPM context %p, policy %p", hcamcorder->dpm_context, hcamcorder->dpm_policy);
 	} else {
 		_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_main,
 			                            CONFIGURE_CATEGORY_MAIN_VIDEO_INPUT,
@@ -470,6 +496,9 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	return MM_ERROR_NONE;
 
 _ERR_DEFAULT_VALUE_INIT:
+	/* de-initialize resource manager */
+	_mmcamcorder_resource_manager_deinit(&hcamcorder->resource_manager);
+
 	/* unregister sound focus */
 	if (hcamcorder->sound_focus_register && hcamcorder->sound_focus_id > 0) {
 		if (MM_ERROR_NONE != mm_sound_unregister_focus(hcamcorder->sound_focus_id)) {
@@ -480,6 +509,28 @@ _ERR_DEFAULT_VALUE_INIT:
 	} else {
 		_mmcam_dbg_warn("no need to unregister sound focus[%d, id %d]",
 		               hcamcorder->sound_focus_register, hcamcorder->sound_focus_id);
+	}
+
+	/* release DPM related handle */
+	if (hcamcorder->dpm_context) {
+		_mmcam_dbg_log("release DPM context %p, camera changed cb id %d",
+			hcamcorder->dpm_context, hcamcorder->dpm_camera_cb_id);
+
+		/* remove camera policy changed callback */
+		if (hcamcorder->dpm_camera_cb_id > 0) {
+			dpm_context_remove_policy_changed_cb(hcamcorder->dpm_context, hcamcorder->dpm_camera_cb_id);
+			hcamcorder->dpm_camera_cb_id = 0;
+		} else {
+			_mmcam_dbg_warn("invalid dpm camera cb id %d", hcamcorder->dpm_camera_cb_id);
+		}
+
+		if (hcamcorder->dpm_policy) {
+			dpm_context_release_restriction_policy(hcamcorder->dpm_context, hcamcorder->dpm_policy);
+			hcamcorder->dpm_policy = NULL;
+		}
+
+		dpm_context_destroy(hcamcorder->dpm_context);
+		hcamcorder->dpm_context = NULL;
 	}
 
 	/* Remove attributes */
@@ -652,6 +703,28 @@ int _mmcamcorder_destroy(MMHandleType handle)
 	if (hcamcorder->software_version) {
 		free(hcamcorder->software_version);
 		hcamcorder->software_version = NULL;
+	}
+
+	/* release DPM related handle */
+	if (hcamcorder->dpm_context) {
+		_mmcam_dbg_log("release DPM context %p, camera changed cb id %d",
+			hcamcorder->dpm_context, hcamcorder->dpm_camera_cb_id);
+
+		/* remove camera policy changed callback */
+		if (hcamcorder->dpm_camera_cb_id > 0) {
+			dpm_context_remove_policy_changed_cb(hcamcorder->dpm_context, hcamcorder->dpm_camera_cb_id);
+			hcamcorder->dpm_camera_cb_id = 0;
+		} else {
+			_mmcam_dbg_warn("invalid dpm camera cb id %d", hcamcorder->dpm_camera_cb_id);
+		}
+
+		if (hcamcorder->dpm_policy) {
+			dpm_context_release_restriction_policy(hcamcorder->dpm_context, hcamcorder->dpm_policy);
+			hcamcorder->dpm_policy = NULL;
+		}
+
+		dpm_context_destroy(hcamcorder->dpm_context);
+		hcamcorder->dpm_context = NULL;
 	}
 
 	/* join task thread */
@@ -897,8 +970,23 @@ int _mmcamcorder_realize(MMHandleType handle)
 	_mmcam_dbg_log("Support sensor encoded capture : %d", hcamcorder->sub_context->SensorEncodedCapture);
 
 	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
+		int dpm_camera_state = DPM_ALLOWED;
+
+		/* check camera policy from DPM */
+		if (dpm_restriction_get_camera_state(hcamcorder->dpm_policy, &dpm_camera_state) == DPM_ERROR_NONE) {
+			_mmcam_dbg_log("DPM camera state %d", dpm_camera_state);
+			if (dpm_camera_state == DPM_DISALLOWED) {
+				_mmcam_dbg_err("CAMERA DISALLOWED by DPM");
+				ret = MM_ERROR_COMMON_INVALID_PERMISSION;
+				goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+			}
+		} else {
+			_mmcam_dbg_err("get DPM camera state failed, keep going...");
+		}
+
 		/* prepare resource manager for camera */
-		if((_mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, RESOURCE_TYPE_CAMERA))) {
+		ret = _mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, RESOURCE_TYPE_CAMERA);
+		if (ret != MM_ERROR_NONE) {
 			_mmcam_dbg_err("could not prepare for camera resource");
 			ret = MM_ERROR_CAMCORDER_INTERNAL;
 			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
@@ -906,17 +994,20 @@ int _mmcamcorder_realize(MMHandleType handle)
 
 		/* prepare resource manager for "video_overlay only if display surface is X" */
 		mm_camcorder_get_attributes(handle, NULL,
-                                            MMCAM_DISPLAY_SURFACE, &display_surface_type,
-                                            NULL);
-		if(display_surface_type == MM_DISPLAY_SURFACE_OVERLAY) {
-			if((_mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, RESOURCE_TYPE_VIDEO_OVERLAY))) {
+			MMCAM_DISPLAY_SURFACE, &display_surface_type,
+			NULL);
+
+		if (display_surface_type == MM_DISPLAY_SURFACE_OVERLAY) {
+			ret = _mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, RESOURCE_TYPE_VIDEO_OVERLAY);
+			if(ret != MM_ERROR_NONE) {
 				_mmcam_dbg_err("could not prepare for video overlay resource");
 				ret = MM_ERROR_CAMCORDER_INTERNAL;
 				goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 			}
 		}
+
 		/* acquire resources */
-		if((hcamcorder->resource_manager.rset && _mmcamcorder_resource_manager_acquire(&hcamcorder->resource_manager))) {
+		if (hcamcorder->resource_manager.rset && _mmcamcorder_resource_manager_acquire(&hcamcorder->resource_manager)) {
 			_mmcam_dbg_err("could not acquire resources");
 			_mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
 			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
@@ -1047,6 +1138,7 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 	}
 
 	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
+		/* release resource */
 		ret = _mmcamcorder_resource_manager_release(&hcamcorder->resource_manager);
 		if (ret == MM_ERROR_RESOURCE_INVALID_STATE) {
 			_mmcam_dbg_warn("it could be in the middle of resource callback or there's no acquired resource");
@@ -2240,6 +2332,10 @@ void _mmcamcorder_set_state(MMHandleType handle, int state)
 			msg.id = MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_RM;
 			msg.param.state.code = MM_ERROR_NONE;
 			break;
+		case _MMCAMCORDER_STATE_CHANGE_BY_DPM:
+			msg.id = MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_SECURITY;
+			msg.param.state.code = MM_ERROR_NONE;
+			break;
 		case _MMCAMCORDER_STATE_CHANGE_NORMAL:
 		default:
 			msg.id = MM_MESSAGE_CAMCORDER_STATE_CHANGED;
@@ -2480,17 +2576,24 @@ gboolean _mmcamcorder_pipeline_cb_message(GstBus *bus, GstMessage *message, gpoi
 	}
 	case GST_MESSAGE_ERROR:
 	{
-		GError *err;
-		gchar *debug;
-		gst_message_parse_error(message, &err, &debug);
+		GError *err = NULL;
+		gchar *debug = NULL;
 
-		_mmcam_dbg_err ("GSTERR: %s", err->message);
-		_mmcam_dbg_err ("Error Debug: %s", debug);
+		gst_message_parse_error(message, &err, &debug);
 
 		__mmcamcorder_handle_gst_error((MMHandleType)hcamcorder, message, err);
 
-		g_error_free (err);
-		g_free (debug);
+		if (err) {
+			_mmcam_dbg_err("GSTERR: %s", err->message);
+			g_error_free(err);
+			err = NULL;
+		}
+
+		if (debug) {
+			_mmcam_dbg_err("Error Debug: %s", debug);
+			g_free(debug);
+			debug = NULL;
+		}
 		break;
 	}
 	case GST_MESSAGE_WARNING:
@@ -2853,20 +2956,44 @@ GstBusSyncReply _mmcamcorder_audio_pipeline_bus_sync_callback(GstBus *bus, GstMe
 		if (err->domain == GST_RESOURCE_ERROR &&
 		    GST_ELEMENT_CAST(message->src) == element) {
 			_MMCamcorderMsgItem msg;
+			int current_state = MM_CAMCORDER_STATE_NONE;
+
 			switch (err->code) {
+			case GST_RESOURCE_ERROR_FAILED:
+				current_state = _mmcamcorder_get_state((MMHandleType)hcamcorder);
+
+				_mmcam_dbg_err("DPM mic permission denied - current state %d", current_state);
+
+				if (current_state < MM_CAMCORDER_STATE_RECORDING) {
+					hcamcorder->error_occurs = TRUE;
+					hcamcorder->error_code = MM_ERROR_COMMON_INVALID_PERMISSION;
+
+					g_error_free(err);
+					gst_message_unref(message);
+					message = NULL;
+
+					return GST_BUS_DROP;
+				}
+				break;
 			case GST_RESOURCE_ERROR_OPEN_READ_WRITE:
 			case GST_RESOURCE_ERROR_OPEN_WRITE:
 				_mmcam_dbg_err("audio device [open failed]");
-				hcamcorder->error_code = MM_ERROR_COMMON_INVALID_PERMISSION;
+
 				/* post error to application */
 				hcamcorder->error_occurs = TRUE;
+				hcamcorder->error_code = MM_ERROR_COMMON_INVALID_PERMISSION;
+
 				msg.id = MM_MESSAGE_CAMCORDER_ERROR;
 				msg.param.code = hcamcorder->error_code;
-				_mmcam_dbg_err(" error : sc->error_occurs %d", hcamcorder->error_occurs);
-				g_error_free(err);
+
 				_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
+
+				_mmcam_dbg_err(" error : sc->error_occurs %d", hcamcorder->error_occurs);
+
+				g_error_free(err);
 				gst_message_unref(message);
 				message = NULL;
+
 				return GST_BUS_DROP;
 			default:
 				break;
@@ -2874,7 +3001,6 @@ GstBusSyncReply _mmcamcorder_audio_pipeline_bus_sync_callback(GstBus *bus, GstMe
 		}
 
 		g_error_free(err);
-
 	}
 
 	return GST_BUS_PASS;
@@ -2962,7 +3088,7 @@ void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_soun
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(user_data);
 	int current_state = MM_CAMCORDER_STATE_NONE;
 
-	mmf_return_if_fail((MMHandleType)hcamcorder);
+	mmf_return_if_fail(hcamcorder);
 
 	current_state = _mmcamcorder_get_state((MMHandleType)hcamcorder);
 	if (current_state <= MM_CAMCORDER_STATE_NONE ||
@@ -3019,6 +3145,43 @@ void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_soun
 	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_NORMAL;
 
 	_MMCAMCORDER_UNLOCK_ASM(hcamcorder);
+
+	return;
+}
+
+
+void _mmcamcorder_dpm_camera_policy_changed_cb(const char *name, const char *value, void *user_data)
+{
+	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(user_data);
+	int current_state = MM_CAMCORDER_STATE_NONE;
+
+	mmf_return_if_fail(hcamcorder);
+	mmf_return_if_fail(value);
+
+	current_state = _mmcamcorder_get_state((MMHandleType)hcamcorder);
+	if (current_state <= MM_CAMCORDER_STATE_NONE ||
+	    current_state >= MM_CAMCORDER_STATE_NUM) {
+		_mmcam_dbg_err("Abnormal state. Or null handle. (%p, %d)", hcamcorder, current_state);
+		return;
+	}
+
+	_mmcam_dbg_warn("camera policy [%s], current state [%d]", value, current_state);
+
+	if (!strcmp(value, "disallowed")) {
+		_MMCAMCORDER_LOCK_ASM(hcamcorder);
+
+		/* set value to inform a status is changed by DPM */
+		hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_DPM;
+
+		__mmcamcorder_force_stop(hcamcorder);
+
+		/* restore value */
+		hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_NORMAL;
+
+		_MMCAMCORDER_UNLOCK_ASM(hcamcorder);
+	}
+
+	_mmcam_dbg_warn("done");
 
 	return;
 }
@@ -3421,7 +3584,7 @@ static gboolean __mmcamcorder_handle_gst_error(MMHandleType handle, GstMessage *
 {
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderMsgItem msg;
-	gchar *msg_src_element;
+	gchar *msg_src_element = NULL;
 	_MMCamcorderSubContext *sc = NULL;
 
 	return_val_if_fail(hcamcorder, FALSE);
@@ -3476,10 +3639,12 @@ static gboolean __mmcamcorder_handle_gst_error(MMHandleType handle, GstMessage *
 	}
 #endif /* _MMCAMCORDER_SKIP_GST_FLOW_ERROR */
 
-	/* post error to application */
-	hcamcorder->error_occurs = TRUE;
-	msg.id = MM_MESSAGE_CAMCORDER_ERROR;
-	_mmcamcorder_send_message(handle, &msg);
+	/* post error to application except RESTRICTED case */
+	if (msg.param.code != MM_ERROR_POLICY_RESTRICTED) {
+		hcamcorder->error_occurs = TRUE;
+		msg.id = MM_MESSAGE_CAMCORDER_ERROR;
+		_mmcamcorder_send_message(handle, &msg);
+	}
 
 	return TRUE;
 }
@@ -3580,6 +3745,40 @@ static gint __mmcamcorder_gst_handle_resource_error(MMHandleType handle, int cod
 			return MM_ERROR_CAMCORDER_DISPLAY_DEVICE_OFF;
 		} else {
 			_mmcam_dbg_err("Display device [General(%d)]", code);
+		}
+	}
+
+	/* audiosrc */
+	element = GST_ELEMENT_CAST(sc->encode_element[_MMCAMCORDER_AUDIOSRC_SRC].gst);
+	if (GST_ELEMENT_CAST(message->src) == element) {
+		if (code == GST_RESOURCE_ERROR_FAILED) {
+			int ret = MM_ERROR_NONE;
+			int current_state = MM_CAMCORDER_STATE_NONE;
+
+			_mmcam_dbg_err("DPM mic DISALLOWED - current state %d", current_state);
+
+			_MMCAMCORDER_LOCK_ASM(hcamcorder);
+
+			current_state = _mmcamcorder_get_state((MMHandleType)hcamcorder);
+			if (current_state >= MM_CAMCORDER_STATE_RECORDING) {
+				/* set value to inform a status is changed by DPM */
+				hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_DPM;
+
+				ret = _mmcamcorder_commit((MMHandleType)hcamcorder);
+				_mmcam_dbg_log("commit result : 0x%x", ret);
+
+				if (ret != MM_ERROR_NONE) {
+					_mmcam_dbg_err("commit failed, cancel it");
+					ret = _mmcamcorder_cancel((MMHandleType)hcamcorder);
+				}
+			}
+
+			/* restore value */
+			hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_NORMAL;
+
+			_MMCAMCORDER_UNLOCK_ASM(hcamcorder);
+
+			return MM_ERROR_POLICY_RESTRICTED;
 		}
 	}
 
