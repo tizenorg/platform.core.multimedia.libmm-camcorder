@@ -1594,6 +1594,10 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 					stream.data.yuv420sp.length_y = stream.width * stream.height;
 					stream.data.yuv420sp.uv = stream.data.yuv420sp.y + stream.data.yuv420sp.length_y;
 					stream.data.yuv420sp.length_uv = stream.data.yuv420sp.length_y >> 1;
+					stream.stride[0] = stream.width;
+					stream.elevation[0] = stream.height;
+					stream.stride[1] = stream.width;
+					stream.elevation[1] = stream.height >> 1;
 					/*
 					_mmcam_dbg_log("format[%d][num_planes:%d] [Y]p:0x%x,size:%d [UV]p:0x%x,size:%d",
 					               stream.format, stream.num_planes,
@@ -1609,6 +1613,12 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 					stream.data.yuv420p.length_u = stream.data.yuv420p.length_y >> 2;
 					stream.data.yuv420p.v = stream.data.yuv420p.u + stream.data.yuv420p.length_u;
 					stream.data.yuv420p.length_v = stream.data.yuv420p.length_u;
+					stream.stride[0] = stream.width;
+					stream.elevation[0] = stream.height;
+					stream.stride[1] = stream.width >> 1;
+					stream.elevation[1] = stream.height >> 1;
+					stream.stride[2] = stream.width >> 1;
+					stream.elevation[2] = stream.height >> 1;
 					/*
 					_mmcam_dbg_log("I420[num_planes:%d] [Y]p:0x%x,size:%d [U]p:0x%x,size:%d [V]p:0x%x,size:%d",
 					                stream.num_planes,
@@ -1631,6 +1641,8 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 				stream.data_type = MM_CAM_STREAM_DATA_YUV422;
 				stream.data.yuv422.yuv = mapinfo.data;
 				stream.data.yuv422.length_yuv = stream.length_total;
+				stream.stride[0] = stream.width << 1;
+				stream.elevation[0] = stream.height;
 			} else if (stream.format == MM_PIXEL_FORMAT_ENCODED_H264) {
 					stream.data_type = MM_CAM_STREAM_DATA_ENCODED;
 					stream.data.encoded.data = mapinfo.data;
@@ -1642,6 +1654,8 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_preview(GstPad *pad, GstP
 				stream.data_type = MM_CAM_STREAM_DATA_YUV420;
 				stream.data.yuv420.yuv = mapinfo.data;
 				stream.data.yuv420.length_yuv = stream.length_total;
+				stream.stride[0] = (stream.width * 3) >> 1;
+				stream.elevation[0] = stream.height;
 			}
 
 			stream.num_planes = 1;
