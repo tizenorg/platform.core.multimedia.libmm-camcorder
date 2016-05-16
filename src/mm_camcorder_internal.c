@@ -209,10 +209,8 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 
 	/* get DPM context for camera/microphone restriction */
 	hcamcorder->dpm_context = dpm_context_create();
-	_mmcam_dbg_log("DPM context %p", hcamcorder->dpm_context);
 	if (hcamcorder->dpm_context) {
 		hcamcorder->dpm_policy = dpm_context_acquire_restriction_policy(hcamcorder->dpm_context);
-		_mmcam_dbg_log("DPM policy %p", hcamcorder->dpm_policy);
 		if (hcamcorder->dpm_policy == NULL) {
 			_mmcam_dbg_err("dpm_context_acquire_restriction_policy failed");
 			dpm_context_destroy(hcamcorder->dpm_context);
@@ -220,7 +218,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		}
 	}
 
-	_mmcam_dbg_log("DPM context %p, policy %p", hcamcorder->dpm_context, hcamcorder->dpm_policy);
+	_mmcam_dbg_warn("DPM context %p, policy %p", hcamcorder->dpm_context, hcamcorder->dpm_policy);
 
 	if (info->videodev_type != MM_VIDEO_DEVICE_NONE) {
 		_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_main,
@@ -993,7 +991,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 		}
 
 		/* prepare resource manager for camera */
-		ret = _mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, RESOURCE_TYPE_CAMERA);
+		ret = _mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, MM_CAMCORDER_RESOURCE_TYPE_CAMERA);
 		if (ret != MM_ERROR_NONE) {
 			_mmcam_dbg_err("could not prepare for camera resource");
 			ret = MM_ERROR_CAMCORDER_INTERNAL;
@@ -1006,7 +1004,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 			NULL);
 
 		if (display_surface_type == MM_DISPLAY_SURFACE_OVERLAY) {
-			ret = _mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, RESOURCE_TYPE_VIDEO_OVERLAY);
+			ret = _mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, MM_CAMCORDER_RESOURCE_TYPE_VIDEO_OVERLAY);
 			if(ret != MM_ERROR_NONE) {
 				_mmcam_dbg_err("could not prepare for video overlay resource");
 				ret = MM_ERROR_CAMCORDER_INTERNAL;

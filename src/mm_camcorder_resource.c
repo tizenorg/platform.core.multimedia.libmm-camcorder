@@ -25,14 +25,9 @@
 #define MRP_RESOURCE_TYPE_MANDATORY TRUE
 #define MRP_RESOURCE_TYPE_EXCLUSIVE FALSE
 
-enum {
-	MRP_RESOURCE_FOR_VIDEO_OVERLAY,
-	MRP_RESOURCE_FOR_CAMERA,
-	MRP_RESOURCE_MAX,
-};
-const char* resource_str[MRP_RESOURCE_MAX] = {
-    "video_overlay",
+const char* mm_camcorder_resource_str[MM_CAMCORDER_RESOURCE_MAX] = {
     "camera",
+    "video_overlay"
 };
 
 #define MMCAMCORDER_CHECK_RESOURCE_MANAGER_INSTANCE(x_camcorder_resource_manager) \
@@ -56,7 +51,7 @@ do { \
 	} \
 } while(0);
 
-static char *state_to_str(mrp_res_resource_state_t st)
+static char *__mmcamcorder_resource_state_to_str(mrp_res_resource_state_t st)
 {
 	char *state = "unknown";
 	switch (st) {
@@ -79,7 +74,7 @@ static char *state_to_str(mrp_res_resource_state_t st)
 	return state;
 }
 
-static void mrp_state_callback(mrp_res_context_t *context, mrp_res_error_t err, void *user_data)
+static void __mmcamcorder_resource_state_callback(mrp_res_context_t *context, mrp_res_error_t err, void *user_data)
 {
 	int i = 0;
 	const mrp_res_resource_set_t *rset;
@@ -133,7 +128,7 @@ static void mrp_state_callback(mrp_res_context_t *context, mrp_res_error_t err, 
 }
 
 
-static void mrp_rset_state_callback(mrp_res_context_t *cx, const mrp_res_resource_set_t *rs, void *user_data)
+static void __mmcamcorder_resource_set_state_callback(mrp_res_context_t *cx, const mrp_res_resource_set_t *rs, void *user_data)
 {
 	int i = 0;
 	mmf_camcorder_t *camcorder = (mmf_camcorder_t *)user_data;
@@ -146,13 +141,16 @@ static void mrp_rset_state_callback(mrp_res_context_t *cx, const mrp_res_resourc
 		return;
 	}
 
-	_mmcam_dbg_log(" - resource set state of camcorder(%p) is changed to [%s]", camcorder, state_to_str(rs->state));
-	for (i = 0; i < MRP_RESOURCE_MAX; i++) {
-		res = mrp_res_get_resource_by_name(rs, resource_str[i]);
+	_mmcam_dbg_log(" - resource set state of camcorder(%p) is changed to [%s]",
+		camcorder, __mmcamcorder_resource_state_to_str(rs->state));
+
+	for (i = 0; i < MM_CAMCORDER_RESOURCE_MAX; i++) {
+		res = mrp_res_get_resource_by_name(rs, mm_camcorder_resource_str[i]);
 		if (res == NULL) {
-			_mmcam_dbg_warn(" -- %s not present in resource set", resource_str[i]);
+			_mmcam_dbg_warn(" -- %s not present in resource set", mm_camcorder_resource_str[i]);
 		} else {
-			_mmcam_dbg_log(" -- resource name [%s] -> [%s]", res->name, state_to_str(res->state));
+			_mmcam_dbg_log(" -- resource name [%s] -> [%s]",
+				res->name, __mmcamcorder_resource_state_to_str(res->state));
 		}
 	}
 
@@ -163,7 +161,7 @@ static void mrp_rset_state_callback(mrp_res_context_t *cx, const mrp_res_resourc
 }
 
 
-static void mrp_resource_release_cb (mrp_res_context_t *cx, const mrp_res_resource_set_t *rs, void *user_data)
+static void __mmcamcorder_resource_release_cb(mrp_res_context_t *cx, const mrp_res_resource_set_t *rs, void *user_data)
 {
 	int i = 0;
 	int current_state = MM_CAMCORDER_STATE_NONE;
@@ -189,13 +187,16 @@ static void mrp_resource_release_cb (mrp_res_context_t *cx, const mrp_res_resour
 		return;
 	}
 
-	_mmcam_dbg_log(" - resource set state of camcorder(%p) is changed to [%s]", camcorder, state_to_str(rs->state));
-	for (i = 0; i < MRP_RESOURCE_MAX; i++) {
-		res = mrp_res_get_resource_by_name(rs, resource_str[i]);
+	_mmcam_dbg_log(" - resource set state of camcorder(%p) is changed to [%s]",
+		camcorder, __mmcamcorder_resource_state_to_str(rs->state));
+
+	for (i = 0; i < MM_CAMCORDER_RESOURCE_MAX; i++) {
+		res = mrp_res_get_resource_by_name(rs, mm_camcorder_resource_str[i]);
 		if (res == NULL) {
-			_mmcam_dbg_warn(" -- %s not present in resource set", resource_str[i]);
+			_mmcam_dbg_warn(" -- %s not present in resource set", mm_camcorder_resource_str[i]);
 		} else {
-			_mmcam_dbg_log(" -- resource name [%s] -> [%s]", res->name, state_to_str(res->state));
+			_mmcam_dbg_log(" -- resource name [%s] -> [%s]",
+				res->name, __mmcamcorder_resource_state_to_str(res->state));
 		}
 	}
 
@@ -210,7 +211,7 @@ static void mrp_resource_release_cb (mrp_res_context_t *cx, const mrp_res_resour
 	return;
 }
 
-static int create_rset(MMCamcorderResourceManager *resource_manager)
+static int __mmcamcorder_resource_create_resource_set(MMCamcorderResourceManager *resource_manager)
 {
 	if (resource_manager->rset) {
 		_mmcam_dbg_err(" - resource set was already created");
@@ -218,9 +219,8 @@ static int create_rset(MMCamcorderResourceManager *resource_manager)
 	}
 
 	resource_manager->rset = mrp_res_create_resource_set(resource_manager->context,
-				MRP_APP_CLASS_FOR_CAMCORDER,
-				mrp_rset_state_callback,
-				(void*)resource_manager->user_data);
+		MRP_APP_CLASS_FOR_CAMCORDER, __mmcamcorder_resource_set_state_callback, (void*)resource_manager->user_data);
+
 	if (resource_manager->rset == NULL) {
 		_mmcam_dbg_err(" - could not create resource set");
 		return MM_ERROR_RESOURCE_INTERNAL;
@@ -233,7 +233,7 @@ static int create_rset(MMCamcorderResourceManager *resource_manager)
 	return MM_ERROR_NONE;
 }
 
-static int include_resource(MMCamcorderResourceManager *resource_manager, const char *resource_name)
+static int __mmcamcorder_resource_include_resource(MMCamcorderResourceManager *resource_manager, const char *resource_name)
 {
 	mrp_res_resource_t *resource = NULL;
 	resource = mrp_res_create_resource(resource_manager->rset,
@@ -250,13 +250,13 @@ static int include_resource(MMCamcorderResourceManager *resource_manager, const 
 	return MM_ERROR_NONE;
 }
 
-static int set_resource_release_cb(MMCamcorderResourceManager *resource_manager)
+static int __mmcamcorder_resource_set_release_cb(MMCamcorderResourceManager *resource_manager)
 {
 	int ret = MM_ERROR_NONE;
 	bool mrp_ret = FALSE;
 
 	if (resource_manager->rset) {
-		mrp_ret = mrp_res_set_release_callback(resource_manager->rset, mrp_resource_release_cb, resource_manager->user_data);
+		mrp_ret = mrp_res_set_release_callback(resource_manager->rset, __mmcamcorder_resource_release_cb, resource_manager->user_data);
 		if (!mrp_ret) {
 			_mmcam_dbg_err(" - could not set release callback");
 			ret = MM_ERROR_RESOURCE_INTERNAL;
@@ -275,7 +275,7 @@ int _mmcamcorder_resource_manager_init(MMCamcorderResourceManager *resource_mana
 
 	resource_manager->mloop = mrp_mainloop_glib_get(g_main_loop_new(NULL, TRUE));
 	if (resource_manager->mloop) {
-		resource_manager->context = mrp_res_create(resource_manager->mloop, mrp_state_callback, user_data);
+		resource_manager->context = mrp_res_create(resource_manager->mloop, __mmcamcorder_resource_state_callback, user_data);
 		if (resource_manager->context == NULL) {
 			_mmcam_dbg_err(" - could not get context for resource manager");
 			mrp_mainloop_destroy(resource_manager->mloop);
@@ -298,17 +298,12 @@ int _mmcamcorder_resource_manager_prepare(MMCamcorderResourceManager *resource_m
 	MMCAMCORDER_CHECK_CONNECTION_RESOURCE_MANAGER(resource_manager);
 
 	if (!resource_manager->rset) {
-		ret = create_rset(resource_manager);
+		ret = __mmcamcorder_resource_create_resource_set(resource_manager);
 	}
 	if (ret == MM_ERROR_NONE) {
-		switch (resource_type) {
-		case RESOURCE_TYPE_VIDEO_OVERLAY:
-			ret = include_resource(resource_manager, resource_str[MRP_RESOURCE_FOR_VIDEO_OVERLAY]);
-			break;
-		case RESOURCE_TYPE_CAMERA:
-			ret = include_resource(resource_manager, resource_str[MRP_RESOURCE_FOR_CAMERA]);
-			break;
-		}
+		ret = __mmcamcorder_resource_include_resource(resource_manager, mm_camcorder_resource_str[resource_type]);
+	} else {
+		_mmcam_dbg_err("failed to create resource set 0x%x", ret);
 	}
 
 	return ret;
@@ -324,7 +319,7 @@ int _mmcamcorder_resource_manager_acquire(MMCamcorderResourceManager *resource_m
 		_mmcam_dbg_err("- could not acquire resource, resource set is null");
 		ret = MM_ERROR_RESOURCE_INVALID_STATE;
 	} else {
-		ret = set_resource_release_cb(resource_manager);
+		ret = __mmcamcorder_resource_set_release_cb(resource_manager);
 		if (ret) {
 			_mmcam_dbg_err("- could not set resource release cb, ret(%d)", ret);
 			ret = MM_ERROR_RESOURCE_INTERNAL;
@@ -351,7 +346,8 @@ int _mmcamcorder_resource_manager_release(MMCamcorderResourceManager *resource_m
 		ret = MM_ERROR_RESOURCE_INVALID_STATE;
 	} else {
 		if (resource_manager->rset->state != MRP_RES_RESOURCE_ACQUIRED) {
-			_mmcam_dbg_err("- could not release resource, resource set state is [%s]", state_to_str(resource_manager->rset->state));
+			_mmcam_dbg_err("- could not release resource, resource set state is [%s]",
+				__mmcamcorder_resource_state_to_str(resource_manager->rset->state));
 			ret = MM_ERROR_RESOURCE_INVALID_STATE;
 		} else {
 			ret = mrp_res_release_resource_set(resource_manager->rset);
