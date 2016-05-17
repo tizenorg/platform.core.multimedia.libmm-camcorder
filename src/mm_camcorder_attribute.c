@@ -2222,6 +2222,13 @@ bool _mmcamcorder_commit_camera_width(MMHandleType handle, int attr_idx, const m
 
 					_mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_MAIN_PIPE].gst, GST_STATE_READY);
 
+					/* check decoder recreation */
+					if (!_mmcamcorder_recreate_decoder_for_encoded_preview(handle)) {
+						_mmcam_dbg_err("_mmcamcorder_recreate_decoder_for_encoded_preview failed");
+						g_mutex_unlock(&hcamcorder->restart_preview_lock);
+						return FALSE;
+					}
+
 					/* get preview format */
 					sc->info_image->preview_format = preview_format;
 					sc->fourcc = _mmcamcorder_get_fourcc(sc->info_image->preview_format, codec_type, hcamcorder->use_zero_copy_format);
@@ -2311,6 +2318,13 @@ bool _mmcamcorder_commit_camera_height(MMHandleType handle, int attr_idx, const 
 				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", TRUE);
 
 				_mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_MAIN_PIPE].gst, GST_STATE_READY);
+
+				/* check decoder recreation */
+				if (!_mmcamcorder_recreate_decoder_for_encoded_preview(handle)) {
+					_mmcam_dbg_err("_mmcamcorder_recreate_decoder_for_encoded_preview failed");
+					g_mutex_unlock(&hcamcorder->restart_preview_lock);
+					return FALSE;
+				}
 
 				/* get preview format */
 				sc->info_image->preview_format = preview_format;
@@ -4141,6 +4155,12 @@ bool _mmcamcorder_commit_camera_hdr_capture(MMHandleType handle, int attr_idx, c
 				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", TRUE);
 
 				_mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_MAIN_PIPE].gst, GST_STATE_READY);
+
+				/* check decoder recreation */
+				if (!_mmcamcorder_recreate_decoder_for_encoded_preview(handle)) {
+					_mmcam_dbg_err("_mmcamcorder_recreate_decoder_for_encoded_preview failed");
+					return FALSE;
+				}
 
 				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
 				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", FALSE);

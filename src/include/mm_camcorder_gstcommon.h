@@ -150,6 +150,7 @@ int _mmcamcorder_create_preview_pipeline(MMHandleType handle);
 
 /* plug-in related */
 void _mmcamcorder_ready_to_encode_callback(GstElement *element, guint size, gpointer handle);
+bool _mmcamcorder_recreate_decoder_for_encoded_preview(MMHandleType handle);
 
 /* etc */
 int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element *VideosinkElement);

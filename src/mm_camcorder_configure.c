@@ -175,6 +175,16 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		0,
 	};
 
+	/* H.264 decoder element default value */
+	static type_element _videodecoder_element_h264_default = {
+		"VideodecoderElementH264",
+		"avdec_h264",
+		NULL,
+		0,
+		NULL,
+		0,
+	};
+
 	/* Record sink element default value */
 	static type_element _recordsink_element_default = {
 		"RecordsinkElement",
@@ -646,6 +656,8 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		{ "UseVideoscale",           CONFIGURE_VALUE_INT,       {.value_int = 0} },
 		{ "VideoscaleElement",       CONFIGURE_VALUE_ELEMENT,   {&_videoscale_element_default} },
 		{ "VideoconvertElement",     CONFIGURE_VALUE_ELEMENT,   {&_videoconvert_element_default} },
+		{ "VideodecoderElementH264", CONFIGURE_VALUE_ELEMENT,   {&_videodecoder_element_h264_default} },
+		{ "RecreateDecoder",         CONFIGURE_VALUE_INT,       {.value_int = 0} }
 	};
 
 	/* [Capture] matching table */
