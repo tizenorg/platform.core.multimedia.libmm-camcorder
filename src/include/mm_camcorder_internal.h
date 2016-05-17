@@ -626,6 +626,7 @@ typedef struct {
 
 	type_element *VideosinkElement;         /**< configure data of videosink element */
 	type_element *VideoconvertElement;      /**< configure data of videoconvert element */
+	type_element *VideodecoderElementH264;  /**< configure data of video decoder element for H.264 format */
 	gboolean SensorEncodedCapture;          /**< whether camera sensor support encoded image capture */
 	gboolean internal_encode;               /**< whether use internal encoding function */
 } _MMCamcorderSubContext;
@@ -697,6 +698,7 @@ typedef struct mmf_camcorder {
 	int acquired_focus;                                     /**< Current acquired focus */
 	int session_type;                                       /**< Session type */
 	int session_flags;                                      /**< Session flags */
+	int recreate_decoder;                                   /**< Flag of decoder element recreation for encoded preview format */
 
 	_MMCamcorderInfoConverting caminfo_convert[CAMINFO_CONVERT_NUM];        /**< converting structure of camera info */
 	_MMCamcorderEnumConvert enum_conv[ENUM_CONVERT_NUM];                    /**< enum converting list that is modified by ini info */

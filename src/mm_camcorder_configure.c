@@ -175,6 +175,16 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		0,
 	};
 
+	/* H.264 decoder element default value */
+	static type_element _videodecoder_element_h264_default = {
+		"VideodecoderElementH264",
+		"avdec_h264",
+		NULL,
+		0,
+		NULL,
+		0,
+	};
+
 	/* Record sink element default value */
 	static type_element _recordsink_element_default = {
 		"RecordsinkElement",
@@ -646,6 +656,7 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		{ "UseVideoscale",           CONFIGURE_VALUE_INT,       {.value_int = 0} },
 		{ "VideoscaleElement",       CONFIGURE_VALUE_ELEMENT,   {&_videoscale_element_default} },
 		{ "VideoconvertElement",     CONFIGURE_VALUE_ELEMENT,   {&_videoconvert_element_default} },
+		{ "VideodecoderElementH264", CONFIGURE_VALUE_ELEMENT,   {&_videodecoder_element_h264_default} }
 	};
 
 	/* [Capture] matching table */
@@ -766,6 +777,7 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		{ "RecommendPreviewFormatRecord",  CONFIGURE_VALUE_INT, {.value_int = MM_PIXEL_FORMAT_NV12} },
 		{ "RecommendPreviewResolution", CONFIGURE_VALUE_INT_PAIR_ARRAY, {NULL} },
 		{ "FacingDirection",      CONFIGURE_VALUE_INT, {.value_int = MM_CAMCORDER_CAMERA_FACING_DIRECTION_REAR} },
+		{ "RecreateDecoder",      CONFIGURE_VALUE_INT, {.value_int = FALSE} },
 	};
 
 	/* [Strobe] matching table */
