@@ -132,7 +132,6 @@ gboolean	videocodec_fileformat_compatibility_table[MM_VIDEO_CODEC_NUM][MM_FILE_F
 #define _MMCAMCORDER_FRAME_PASS_MIN_FPS           30
 #define _MMCAMCORDER_NANOSEC_PER_1SEC             1000000000
 #define _MMCAMCORDER_NANOSEC_PER_1MILISEC         1000
-#define _MMCAMCORDER_VIDEO_DECODER_NAME           "avdec_h264"
 
 
 /*-----------------------------------------------------------------------
@@ -293,6 +292,27 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 	if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ENCODED_H264) {
 		int preview_bitrate = 0;
 		int gop_interval = 0;
+		const char *videodecoder_name = NULL;
+
+		/* get video decoder element and name for H.264 format */
+		_mmcamcorder_conf_get_element(handle, hcamcorder->conf_main,
+			CONFIGURE_CATEGORY_MAIN_VIDEO_OUTPUT,
+			"VideodecoderElementH264",
+			&sc->VideodecoderElementH264);
+
+		_mmcamcorder_conf_get_value_element_name(sc->VideodecoderElementH264, &videodecoder_name);
+
+		if (videodecoder_name) {
+			_mmcam_dbg_log("video decoder element [%s]", videodecoder_name);
+
+			/* create decoder element */
+			_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSRC_DECODE, videodecoder_name, "videosrc_decode", element_list, err);
+
+			_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst, sc->VideodecoderElementH264);
+		} else {
+			_mmcam_dbg_err("failed to get video decoder element name from %p", sc->VideodecoderElementH264);
+			goto pipeline_creation_error;
+		}
 
 		/* set encoded preview bitrate and iframe interval */
 		mm_camcorder_get_attributes(handle, NULL,
@@ -305,9 +325,6 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 
 		if (!_mmcamcorder_set_encoded_preview_gop_interval(handle, gop_interval))
 			_mmcam_dbg_warn("_mmcamcorder_set_encoded_preview_gop_interval failed");
-
-		/* create decoder element */
-		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSRC_DECODE, _MMCAMCORDER_VIDEO_DECODER_NAME, "videosrc_decode", element_list, err);
 	}
 
 	_mmcam_dbg_log("Current mode[%d]", hcamcorder->type);
@@ -2606,3 +2623,113 @@ bool _mmcamcorder_set_sound_stream_info(GstElement *element, char *stream_type, 
 	return TRUE;
 }
 
+
+bool _mmcamcorder_recreate_decoder_for_encoded_preview(MMHandleType handle)
+{
+	int ret = MM_ERROR_NONE;
+	_MMCamcorderSubContext *sc = NULL;
+	mmf_camcorder_t *hcamcorder = NULL;
+	const char *videodecoder_name = NULL;
+
+	if ((void *)handle == NULL) {
+		_mmcam_dbg_warn("handle is NULL");
+		return FALSE;
+	}
+
+	hcamcorder = MMF_CAMCORDER(handle);
+
+	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
+	if (!sc) {
+		_mmcam_dbg_warn("subcontext is NULL");
+		return FALSE;
+	}
+
+	if (sc->info_image->preview_format != MM_PIXEL_FORMAT_ENCODED_H264 ||
+		hcamcorder->recreate_decoder == FALSE) {
+		_mmcam_dbg_log("skip this fuction - format %d, recreate decoder %d",
+			sc->info_image->preview_format, hcamcorder->recreate_decoder);
+		return TRUE;
+	}
+
+	if (sc->element[_MMCAMCORDER_MAIN_PIPE].gst == NULL ||
+	    sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst == NULL) {
+		_mmcam_dbg_warn("main pipeline or decoder plugin is NULL");
+		return FALSE;
+	}
+
+	_mmcam_dbg_log("start");
+
+	_mmcamcorder_conf_get_value_element_name(sc->VideodecoderElementH264, &videodecoder_name);
+	if (videodecoder_name == NULL) {
+		_mmcam_dbg_err("failed to get decoder element name from %p", sc->VideodecoderElementH264);
+		return FALSE;
+	}
+
+	/* set state as NULL */
+	ret = _mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst, GST_STATE_NULL);
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("failed to set NULL to decoder");
+		return FALSE;
+	}
+
+	/* remove decoder - pads will be unlinked automatically in remove function */
+	if (!gst_bin_remove(GST_BIN(sc->element[_MMCAMCORDER_MAIN_PIPE].gst),
+			    sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst)) {
+		_mmcam_dbg_err("failed to remove decoder from pipeline");
+		return FALSE;
+	}
+
+	/* check decoder element */
+	if (sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst) {
+		_mmcam_dbg_log("decoder[%p] is still alive - ref count %d",
+			G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst),
+			((GObject *)sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst)->ref_count);
+	}
+
+	/* create new decoder */
+	sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst = gst_element_factory_make(videodecoder_name, "videosrc_decode");
+	if (sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst == NULL) {
+		_mmcam_dbg_err("Decoder [%s] creation fail", videodecoder_name);
+		return FALSE;
+	}
+
+	sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].id = _MMCAMCORDER_VIDEOSRC_DECODE;
+	g_object_weak_ref(G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst),
+		(GWeakNotify)_mmcamcorder_element_release_noti, sc);
+
+	/* add to pipeline */
+	if (!gst_bin_add(GST_BIN(sc->element[_MMCAMCORDER_MAIN_PIPE].gst),
+		sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst)) {
+		_mmcam_dbg_err("failed to add decoder to pipeline");
+		gst_object_unref(sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst);
+		return FALSE;
+	}
+
+	/* link */
+	if (_MM_GST_ELEMENT_LINK(GST_ELEMENT(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst),
+		GST_ELEMENT(sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst))) {
+		_mmcam_dbg_log("Link videosrc_queue to decoder OK");
+	} else {
+		_mmcam_dbg_err("Link videosrc_queue to decoder FAILED");
+		return FALSE;
+	}
+
+	if (_MM_GST_ELEMENT_LINK(GST_ELEMENT(sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst),
+		GST_ELEMENT(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst))) {
+		_mmcam_dbg_log("Link decoder to videosink_queue OK");
+	} else {
+		_mmcam_dbg_err("Link decoder to videosink_queue FAILED");
+		return FALSE;
+	}
+
+	/* set state READY */
+	ret = _mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst, GST_STATE_READY);
+	if (ret != MM_ERROR_NONE) {
+		_mmcam_dbg_err("failed to set READY to decoder");
+		return FALSE;
+	}
+
+	_mmcam_dbg_log("done");
+
+	return TRUE;
+}

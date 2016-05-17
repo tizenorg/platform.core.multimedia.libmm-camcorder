@@ -208,7 +208,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	}
 
 	/* get DPM context for camera/microphone restriction */
-	hcamcorder->dpm_context = dpm_context_create();
+	//hcamcorder->dpm_context = dpm_context_create();
 	if (hcamcorder->dpm_context) {
 		hcamcorder->dpm_policy = dpm_context_acquire_restriction_policy(hcamcorder->dpm_context);
 		if (hcamcorder->dpm_policy == NULL) {
