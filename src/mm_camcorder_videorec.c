@@ -639,6 +639,13 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 
 				ret = _mmcamcorder_gst_set_state(handle, pipeline, GST_STATE_READY);
 
+				/* check decoder recreation */
+				if (!_mmcamcorder_recreate_decoder_for_encoded_preview(handle)) {
+					_mmcam_dbg_err("_mmcamcorder_recreate_decoder_for_encoded_preview failed");
+					ret = MM_ERROR_CAMCORDER_INTERNAL;
+					goto _ERR_CAMCORDER_VIDEO_COMMAND;
+				}
+
 				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", FALSE);
 				MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
 
@@ -927,8 +934,15 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 
 			ret =_mmcamcorder_gst_set_state(handle, pipeline, GST_STATE_READY);
 
+			/* check decoder recreation */
+			if (!_mmcamcorder_recreate_decoder_for_encoded_preview(handle)) {
+				_mmcam_dbg_err("_mmcamcorder_recreate_decoder_for_encoded_preview failed");
+				ret = MM_ERROR_CAMCORDER_INTERNAL;
+			}
+
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
 			MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", FALSE);
+
 			if (ret != MM_ERROR_NONE) {
 				goto _ERR_CAMCORDER_VIDEO_COMMAND;
 			}
@@ -1183,6 +1197,12 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
 
 		_mmcam_dbg_log("Set state of pipeline as READY");
 		ret = _mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_MAIN_PIPE].gst, GST_STATE_READY);
+
+		/* check decoder recreation */
+		if (!_mmcamcorder_recreate_decoder_for_encoded_preview(handle)) {
+			_mmcam_dbg_err("_mmcamcorder_recreate_decoder_for_encoded_preview failed");
+			ret = MM_ERROR_CAMCORDER_INTERNAL;
+		}
 
 		/* unblock queue */
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
