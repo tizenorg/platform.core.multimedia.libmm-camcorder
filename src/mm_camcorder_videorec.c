@@ -1033,7 +1033,16 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 				}
 			}
 
-			usleep(_MMCAMCORDER_FRAME_WAIT_TIME);
+			if (hcamcorder->capture_in_recording) {
+				gint64 end_time = g_get_monotonic_time() + (200 * G_TIME_SPAN_MILLISECOND);
+				if (_MMCAMCORDER_CMD_WAIT_UNTIL(handle, end_time)) {
+					_mmcam_dbg_warn("signal received");
+				} else {
+					_mmcam_dbg_warn("timeout");
+				}
+			} else {
+				usleep(_MMCAMCORDER_FRAME_WAIT_TIME);
+			}
 		}
 
 		/* block push buffer */
