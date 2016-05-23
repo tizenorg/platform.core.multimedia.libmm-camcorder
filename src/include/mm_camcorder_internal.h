@@ -330,15 +330,19 @@ extern "C" {
 
 #define _MMCAMCORDER_GET_COND(handle)               (_MMCAMCORDER_CAST_MTSAFE(handle).cond)
 #define _MMCAMCORDER_WAIT(handle)                   g_cond_wait(&_MMCAMCORDER_GET_COND(handle), &_MMCAMCORDER_GET_LOCK(handle))
-#define _MMCAMCORDER_WAIT_UNTIL(handle, timeout)    g_cond_wait_until(&_MMCAMCORDER_GET_COND(handle), &_MMCAMCORDER_GET_LOCK(handle), &end_time)
+#define _MMCAMCORDER_WAIT_UNTIL(handle, end_time)   g_cond_wait_until(&_MMCAMCORDER_GET_COND(handle), &_MMCAMCORDER_GET_LOCK(handle), end_time)
 #define _MMCAMCORDER_SIGNAL(handle)                 g_cond_signal(&_MMCAMCORDER_GET_COND(handle));
 #define _MMCAMCORDER_BROADCAST(handle)              g_cond_broadcast(&_MMCAMCORDER_GET_COND(handle));
 
 /* for command */
 #define _MMCAMCORDER_GET_CMD_LOCK(handle)           (_MMCAMCORDER_CAST_MTSAFE(handle).cmd_lock)
+#define _MMCAMCORDER_GET_CMD_COND(handle)           (_MMCAMCORDER_CAST_MTSAFE(handle).cmd_cond)
 #define _MMCAMCORDER_LOCK_CMD(handle)               _MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_CMD_LOCK(handle))
 #define _MMCAMCORDER_TRYLOCK_CMD(handle)            _MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_CMD_LOCK(handle))
 #define _MMCAMCORDER_UNLOCK_CMD(handle)             _MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_CMD_LOCK(handle))
+#define _MMCAMCORDER_CMD_WAIT(handle)                 g_cond_wait(&_MMCAMCORDER_GET_CMD_COND(handle), &_MMCAMCORDER_GET_CMD_LOCK(handle))
+#define _MMCAMCORDER_CMD_WAIT_UNTIL(handle, end_time) g_cond_wait_until(&_MMCAMCORDER_GET_CMD_COND(handle), &_MMCAMCORDER_GET_CMD_LOCK(handle), end_time)
+#define _MMCAMCORDER_CMD_SIGNAL(handle)               g_cond_signal(&_MMCAMCORDER_GET_CMD_COND(handle));
 
 /* for ASM */
 #define _MMCAMCORDER_GET_ASM_LOCK(handle)           (_MMCAMCORDER_CAST_MTSAFE(handle).asm_lock)
@@ -578,6 +582,7 @@ typedef struct {
 	GMutex lock;                    /**< Mutex (for general use) */
 	GCond cond;                     /**< Condition (for general use) */
 	GMutex cmd_lock;                /**< Mutex (for command) */
+	GCond cmd_cond;                 /**< Condition (for command) */
 	GMutex asm_lock;                /**< Mutex (for ASM) */
 	GMutex state_lock;              /**< Mutex (for state change) */
 	GMutex gst_state_lock;          /**< Mutex (for gst pipeline state change) */

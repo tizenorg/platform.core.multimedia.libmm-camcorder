@@ -123,6 +123,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	g_mutex_init(&(hcamcorder->mtsafe).lock);
 	g_cond_init(&(hcamcorder->mtsafe).cond);
 	g_mutex_init(&(hcamcorder->mtsafe).cmd_lock);
+	g_cond_init(&(hcamcorder->mtsafe).cmd_cond);
 	g_mutex_init(&(hcamcorder->mtsafe).asm_lock);
 	g_mutex_init(&(hcamcorder->mtsafe).state_lock);
 	g_mutex_init(&(hcamcorder->mtsafe).gst_state_lock);
@@ -545,6 +546,7 @@ _ERR_DEFAULT_VALUE_INIT:
 	g_mutex_clear(&(hcamcorder->mtsafe).lock);
 	g_cond_clear(&(hcamcorder->mtsafe).cond);
 	g_mutex_clear(&(hcamcorder->mtsafe).cmd_lock);
+	g_cond_clear(&(hcamcorder->mtsafe).cmd_cond);
 	g_mutex_clear(&(hcamcorder->mtsafe).asm_lock);
 	g_mutex_clear(&(hcamcorder->mtsafe).state_lock);
 	g_mutex_clear(&(hcamcorder->mtsafe).gst_state_lock);
@@ -740,6 +742,7 @@ int _mmcamcorder_destroy(MMHandleType handle)
 	g_mutex_clear(&(hcamcorder->mtsafe).lock);
 	g_cond_clear(&(hcamcorder->mtsafe).cond);
 	g_mutex_clear(&(hcamcorder->mtsafe).cmd_lock);
+	g_cond_clear(&(hcamcorder->mtsafe).cmd_cond);
 	g_mutex_clear(&(hcamcorder->mtsafe).asm_lock);
 	g_mutex_clear(&(hcamcorder->mtsafe).state_lock);
 	g_mutex_clear(&(hcamcorder->mtsafe).gst_state_lock);
