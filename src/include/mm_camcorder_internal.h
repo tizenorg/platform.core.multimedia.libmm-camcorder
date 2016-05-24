@@ -484,6 +484,7 @@ typedef enum {
 
 	/* Pipeline element of Video output */
 	_MMCAMCORDER_VIDEOSINK_QUE,
+	_MMCAMCORDER_VIDEOSINK_CLS,
 	_MMCAMCORDER_VIDEOSINK_SINK,
 
 	_MMCAMCORDER_PIPELINE_ELEMENT_NUM,
@@ -686,6 +687,7 @@ typedef struct mmf_camcorder {
 	int state_change_by_system;                             /**< MSL changes its state by itself because of system */
 	GMutex restart_preview_lock;                            /**< Capture sound mutex */
 	int use_zero_copy_format;                               /**< Whether use zero copy format for camera input */
+	int use_videoconvert;                                   /**< Whether use videoconvert element for display */
 	int support_media_packet_preview_cb;                    /**< Whether support zero copy format for camera input */
 	int shutter_sound_policy;                               /**< shutter sound policy */
 	int brightness_default;                                 /**< default value of brightness */

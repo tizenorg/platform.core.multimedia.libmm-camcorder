@@ -333,6 +333,12 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			                                "SupportMediaPacketPreviewCb",
 			                                &(hcamcorder->support_media_packet_preview_cb));
 
+			/* Get UseVideoconvert value from INI */
+			_mmcamcorder_conf_get_value_int((MMHandleType)hcamcorder, hcamcorder->conf_main,
+			                                CONFIGURE_CATEGORY_MAIN_VIDEO_OUTPUT,
+			                                "UseVideoconvert",
+			                                &hcamcorder->use_videoconvert);
+
 			ret = mm_camcorder_get_attributes((MMHandleType)hcamcorder, NULL,
 			                            MMCAM_CAMERA_WIDTH, &resolution_width,
 			                            MMCAM_CAMERA_HEIGHT, &resolution_height,
@@ -340,9 +346,10 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 
 			mm_camcorder_get_fps_list_by_resolution((MMHandleType)hcamcorder, resolution_width, resolution_height, &fps_info);
 
-			_mmcam_dbg_log("UseZeroCopyFormat : %d", hcamcorder->use_zero_copy_format);
-			_mmcam_dbg_log("SupportMediaPacketPreviewCb : %d", hcamcorder->support_media_packet_preview_cb);
-			_mmcam_dbg_log("res : %d X %d, Default FPS by resolution  : %d", resolution_width, resolution_height, fps_info.int_array.def);
+			_mmcam_dbg_log("UseZeroCopyFormat %d, UseVideoconvert %d, SupportMediaPacketPreviewCb %d",
+				hcamcorder->use_zero_copy_format, hcamcorder->use_videoconvert, hcamcorder->support_media_packet_preview_cb);
+			_mmcam_dbg_log("res : %d X %d, Default FPS by resolution  : %d",
+				resolution_width, resolution_height, fps_info.int_array.def);
 
 			if (camera_facing_direction == 1) {
 				if (rcmd_dpy_rotation == MM_DISPLAY_ROTATION_270 || rcmd_dpy_rotation == MM_DISPLAY_ROTATION_90) {
@@ -350,7 +357,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 				} else {
 					camera_default_flip = MM_FLIP_HORIZONTAL;
 				}
-				_mmcam_dbg_log("camera_default_flip : [%d]",camera_default_flip);
+				_mmcam_dbg_log("camera_default_flip : [%d]", camera_default_flip);
 			}
 
 			mm_camcorder_set_attributes((MMHandleType)hcamcorder, &err_attr_name,

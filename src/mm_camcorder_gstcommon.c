@@ -179,6 +179,7 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 	int display_surface_type = MM_DISPLAY_SURFACE_NULL;
 	const char *videosrc_name = NULL;
 	const char *videosink_name = NULL;
+	const char *videoconvert_name = NULL;
 	char *err_name = NULL;
 	char *socket_path = NULL;
 	int socket_path_len;
@@ -346,9 +347,11 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 	if (display_surface_type == MM_DISPLAY_SURFACE_REMOTE) {
 		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_SINK, videosink_name, "ipc_sink", element_list, err);
 
+		_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, sc->VideosinkElement);
+
 		err = mm_camcorder_get_attributes(handle, &err_name,
-		                                  MMCAM_DISPLAY_SOCKET_PATH, &socket_path, &socket_path_len,
-		                                  NULL);
+			MMCAM_DISPLAY_SOCKET_PATH, &socket_path, &socket_path_len,
+			NULL);
 		if (err != MM_ERROR_NONE) {
 			_mmcam_dbg_warn("Get socket path failed 0x%x", err);
 			SAFE_FREE(err_name);
@@ -357,15 +360,28 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 
 		g_object_set(G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst), "socket-path", socket_path, NULL);
 	} else {
+
+		if (hcamcorder->use_videoconvert && !strcmp(videosink_name, "waylandsink")) {
+			/* get video convert name */
+			_mmcamcorder_conf_get_value_element_name(sc->VideoconvertElement, &videoconvert_name);
+
+			if (videoconvert_name) {
+				_mmcam_dbg_log("videoconvert element name : %s", videoconvert_name);
+				_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_CLS, videoconvert_name, "videosink_cls", element_list, err);
+			} else
+				_mmcam_dbg_err("failed to get videoconvert element name");
+		}
+
 		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_SINK, videosink_name, "videosink_sink", element_list, err);
+
+		_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, sc->VideosinkElement);
+
 		if (_mmcamcorder_videosink_window_set(handle, sc->VideosinkElement) != MM_ERROR_NONE) {
 			_mmcam_dbg_err("_mmcamcorder_videosink_window_set error");
 			err = MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
 			goto pipeline_creation_error;
 		}
 	}
-
-	_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, sc->VideosinkElement);
 
 	/* Set caps by rotation */
 	_mmcamcorder_set_videosrc_rotation(handle, camera_rotate);

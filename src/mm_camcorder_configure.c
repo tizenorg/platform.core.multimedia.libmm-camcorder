@@ -655,6 +655,7 @@ void _mmcamcorder_conf_init(MMHandleType handle, int type, camera_conf** configu
 		{ "VideosinkElementNull",    CONFIGURE_VALUE_ELEMENT,   {&_videosink_element_null_default} },
 		{ "UseVideoscale",           CONFIGURE_VALUE_INT,       {.value_int = 0} },
 		{ "VideoscaleElement",       CONFIGURE_VALUE_ELEMENT,   {&_videoscale_element_default} },
+		{ "UseVideoconvert",         CONFIGURE_VALUE_INT,       {.value_int = 0} },
 		{ "VideoconvertElement",     CONFIGURE_VALUE_ELEMENT,   {&_videoconvert_element_default} },
 		{ "VideodecoderElementH264", CONFIGURE_VALUE_ELEMENT,   {&_videodecoder_element_h264_default} },
 		{ "RecreateDecoder",         CONFIGURE_VALUE_INT,       {.value_int = 0} }
