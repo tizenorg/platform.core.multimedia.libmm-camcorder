@@ -42,7 +42,9 @@
 #include <mm_session.h>
 #include <mm_session_private.h>
 
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
 #include <murphy/common/glib-glue.h>
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 
 /*---------------------------------------------------------------------------------------
@@ -430,6 +432,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		}
 	}
 
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
 	/* initialize resource manager */
 	ret = _mmcamcorder_resource_manager_init(&hcamcorder->resource_manager, (void *)hcamcorder);
 	if (ret != MM_ERROR_NONE) {
@@ -437,6 +440,7 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 		ret = MM_ERROR_CAMCORDER_INTERNAL;
 		goto _ERR_DEFAULT_VALUE_INIT;
 	}
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:CREATE:INIT_GSTREAMER");
 
@@ -506,8 +510,10 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	return MM_ERROR_NONE;
 
 _ERR_DEFAULT_VALUE_INIT:
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
 	/* de-initialize resource manager */
 	_mmcamcorder_resource_manager_deinit(&hcamcorder->resource_manager);
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	/* unregister sound focus */
 	if (hcamcorder->sound_focus_register && hcamcorder->sound_focus_id > 0) {
@@ -654,11 +660,13 @@ int _mmcamcorder_destroy(MMHandleType handle)
 		hcamcorder->sub_context = NULL;
 	}
 
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
 	/* de-initialize resource manager */
 	ret = _mmcamcorder_resource_manager_deinit(&hcamcorder->resource_manager);
 	if (ret != MM_ERROR_NONE) {
 		_mmcam_dbg_err("failed to de-initialize resource manager 0x%x", ret);
 	}
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	/* Remove idle function which is not called yet */
 	if (hcamcorder->setting_event_id) {
@@ -789,7 +797,6 @@ int _mmcamcorder_realize(MMHandleType handle)
 {
 	int ret = MM_ERROR_NONE;
 	int ret_sound = MM_ERROR_NONE;
-	int ret_resource = MM_ERROR_NONE;
 	int state = MM_CAMCORDER_STATE_NONE;
 	int state_FROM = MM_CAMCORDER_STATE_NULL;
 	int state_TO = MM_CAMCORDER_STATE_READY;
@@ -999,7 +1006,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 		} else {
 			_mmcam_dbg_warn("NULL dpm_policy");
 		}
-
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
 		/* prepare resource manager for camera */
 		ret = _mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, MM_CAMCORDER_RESOURCE_TYPE_CAMERA);
 		if (ret != MM_ERROR_NONE) {
@@ -1028,6 +1035,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 			_mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
 			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 		}
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 	}
 
 	/* create pipeline */
@@ -1066,9 +1074,10 @@ int _mmcamcorder_realize(MMHandleType handle)
 	return MM_ERROR_NONE;
 
 _ERR_CAMCORDER_CMD:
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
 	/* release hw resources */
 	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
-		ret_resource = _mmcamcorder_resource_manager_release(&hcamcorder->resource_manager);
+		int ret_resource = _mmcamcorder_resource_manager_release(&hcamcorder->resource_manager);
 		if (ret_resource == MM_ERROR_RESOURCE_INVALID_STATE) {
 			_mmcam_dbg_warn("it could be in the middle of resource callback or there's no acquired resource");
 		}
@@ -1080,6 +1089,7 @@ _ERR_CAMCORDER_CMD:
 			_mmcam_dbg_err("failed to unprepare resource manager, ret_resource(0x%x)", ret_resource);
 		}
 	}
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK:
 	_MMCAMCORDER_UNLOCK_CMD(hcamcorder);
@@ -1153,6 +1163,7 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 		hcamcorder->sub_context = NULL;
 	}
 
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
 	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
 		/* release resource */
 		ret = _mmcamcorder_resource_manager_release(&hcamcorder->resource_manager);
@@ -1169,6 +1180,7 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 			_mmcam_dbg_err("failed to unprepare resource manager, ret(0x%x)", ret);
 		}
 	}
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	/* Deinitialize main context member */
 	hcamcorder->command = NULL;

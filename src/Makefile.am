@@ -31,8 +31,7 @@ libmmfcamcorder_la_SOURCES = mm_camcorder.c \
 			     mm_camcorder_configure.c \
 			     mm_camcorder_util.c \
 			     mm_camcorder_exifinfo.c \
-			     mm_camcorder_sound.c \
-			     mm_camcorder_resource.c
+			     mm_camcorder_sound.c
 
 libmmfcamcorder_la_CFLAGS = -I$(srcdir)/include \
 			     $(GST_CFLAGS) \
@@ -47,8 +46,6 @@ libmmfcamcorder_la_CFLAGS = -I$(srcdir)/include \
 			     $(MMUTIL_JPEG_CFLAGS) \
 			     $(TBM_CFLAGS) \
 			     $(STORAGE_CFLAGS) \
-			     $(MURPHY_RESOURCE_CFLAGS) \
-			     $(MURPHY_GLIB_CFLAGS) \
 			     $(TTRACE_CFLAGS) \
 			     $(DPM_CFLAGS) \
 			     $(SYSTEMINFO_CFLAGS)
@@ -67,8 +64,6 @@ libmmfcamcorder_la_LIBADD = \
 			    $(MMUTIL_IMGP_LIBS) \
 			    $(MMUTIL_JPEG_LIBS) \
 			    $(TBM_LIBS) \
-			    $(MURPHY_RESOURCE_LIBS) \
-			    $(MURPHY_GLIB_LIBS) \
 			    $(TTRACE_LIBS) \
 			    $(DPM_LIBS) \
 			    $(STORAGE_LIBS)
@@ -81,6 +76,12 @@ libmmfcamcorder_la_LIBADD += $(SYSTEMINFO_LIBS)
 if WAYLAND_SUPPORT
 libmmfcamcorder_la_CFLAGS += $(GST_WAYLAND_CFLAGS)
 libmmfcamcorder_la_LIBADD += $(GST_WAYLAND_LIBS)
+endif
+
+if MURPHY_SUPPORT
+libmmfcamcorder_la_SOURCES += mm_camcorder_resource.c
+libmmfcamcorder_la_CFLAGS += $(MURPHY_RESOURCE_CFLAGS) $(MURPHY_GLIB_CFLAGS) -D_MMCAMCORDER_MURPHY_SUPPORT
+libmmfcamcorder_la_LIBADD += $(MURPHY_RESOURCE_LIBS) $(MURPHY_GLIB_LIBS)
 endif
 
 install-exec-hook:

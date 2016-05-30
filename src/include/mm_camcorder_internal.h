@@ -43,7 +43,10 @@
 
 #include "mm_camcorder.h"
 #include "mm_debug.h"
+
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
 #include "mm_camcorder_resource.h"
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 /* camcorder sub module */
 #include "mm_camcorder_attribute.h"
@@ -721,8 +724,10 @@ typedef struct mmf_camcorder {
 	GCond task_thread_cond;                                 /**< cond for task thread */
 	_MMCamcorderTaskThreadState task_thread_state;          /**< state of task thread */
 
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
 	/* resource manager for H/W resources */
 	MMCamcorderResourceManager resource_manager;
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	/* gdbus */
 	GDBusConnection *gdbus_conn;                            /**< gdbus connection */

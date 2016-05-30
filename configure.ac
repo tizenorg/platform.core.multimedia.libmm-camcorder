@@ -58,13 +58,23 @@ PKG_CHECK_MODULES(MM_COMMON, mm-common)
 AC_SUBST(MM_COMMON_CFLAGS)
 AC_SUBST(MM_COMMON_LIBS)
 
+AC_ARG_ENABLE(murphy, AC_HELP_STRING([--enable-murphy], [enable murphy]),
+[
+  case "${enableval}" in
+    yes) MURPHY_SUPPORT=yes ;;
+    no)  MURPHY_SUPPORT=no ;;
+    *) AC_MSG_ERROR(bad value ${enableval} for --enable-murphy) ;;
+  esac
+],[MURPHY_SUPPORT=no])
+if test "x$MURPHY_SUPPORT" = "xyes"; then
 PKG_CHECK_MODULES(MURPHY_RESOURCE, murphy-resource)
 AC_SUBST(MURPHY_RESOURCE_CFLAGS)
 AC_SUBST(MURPHY_RESOURCE_LIBS)
-
 PKG_CHECK_MODULES(MURPHY_GLIB, murphy-glib)
 AC_SUBST(MURPHY_GLIB_CFLAGS)
 AC_SUBST(MURPHY_GLIB_LIBS)
+fi
+AM_CONDITIONAL([MURPHY_SUPPORT], [test "x$MURPHY_SUPPORT" = "xyes"])
 
 PKG_CHECK_MODULES(MM_SOUND, mm-sound)
 AC_SUBST(MM_SOUND_CFLAGS)
