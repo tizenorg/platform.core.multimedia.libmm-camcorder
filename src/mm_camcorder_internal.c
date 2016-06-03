@@ -3422,6 +3422,7 @@ int _mmcamcorder_gst_set_state(MMHandleType handle, GstElement *pipeline, GstSta
 			switch (getChangeReturn) {
 			case GST_STATE_CHANGE_NO_PREROLL:
 				_mmcam_dbg_log("status=GST_STATE_CHANGE_NO_PREROLL.");
+				/* fall through */
 			case GST_STATE_CHANGE_SUCCESS:
 				/* if we reached the final target state, exit */
 				if (pipeline_state == target_state) {
