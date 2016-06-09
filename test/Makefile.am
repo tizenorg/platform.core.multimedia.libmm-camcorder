@@ -22,3 +22,7 @@ mm_camcorder_testsuite_LDADD = $(top_builddir)/src/libmmfcamcorder.la \
 			     $(MM_COMMON_LIBS)\
 			     $(MM_SOUND_LIBS)
 
+if RM_SUPPORT
+mm_camcorder_testsuite_CFLAGS += $(RM_CFLAGS) -D_MMCAMCORDER_RM_SUPPORT
+mm_camcorder_testsuite_LDADD += $(RM_LIBS)
+endif
