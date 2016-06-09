@@ -116,6 +116,25 @@ PKG_CHECK_MODULES(TBM, libtbm)
 AC_SUBST(TBM_CFLAGS)
 AC_SUBST(TBM_LIBS)
 
+AC_ARG_ENABLE(rm, AC_HELP_STRING([--enable-rm], [enable rm]),
+[
+  case "${enableval}" in
+    yes) RM_SUPPORT=yes ;;
+    no)  RM_SUPPORT=no ;;
+    *) AC_MSG_ERROR(bad value ${enableval} for --enable-rm) ;;
+  esac
+],[RM_SUPPORT=no])
+if test "x$RM_SUPPORT" = "xyes"; then
+PKG_CHECK_MODULES(RM, tv-resource-manager)
+AC_SUBST(RM_CFLAGS)
+AC_SUBST(RM_LIBS)
+
+PKG_CHECK_MODULES(AUL, aul)
+AC_SUBST(AUL_CFLAGS)
+AC_SUBST(AUL_LIBS)
+fi
+AM_CONDITIONAL([RM_SUPPORT], [test "x$RM_SUPPORT" = "xyes"])
+
 PKG_CHECK_MODULES(STORAGE, storage)
 AC_SUBST(STORAGE_CFLAGS)
 AC_SUBST(STORAGE_LIBS)
