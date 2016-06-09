@@ -2331,6 +2331,32 @@ bool _mmcamcorder_set_videosrc_caps(MMHandleType handle, unsigned int fourcc, in
 			gst_structure_get_int(structure, "fps", &caps_fps);
 			gst_structure_get_int(structure, "rotate", &caps_rotate);
 
+#ifdef PROFILE_TV
+			if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ENCODED_H264) {
+				if (set_width == caps_width && set_height == caps_height && set_rotate == caps_rotate && fps == caps_fps) {
+					_mmcam_dbg_log("No need to replace caps.");
+				} else {
+					_mmcam_dbg_log("current [%c%c%c%c %dx%d, fps %d, rot %d], new [%c%c%c%c %dx%d, fps %d, rot %d]",
+					               caps_fourcc, caps_fourcc>>8, caps_fourcc>>16, caps_fourcc>>24,
+					               caps_width, caps_height, caps_fps, caps_rotate,
+					               fourcc, fourcc>>8, fourcc>>16, fourcc>>24,
+					               set_width, set_height, fps, set_rotate);
+					do_set_caps = TRUE;
+				}
+			} else {
+				if (set_width == caps_width && set_height == caps_height &&
+				    fourcc == caps_fourcc && set_rotate == caps_rotate && fps == caps_fps) {
+					_mmcam_dbg_log("No need to replace caps.");
+				} else {
+					_mmcam_dbg_log("current [%c%c%c%c %dx%d, fps %d, rot %d], new [%c%c%c%c %dx%d, fps %d, rot %d]",
+					               caps_fourcc, caps_fourcc>>8, caps_fourcc>>16, caps_fourcc>>24,
+					               caps_width, caps_height, caps_fps, caps_rotate,
+					               fourcc, fourcc>>8, fourcc>>16, fourcc>>24,
+					               set_width, set_height, fps, set_rotate);
+					do_set_caps = TRUE;
+				}
+			}
+#else
 			if (set_width == caps_width && set_height == caps_height &&
 			    fourcc == caps_fourcc && set_rotate == caps_rotate && fps == caps_fps) {
 				_mmcam_dbg_log("No need to replace caps.");
@@ -2342,6 +2368,7 @@ bool _mmcamcorder_set_videosrc_caps(MMHandleType handle, unsigned int fourcc, in
 				               set_width, set_height, fps, set_rotate);
 				do_set_caps = TRUE;
 			}
+#endif
 		} else {
 			_mmcam_dbg_log("can not get structure of caps. set new one...");
 			do_set_caps = TRUE;
@@ -2363,6 +2390,11 @@ bool _mmcamcorder_set_videosrc_caps(MMHandleType handle, unsigned int fourcc, in
 					"height", G_TYPE_INT, set_height,
 					"framerate", GST_TYPE_FRACTION, fps, 1,
 					"stream-format", G_TYPE_STRING, "byte-stream",
+#ifdef PROFILE_TV
+					"maxwidth", G_TYPE_INT, 1920,
+					"maxheight", G_TYPE_INT, 1080,
+					"alignment", G_TYPE_STRING, "au",
+#endif
 					NULL);
 		} else {
 			char fourcc_string[sizeof(fourcc)+1];

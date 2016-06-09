@@ -2,7 +2,7 @@
 
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.10.55
+Version:    0.10.56
 Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
@@ -62,7 +62,7 @@ Camera and recorder function supported library for development.
 export CFLAGS+=" -DHAVE_WAYLAND -DGST_USE_UNSTABLE_API"
 %endif
 %if "%{TIZEN_PRODUCT_TV}" == "1"
-export CFLAGS+=" -DUSE_RM"
+export CFLAGS+=" -DUSE_RM -DPROFILE_TV"
 %endif
 export CFLAGS+=" -D_LARGEFILE64_SOURCE -DSYSCONFDIR=\\\"%{_sysconfdir}\\\" -DTZ_SYS_ETC=\\\"%{TZ_SYS_ETC}\\\""
 ./autogen.sh
