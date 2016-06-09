@@ -183,6 +183,10 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 	char *err_name = NULL;
 	char *socket_path = NULL;
 	int socket_path_len;
+#ifdef _MMCAMCORDER_RM_SUPPORT
+	int decoder_index = 0;
+	char decoder_name[20] = {'\0',};
+#endif /* _MMCAMCORDER_RM_SUPPORT */
 
 	GList *element_list = NULL;
 
@@ -312,10 +316,18 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 		if (videodecoder_name) {
 			_mmcam_dbg_log("video decoder element [%s], recreate decoder %d",
 				videodecoder_name, hcamcorder->recreate_decoder);
+#ifdef _MMCAMCORDER_RM_SUPPORT
+			if (hcamcorder->request_resources.category_id[0] == RM_CATEGORY_VIDEO_DECODER_SUB)
+				decoder_index = 1;
 
+			snprintf(decoder_name, sizeof(decoder_name)-1, "%s%d", videodecoder_name, decoder_index);
+			_mmcam_dbg_log("encoded preview decoder_name %s", decoder_name);
+			/* create decoder element */
+			_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSRC_DECODE, decoder_name, "videosrc_decode", element_list, err);
+#else /* _MMCAMCORDER_RM_SUPPORT */
 			/* create decoder element */
 			_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSRC_DECODE, videodecoder_name, "videosrc_decode", element_list, err);
-
+#endif /* _MMCAMCORDER_RM_SUPPORT */
 			_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst, sc->VideodecoderElementH264);
 		} else {
 			_mmcam_dbg_err("failed to get video decoder element name from %p", sc->VideodecoderElementH264);
@@ -1239,6 +1251,9 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 	int zoom_attr = 0;
 	int zoom_level = 0;
 	int do_scaling = FALSE;
+#ifdef _MMCAMCORDER_RM_SUPPORT
+	int display_scaler = 0;
+#endif /* _MMCAMCORDER_RM_SUPPORT */
 	int *overlay = NULL;
 	gulong xid;
 	char *err_name = NULL;
@@ -1301,6 +1316,12 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 			_mmcam_dbg_warn("Handle is NULL. Set xid as 0.. but, it's not recommended.");
 			gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(vsink), 0);
 		}
+#ifdef _MMCAMCORDER_RM_SUPPORT
+		if (hcamcorder->request_resources.category_id[0] == RM_CATEGORY_VIDEO_DECODER_SUB)
+			display_scaler = 1;
+
+		MMCAMCORDER_G_OBJECT_SET(vsink, "device-scaler", display_scaler);
+#endif /* _MMCAMCORDER_RM_SUPPORT */
 	} else if (!strcmp(videosink_name, "evasimagesink") ||
 	           !strcmp(videosink_name, "evaspixmapsink")) {
 		_mmcam_dbg_log("videosink : %s, handle : %p", videosink_name, overlay);
@@ -1319,6 +1340,12 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 			gst_video_overlay_set_wl_window_wl_surface_id(GST_VIDEO_OVERLAY(vsink), (guintptr)wl_info->global_surface_id);
 			gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(vsink),
 				wl_info->window_x, wl_info->window_y, wl_info->window_width, wl_info->window_height);
+#ifdef _MMCAMCORDER_RM_SUPPORT
+		if (hcamcorder->request_resources.category_id[0] == RM_CATEGORY_VIDEO_DECODER_SUB)
+			display_scaler = 1;
+
+		MMCAMCORDER_G_OBJECT_SET(vsink, "device-scaler", display_scaler);
+#endif /* _MMCAMCORDER_RM_SUPPORT */
 		} else {
 			_mmcam_dbg_warn("Handle is NULL. skip setting.");
 		}
@@ -2653,6 +2680,10 @@ bool _mmcamcorder_recreate_decoder_for_encoded_preview(MMHandleType handle)
 	_MMCamcorderSubContext *sc = NULL;
 	mmf_camcorder_t *hcamcorder = NULL;
 	const char *videodecoder_name = NULL;
+#ifdef _MMCAMCORDER_RM_SUPPORT
+	char decoder_name[20] = {'\0',};
+	int decoder_index = 0;
+#endif /* _MMCAMCORDER_RM_SUPPORT */
 
 	if ((void *)handle == NULL) {
 		_mmcam_dbg_warn("handle is NULL");
@@ -2709,12 +2740,27 @@ bool _mmcamcorder_recreate_decoder_for_encoded_preview(MMHandleType handle)
 			((GObject *)sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst)->ref_count);
 	}
 
+#ifdef _MMCAMCORDER_RM_SUPPORT
+	if (hcamcorder->request_resources.category_id[0] == RM_CATEGORY_VIDEO_DECODER_SUB)
+		decoder_index = 1;
+
+	snprintf(decoder_name, sizeof(decoder_name)-1, "%s%d", videodecoder_name, decoder_index);
+	_mmcam_dbg_log("encoded preview decoder_name %s", decoder_name);
+	/* create decoder */
+	sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst = gst_element_factory_make(decoder_name, "videosrc_decode");
+	if (sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst == NULL) {
+		_mmcam_dbg_err("Decoder[%s] creation fail", decoder_name);
+		return FALSE;
+	}
+#else /* _MMCAMCORDER_RM_SUPPORT */
 	/* create new decoder */
 	sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst = gst_element_factory_make(videodecoder_name, "videosrc_decode");
 	if (sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst == NULL) {
 		_mmcam_dbg_err("Decoder [%s] creation fail", videodecoder_name);
 		return FALSE;
 	}
+#endif /* _MMCAMCORDER_RM_SUPPORT */
+	_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst, sc->VideodecoderElementH264);
 
 	sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].id = _MMCAMCORDER_VIDEOSRC_DECODE;
 	g_object_weak_ref(G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst),

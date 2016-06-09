@@ -84,6 +84,11 @@ libmmfcamcorder_la_CFLAGS += $(MURPHY_RESOURCE_CFLAGS) $(MURPHY_GLIB_CFLAGS) -D_
 libmmfcamcorder_la_LIBADD += $(MURPHY_RESOURCE_LIBS) $(MURPHY_GLIB_LIBS)
 endif
 
+if RM_SUPPORT
+libmmfcamcorder_la_CFLAGS += $(RM_CFLAGS) $(AUL_CFLAGS) -D_MMCAMCORDER_RM_SUPPORT
+libmmfcamcorder_la_LIBADD += $(RM_LIBS) $(AUL_LIBS)
+endif
+
 install-exec-hook:
 					mkdir -p $(DESTDIR)$(prefix)/share/sounds/mm-camcorder && \
 					cp $(srcdir)/../sounds/* $(DESTDIR)$(prefix)/share/sounds/mm-camcorder/
