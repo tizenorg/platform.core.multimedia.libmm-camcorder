@@ -60,6 +60,11 @@
 #include "mm_camcorder_configure.h"
 #include "mm_camcorder_sound.h"
 
+#ifdef USE_RM
+/* rm (resource manager)*/
+#include <rm_api.h>
+#endif // USE_RM
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -664,6 +669,9 @@ typedef struct mmf_camcorder {
 #endif /* _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK */
 	camera_conf *conf_main;                /**< Camera configure Main structure */
 	camera_conf *conf_ctrl;                /**< Camera configure Control structure */
+#ifdef USE_RM
+	int rm_handle;                        /**< Resource manager handle */
+#endif // USE_RM
 	guint pipeline_cb_event_id;            /**< Event source ID of pipeline message callback */
 	guint encode_pipeline_cb_event_id;     /**< Event source ID of encode pipeline message callback */
 	guint setting_event_id;                /**< Event source ID of attributes setting to sensor */
@@ -739,6 +747,11 @@ typedef struct mmf_camcorder {
 	dpm_restriction_policy_h dpm_policy;                    /**< DPM restriction policy handle */
 	int dpm_camera_cb_id;                                   /**< DPM camera policy changed callback id */
 
+#ifdef USE_RM
+	rm_callback_type rm_event_code;
+	rm_category_request_s request_resources;
+	rm_device_return_s returned_devices;
+#endif // USE_RM
 	int reserved[4];                                        /**< reserved */
 } mmf_camcorder_t;
 

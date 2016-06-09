@@ -2,7 +2,7 @@
 
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.10.54
+Version:    0.10.55
 Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
@@ -34,6 +34,10 @@ BuildRequires:  pkgconfig(murphy-glib)
 BuildRequires:  pkgconfig(ttrace)
 BuildRequires:  pkgconfig(libtzplatform-config)
 BuildRequires:  pkgconfig(dpm)
+%if "%{TIZEN_PRODUCT_TV}" == "1"
+BuildRequires:  pkgconfig(tv-resource-manager)
+BuildRequires:  pkgconfig(aul)
+%endif
 
 %description
 Camera and recorder function supported library.
@@ -57,6 +61,9 @@ Camera and recorder function supported library for development.
 %if %{with wayland}
 export CFLAGS+=" -DHAVE_WAYLAND -DGST_USE_UNSTABLE_API"
 %endif
+%if "%{TIZEN_PRODUCT_TV}" == "1"
+export CFLAGS+=" -DUSE_RM"
+%endif
 export CFLAGS+=" -D_LARGEFILE64_SOURCE -DSYSCONFDIR=\\\"%{_sysconfdir}\\\" -DTZ_SYS_ETC=\\\"%{TZ_SYS_ETC}\\\""
 ./autogen.sh
 %configure \
@@ -65,6 +72,9 @@ export CFLAGS+=" -D_LARGEFILE64_SOURCE -DSYSCONFDIR=\\\"%{_sysconfdir}\\\" -DTZ_
 %endif
 %if "%{TIZEN_PRODUCT_TV}" != "1"
 	--enable-murphy \
+%endif
+%if "%{TIZEN_PRODUCT_TV}" == "1"
+	--enable-rm \
 %endif
 	--disable-static
 make %{?jobs:-j%jobs}
