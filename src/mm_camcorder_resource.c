@@ -151,6 +151,13 @@ static void __mmcamcorder_resource_set_state_callback(mrp_res_context_t *cx, con
 		} else {
 			_mmcam_dbg_log(" -- resource name [%s] -> [%s]",
 				res->name, __mmcamcorder_resource_state_to_str(res->state));
+
+			if (res->state == MRP_RES_RESOURCE_ACQUIRED) {
+				_mmcam_dbg_log("send signal for acquired resource");
+				_MMCAMCORDER_LOCK_RESOURCE(camcorder);
+				_MMCAMCORDER_RESOURCE_SIGNAL(camcorder);
+				_MMCAMCORDER_UNLOCK_RESOURCE(camcorder);
+			}
 		}
 	}
 
