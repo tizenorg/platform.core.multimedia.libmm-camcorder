@@ -40,6 +40,7 @@ typedef struct {
 	mrp_res_resource_set_t *rset;
 	bool is_connected;
 	void *user_data;
+	int acquire_count;
 } MMCamcorderResourceManager;
 
 int _mmcamcorder_resource_manager_init(MMCamcorderResourceManager *resource_manager, void *user_data);

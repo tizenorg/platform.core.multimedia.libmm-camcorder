@@ -151,6 +151,22 @@ static void __mmcamcorder_resource_set_state_callback(mrp_res_context_t *cx, con
 		} else {
 			_mmcam_dbg_log(" -- resource name [%s] -> [%s]",
 				res->name, __mmcamcorder_resource_state_to_str(res->state));
+
+			if (res->state == MRP_RES_RESOURCE_ACQUIRED) {
+				_MMCAMCORDER_LOCK_RESOURCE(camcorder);
+
+				camcorder->resource_manager.acquire_count--;
+
+				if (camcorder->resource_manager.acquire_count <= 0) {
+					_mmcam_dbg_log("send signal - resource acquire done");
+					_MMCAMCORDER_RESOURCE_SIGNAL(camcorder);
+				} else {
+					_mmcam_dbg_warn("remained acquire count %d",
+						camcorder->resource_manager.acquire_count);
+				}
+
+				_MMCAMCORDER_UNLOCK_RESOURCE(camcorder);
+			}
 		}
 	}
 
@@ -245,7 +261,10 @@ static int __mmcamcorder_resource_include_resource(MMCamcorderResourceManager *r
 		return MM_ERROR_RESOURCE_INTERNAL;
 	}
 
-	_mmcam_dbg_log(" - include resource[%s]", resource_name);
+	resource_manager->acquire_count++;
+
+	_mmcam_dbg_log(" - count[%d] include resource[%s]",
+		resource_manager->acquire_count, resource_name);
 
 	return MM_ERROR_NONE;
 }

@@ -396,6 +396,18 @@ extern "C" {
 #define _MMCAMCORDER_TRYLOCK_ASTREAM_CALLBACK(handle)       _MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle))
 #define _MMCAMCORDER_UNLOCK_ASTREAM_CALLBACK(handle)        _MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_ASTREAM_CALLBACK_LOCK(handle))
 
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
+/* for resource conflict */
+#define _MMCAMCORDER_GET_RESOURCE_LOCK(handle)              (_MMCAMCORDER_CAST_MTSAFE(handle).resource_lock)
+#define _MMCAMCORDER_GET_RESOURCE_COND(handle)              (_MMCAMCORDER_CAST_MTSAFE(handle).resource_cond)
+#define _MMCAMCORDER_LOCK_RESOURCE(handle)                  _MMCAMCORDER_LOCK_FUNC(_MMCAMCORDER_GET_RESOURCE_LOCK(handle))
+#define _MMCAMCORDER_TRYLOCK_RESOURCE(handle)               _MMCAMCORDER_TRYLOCK_FUNC(_MMCAMCORDER_GET_RESOURCE_LOCK(handle))
+#define _MMCAMCORDER_UNLOCK_RESOURCE(handle)                _MMCAMCORDER_UNLOCK_FUNC(_MMCAMCORDER_GET_RESOURCE_LOCK(handle))
+#define _MMCAMCORDER_RESOURCE_WAIT(handle)                  g_cond_wait(&_MMCAMCORDER_GET_RESOURCE_COND(handle), &_MMCAMCORDER_GET_RESOURCE_LOCK(handle))
+#define _MMCAMCORDER_RESOURCE_WAIT_UNTIL(handle, end_time)  g_cond_wait_until(&_MMCAMCORDER_GET_RESOURCE_COND(handle), &_MMCAMCORDER_GET_RESOURCE_LOCK(handle), end_time)
+#define _MMCAMCORDER_RESOURCE_SIGNAL(handle)                g_cond_signal(&_MMCAMCORDER_GET_RESOURCE_COND(handle));
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
+
 /**
  * Caster of main handle (camcorder)
  */
@@ -600,6 +612,10 @@ typedef struct {
 	GMutex vcapture_cb_lock;        /**< Mutex (for video capture callback) */
 	GMutex vstream_cb_lock;         /**< Mutex (for video stream callback) */
 	GMutex astream_cb_lock;         /**< Mutex (for audio stream callback) */
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
+	GCond resource_cond;            /**< Condition (for resource check) */
+	GMutex resource_lock;           /**< Mutex (for resource check) */
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 } _MMCamcorderMTSafe;
 
 /**

@@ -63,6 +63,10 @@
 #define DPM_ALLOWED                             1
 #define DPM_DISALLOWED                          0
 
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
+#define __MMCAMCORDER_RESOURCE_WAIT_TIME        5
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
+
 
 /*---------------------------------------------------------------------------------------
 |    LOCAL FUNCTION PROTOTYPES:								|
@@ -141,6 +145,10 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	g_mutex_init(&(hcamcorder->mtsafe).vcapture_cb_lock);
 	g_mutex_init(&(hcamcorder->mtsafe).vstream_cb_lock);
 	g_mutex_init(&(hcamcorder->mtsafe).astream_cb_lock);
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
+	g_cond_init(&(hcamcorder->mtsafe).resource_cond);
+	g_mutex_init(&(hcamcorder->mtsafe).resource_lock);
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	g_mutex_init(&hcamcorder->restart_preview_lock);
 
@@ -575,6 +583,10 @@ _ERR_DEFAULT_VALUE_INIT:
 	g_mutex_clear(&(hcamcorder->mtsafe).vcapture_cb_lock);
 	g_mutex_clear(&(hcamcorder->mtsafe).vstream_cb_lock);
 	g_mutex_clear(&(hcamcorder->mtsafe).astream_cb_lock);
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
+	g_cond_clear(&(hcamcorder->mtsafe).resource_cond);
+	g_mutex_clear(&(hcamcorder->mtsafe).resource_lock);
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	g_mutex_clear(&hcamcorder->snd_info.open_mutex);
 	g_cond_clear(&hcamcorder->snd_info.open_cond);
@@ -784,6 +796,10 @@ int _mmcamcorder_destroy(MMHandleType handle)
 	g_mutex_clear(&(hcamcorder->mtsafe).vcapture_cb_lock);
 	g_mutex_clear(&(hcamcorder->mtsafe).vstream_cb_lock);
 	g_mutex_clear(&(hcamcorder->mtsafe).astream_cb_lock);
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
+	g_cond_clear(&(hcamcorder->mtsafe).resource_cond);
+	g_mutex_clear(&(hcamcorder->mtsafe).resource_lock);
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	g_mutex_clear(&hcamcorder->snd_info.open_mutex);
 	g_cond_clear(&hcamcorder->snd_info.open_cond);
@@ -1084,6 +1100,9 @@ int _mmcamcorder_realize(MMHandleType handle)
 
 	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
 		int dpm_camera_state = DPM_ALLOWED;
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
+		gint64 end_time = 0;
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 		/* check camera policy from DPM */
 		if (hcamcorder->dpm_policy) {
@@ -1101,6 +1120,8 @@ int _mmcamcorder_realize(MMHandleType handle)
 			_mmcam_dbg_warn("NULL dpm_policy");
 		}
 #ifdef _MMCAMCORDER_MURPHY_SUPPORT
+		hcamcorder->resource_manager.acquire_count = 0;
+
 		/* prepare resource manager for camera */
 		ret = _mmcamcorder_resource_manager_prepare(&hcamcorder->resource_manager, MM_CAMCORDER_RESOURCE_TYPE_CAMERA);
 		if (ret != MM_ERROR_NONE) {
@@ -1124,11 +1145,36 @@ int _mmcamcorder_realize(MMHandleType handle)
 		}
 
 		/* acquire resources */
+		_MMCAMCORDER_LOCK_RESOURCE(hcamcorder);
+
 		if (hcamcorder->resource_manager.rset && _mmcamcorder_resource_manager_acquire(&hcamcorder->resource_manager)) {
+			_MMCAMCORDER_UNLOCK_RESOURCE(hcamcorder);
+
 			_mmcam_dbg_err("could not acquire resources");
+
 			_mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
 			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 		}
+
+		if (hcamcorder->resource_manager.acquire_count > 0) {
+			_mmcam_dbg_warn("wait for resource state change");
+
+			/* wait for resource state change */
+			end_time = g_get_monotonic_time() + (__MMCAMCORDER_RESOURCE_WAIT_TIME * G_TIME_SPAN_SECOND);
+
+			if (_MMCAMCORDER_RESOURCE_WAIT_UNTIL(hcamcorder, end_time)) {
+				_mmcam_dbg_warn("signal received");
+			} else {
+				_MMCAMCORDER_UNLOCK_RESOURCE(hcamcorder);
+				_mmcam_dbg_err("timeout");
+				ret = MM_ERROR_RESOURCE_INTERNAL;
+				goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
+			}
+		} else {
+			_mmcam_dbg_log("already all acquired");
+		}
+
+		_MMCAMCORDER_UNLOCK_RESOURCE(hcamcorder);
 #endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 	}
 
