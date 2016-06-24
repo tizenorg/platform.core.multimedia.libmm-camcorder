@@ -2,7 +2,7 @@
 
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.10.55
+Version:    0.10.56
 Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
@@ -70,6 +70,7 @@ export CFLAGS+=" -D_LARGEFILE64_SOURCE -DSYSCONFDIR=\\\"%{_sysconfdir}\\\" -DTZ_
 	--enable-murphy \
 %else
 	--enable-rm \
+	--enable-product-tv \
 %endif
 	--disable-static
 make %{?jobs:-j%jobs}

@@ -147,6 +147,16 @@ PKG_CHECK_MODULES(DPM, dpm)
 AC_SUBST(DPM_CFLAGS)
 AC_SUBST(DPM_LIBS)
 
+AC_ARG_ENABLE(product-tv, AC_HELP_STRING([--enable-product-tv],[enable tv defined code]),
+[
+  case "${enableval}" in
+    yes) PRODUCT_TV=yes ;;
+    no)  PRODUCT_TV=no ;;
+    *) AC_MSG_ERROR([bad value ${enableval} for --enable-product-tv]) ;;
+  esac
+],[PRODUCT_TV=no])
+AM_CONDITIONAL([PRODUCT_TV], [test "x$PRODUCT_TV" = "xyes"])
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([fcntl.h memory.h stdlib.h string.h sys/time.h unistd.h])

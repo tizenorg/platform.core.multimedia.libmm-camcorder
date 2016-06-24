@@ -89,6 +89,10 @@ libmmfcamcorder_la_CFLAGS += $(RM_CFLAGS) $(AUL_CFLAGS) -D_MMCAMCORDER_RM_SUPPOR
 libmmfcamcorder_la_LIBADD += $(RM_LIBS) $(AUL_LIBS)
 endif
 
+if PRODUCT_TV
+libmmfcamcorder_la_CFLAGS += -D_MMCAMCORDER_PRODUCT_TV
+endif
+
 install-exec-hook:
 					mkdir -p $(DESTDIR)$(prefix)/share/sounds/mm-camcorder && \
 					cp $(srcdir)/../sounds/* $(DESTDIR)$(prefix)/share/sounds/mm-camcorder/

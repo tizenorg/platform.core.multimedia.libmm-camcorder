@@ -2220,6 +2220,13 @@ bool _mmcamcorder_set_videosrc_caps(MMHandleType handle, unsigned int fourcc, in
 	gboolean do_set_caps = FALSE;
 
 	GstCaps *caps = NULL;
+#ifdef _MMCAMCORDER_PRODUCT_TV
+	GstPad *sinkpad;
+	GstCaps *decsink_caps = NULL;
+	GstStructure *decsink_struct = NULL;
+	int maxwidth = 0;
+	int maxheight = 0;
+#endif /*_MMCAMCORDER_PRODUCT_TV */
 
 	mmf_camcorder_t *hcamcorder = NULL;
 	_MMCamcorderSubContext *sc = NULL;
@@ -2331,6 +2338,32 @@ bool _mmcamcorder_set_videosrc_caps(MMHandleType handle, unsigned int fourcc, in
 			gst_structure_get_int(structure, "fps", &caps_fps);
 			gst_structure_get_int(structure, "rotate", &caps_rotate);
 
+#ifdef _MMCAMCORDER_PRODUCT_TV
+			if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ENCODED_H264) {
+				if (set_width == caps_width && set_height == caps_height && set_rotate == caps_rotate && fps == caps_fps) {
+					_mmcam_dbg_log("No need to replace caps.");
+				} else {
+					_mmcam_dbg_log("current [%c%c%c%c %dx%d, fps %d, rot %d], new [%c%c%c%c %dx%d, fps %d, rot %d]",
+					               caps_fourcc, caps_fourcc>>8, caps_fourcc>>16, caps_fourcc>>24,
+					               caps_width, caps_height, caps_fps, caps_rotate,
+					               fourcc, fourcc>>8, fourcc>>16, fourcc>>24,
+					               set_width, set_height, fps, set_rotate);
+					do_set_caps = TRUE;
+				}
+			} else {
+				if (set_width == caps_width && set_height == caps_height &&
+				    fourcc == caps_fourcc && set_rotate == caps_rotate && fps == caps_fps) {
+					_mmcam_dbg_log("No need to replace caps.");
+				} else {
+					_mmcam_dbg_log("current [%c%c%c%c %dx%d, fps %d, rot %d], new [%c%c%c%c %dx%d, fps %d, rot %d]",
+					               caps_fourcc, caps_fourcc>>8, caps_fourcc>>16, caps_fourcc>>24,
+					               caps_width, caps_height, caps_fps, caps_rotate,
+					               fourcc, fourcc>>8, fourcc>>16, fourcc>>24,
+					               set_width, set_height, fps, set_rotate);
+					do_set_caps = TRUE;
+				}
+			}
+#else /*_MMCAMCORDER_PRODUCT_TV */
 			if (set_width == caps_width && set_height == caps_height &&
 			    fourcc == caps_fourcc && set_rotate == caps_rotate && fps == caps_fps) {
 				_mmcam_dbg_log("No need to replace caps.");
@@ -2342,6 +2375,7 @@ bool _mmcamcorder_set_videosrc_caps(MMHandleType handle, unsigned int fourcc, in
 				               set_width, set_height, fps, set_rotate);
 				do_set_caps = TRUE;
 			}
+#endif /*_MMCAMCORDER_PRODUCT_TV */
 		} else {
 			_mmcam_dbg_log("can not get structure of caps. set new one...");
 			do_set_caps = TRUE;
@@ -2358,12 +2392,51 @@ bool _mmcamcorder_set_videosrc_caps(MMHandleType handle, unsigned int fourcc, in
 
 	if (do_set_caps) {
 		if (sc->info_image->preview_format == MM_PIXEL_FORMAT_ENCODED_H264) {
+#ifdef _MMCAMCORDER_PRODUCT_TV
+			sinkpad = gst_element_get_static_pad(sc->element[_MMCAMCORDER_VIDEOSRC_DECODE].gst, "sink");
+			if (!sinkpad) {
+				_mmcam_dbg_err("There are no decoder caps");
+				return FALSE;
+			}
+
+			decsink_caps = gst_pad_get_pad_template_caps(sinkpad);
+			if (!decsink_caps) {
+				gst_object_unref(sinkpad);
+				_mmcam_dbg_err("There is no decoder sink caps");
+				return FALSE;
+			}
+
+			decsink_struct = gst_caps_get_structure(decsink_caps,0);
+			if (!decsink_struct) {
+				_mmcam_dbg_err("There are no structure from caps");
+				gst_object_unref(decsink_caps);
+				gst_object_unref(sinkpad);
+				return FALSE;
+			}
+
+			if(gst_structure_has_field(decsink_struct, "maxwidth")){
+				gst_structure_get_int(decsink_struct, "maxwidth", &maxwidth);
+			}
+			if(gst_structure_has_field(decsink_struct, "maxheight")){
+				gst_structure_get_int(decsink_struct, "maxheight", &maxheight);
+			}
+#endif /* _MMCAMCORDER_PRODUCT_TV */
 			caps = gst_caps_new_simple("video/x-h264",
 					"width", G_TYPE_INT, set_width,
 					"height", G_TYPE_INT, set_height,
 					"framerate", GST_TYPE_FRACTION, fps, 1,
 					"stream-format", G_TYPE_STRING, "byte-stream",
+#ifdef _MMCAMCORDER_PRODUCT_TV
+					"maxwidth", G_TYPE_INT, maxwidth,
+					"maxheight", G_TYPE_INT, maxheight,
+					"alignment", G_TYPE_STRING, "au",
+#endif /* _MMCAMCORDER_PRODUCT_TV */
 					NULL);
+
+#ifdef _MMCAMCORDER_PRODUCT_TV
+			gst_object_unref(decsink_caps);
+			gst_object_unref(sinkpad);
+#endif /* _MMCAMCORDER_PRODUCT_TV */
 		} else {
 			char fourcc_string[sizeof(fourcc)+1];
 			strncpy(fourcc_string, (char*)&fourcc, sizeof(fourcc));

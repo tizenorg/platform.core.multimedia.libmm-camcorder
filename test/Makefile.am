@@ -26,3 +26,7 @@ if RM_SUPPORT
 mm_camcorder_testsuite_CFLAGS += $(RM_CFLAGS) -D_MMCAMCORDER_RM_SUPPORT
 mm_camcorder_testsuite_LDADD += $(RM_LIBS)
 endif
+
+if PRODUCT_TV
+mm_camcorder_testsuite_CFLAGS += -D_MMCAMCORDER_PRODUCT_TV
+endif
