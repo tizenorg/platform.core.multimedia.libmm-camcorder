@@ -1091,7 +1091,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 				_mmcam_dbg_log("DPM camera state %d", dpm_camera_state);
 				if (dpm_camera_state == DPM_DISALLOWED) {
 					_mmcam_dbg_err("CAMERA DISALLOWED by DPM");
-					ret = MM_ERROR_COMMON_INVALID_PERMISSION;
+					ret = MM_ERROR_POLICY_RESTRICTED;
 					goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 				}
 			} else {
