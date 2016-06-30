@@ -288,6 +288,9 @@ int _mmcamcorder_create_recorder_pipeline(MMHandleType handle)
 	/* register pipeline message callback */
 	hcamcorder->encode_pipeline_cb_event_id = gst_bus_add_watch(bus, (GstBusFunc)_mmcamcorder_pipeline_cb_message, hcamcorder);
 
+	/* set sync handler */
+	gst_bus_set_sync_handler(bus, _mmcamcorder_encode_pipeline_bus_sync_callback, (gpointer)hcamcorder, NULL);
+
 	gst_object_unref(bus);
 	bus = NULL;
 
