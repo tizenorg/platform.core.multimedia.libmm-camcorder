@@ -1908,12 +1908,7 @@ int __mmcamcorder_get_amrnb_bitrate_mode(int bitrate)
 
 int _mmcamcorder_get_eos_message(MMHandleType handle)
 {
-	double elapsed = 0.0;
-
-	GstMessage *gMessage = NULL;
-	GstBus *bus = NULL;
-	GstClockTime timeout = 1 * GST_SECOND; /* maximum waiting time */
-	GTimer *timer = NULL;
+	int64_t end_time;
 	int ret = MM_ERROR_NONE;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
@@ -1923,83 +1918,39 @@ int _mmcamcorder_get_eos_message(MMHandleType handle)
 	sc = MMF_CAMCORDER_SUBCONTEXT(handle);
 	mmf_return_val_if_fail(sc, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
 
-	_mmcam_dbg_log("");
+	_mmcam_dbg_log("START");
 
-	bus = gst_pipeline_get_bus(GST_PIPELINE(sc->encode_element[_MMCAMCORDER_ENCODE_MAIN_PIPE].gst));
-	timer = g_timer_new();
+	_MMCAMCORDER_LOCK(handle);
 
-	if (sc && !(sc->bget_eos)) {
-		while (TRUE) {
-			elapsed = g_timer_elapsed(timer, NULL);
-
-			/*_mmcam_dbg_log("elapsed:%f sec", elapsed);*/
-
-			if (elapsed > _MMCAMCORDER_WAIT_EOS_TIME) {
-				_mmcam_dbg_warn("Timeout. EOS isn't received.");
-				 ret = MM_ERROR_CAMCORDER_RESPONSE_TIMEOUT;
-				 break;
-			}
-
-			gMessage = gst_bus_timed_pop(bus, timeout);
-			if (gMessage != NULL) {
-				_mmcam_dbg_log("Get message(%x).", GST_MESSAGE_TYPE(gMessage));
-
-				if (GST_MESSAGE_TYPE(gMessage) == GST_MESSAGE_ERROR) {
-					GError *err;
-					gchar *debug;
-					gst_message_parse_error(gMessage, &err, &debug);
-
-					switch (err->code) {
-					case GST_RESOURCE_ERROR_WRITE:
-						_mmcam_dbg_err("File write error");
-						ret = MM_ERROR_FILE_WRITE;
-						break;
-					case GST_RESOURCE_ERROR_NO_SPACE_LEFT:
-						_mmcam_dbg_err("No left space");
-						ret = MM_MESSAGE_CAMCORDER_NO_FREE_SPACE;
-						break;
-					case GST_RESOURCE_ERROR_OPEN_WRITE:
-						_mmcam_dbg_err("Out of storage");
-						ret = MM_ERROR_OUT_OF_STORAGE;
-						break;
-					case GST_RESOURCE_ERROR_SEEK:
-						_mmcam_dbg_err("File read(seek)");
-						ret = MM_ERROR_FILE_READ;
-						break;
-					default:
-						_mmcam_dbg_err("Resource error(%d)", err->code);
-						ret = MM_ERROR_CAMCORDER_GST_RESOURCE;
-						break;
-					}
-
-					g_error_free (err);
-					g_free (debug);
-
-					gst_message_unref(gMessage);
-					break;
-				}
-
-				_mmcamcorder_pipeline_cb_message(bus, gMessage, (void*)hcamcorder);
-
-				if (GST_MESSAGE_TYPE(gMessage) == GST_MESSAGE_EOS || sc->bget_eos) {
-					gst_message_unref(gMessage);
-					break;
-				}
-				gst_message_unref(gMessage);
-			} else {
-				_mmcam_dbg_log("timeout of gst_bus_timed_pop()");
-				if (sc->bget_eos) {
-					_mmcam_dbg_log("Get EOS in another thread.");
-					break;
-				}
-			}
+	if (sc->bget_eos == FALSE) {
+		end_time = g_get_monotonic_time() + 3 * G_TIME_SPAN_SECOND;
+		if (_MMCAMCORDER_WAIT_UNTIL(handle, end_time)) {
+			_mmcam_dbg_log("EOS signal received");
+		} else {
+			_mmcam_dbg_err("EOS wait time out");
 		}
+	} else {
+		_mmcam_dbg_log("already got EOS");
 	}
 
-	g_timer_destroy(timer);
-	timer = NULL;
-	gst_object_unref(bus);
-	bus = NULL;
+	_MMCAMCORDER_UNLOCK(handle);
+
+	if (hcamcorder->error_code == MM_ERROR_NONE) {
+		if (hcamcorder->type != MM_CAMCORDER_MODE_AUDIO) {
+			mmf_return_val_if_fail(sc->info_video, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
+			if (sc->info_video->b_commiting) {
+				_mmcamcorder_video_handle_eos((MMHandleType)hcamcorder);
+			}
+		} else {
+			mmf_return_val_if_fail(sc->info_audio, MM_ERROR_CAMCORDER_NOT_INITIALIZED);
+			if (sc->info_audio->b_commiting) {
+				_mmcamcorder_audio_handle_eos((MMHandleType)hcamcorder);
+			}
+		}
+	} else {
+		ret = hcamcorder->error_code;
+		_mmcam_dbg_err("error 0x%x", ret);
+	}
 
 	_mmcam_dbg_log("END");
 

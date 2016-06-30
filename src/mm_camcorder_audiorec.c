@@ -209,7 +209,7 @@ static int __mmcamcorder_create_audiop_with_encodebin(MMHandleType handle)
 	hcamcorder->pipeline_cb_event_id = gst_bus_add_watch(bus, (GstBusFunc)_mmcamcorder_pipeline_cb_message, hcamcorder);
 
 	/* set sync callback */
-	gst_bus_set_sync_handler(bus, _mmcamcorder_audio_pipeline_bus_sync_callback, hcamcorder, NULL);
+	gst_bus_set_sync_handler(bus, _mmcamcorder_encode_pipeline_bus_sync_callback, hcamcorder, NULL);
 
 	gst_object_unref(bus);
 	bus = NULL;
