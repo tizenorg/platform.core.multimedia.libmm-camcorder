@@ -1160,21 +1160,20 @@ gboolean _mmcamcorder_pipeline_cb_message(GstBus *bus, GstMessage *message, gpoi
 GstBusSyncReply _mmcamcorder_pipeline_bus_sync_callback(GstBus *bus, GstMessage *message, gpointer data);
 
 /**
- * This function is callback function of main pipeline.
+ * This function is callback function of encode pipeline.
  * Once this function is registered with certain pipeline using gst_bus_set_sync_handler(),
  * this callback will be called every time when there is upcomming message from pipeline.
- * Basically, this function is used as sync error handling function, now.
+ * Basically, this function is used for EOS handling now.
  *
  * @param[in]	bus		pointer of buf that called this function.
  * @param[in]	message		callback message from pipeline.
  * @param[in]	data		user data.
  * @return	This function returns true on success, or false value with error
  * @remarks
- * @see		__mmcamcorder_create_audiop_with_encodebin()
+ * @see		__mmcamcorder_create_recorder_pipeline()
  *
  */
-GstBusSyncReply _mmcamcorder_audio_pipeline_bus_sync_callback(GstBus *bus, GstMessage *message, gpointer data);
-
+GstBusSyncReply _mmcamcorder_encode_pipeline_bus_sync_callback(GstBus *bus, GstMessage *message, gpointer data);
 
 /**
  * This function create main pipeline according to type.
