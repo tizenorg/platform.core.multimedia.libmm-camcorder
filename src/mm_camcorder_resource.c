@@ -199,6 +199,7 @@ static void __mmcamcorder_resource_release_cb(mrp_res_context_t *cx, const mrp_r
 	_MMCAMCORDER_LOCK_ASM(camcorder);
 
 	if (!mrp_res_equal_resource_set(rs, camcorder->resource_manager.rset)) {
+		_MMCAMCORDER_UNLOCK_ASM(camcorder);
 		_mmcam_dbg_warn("- resource set(%p) is not same as this camcorder handle's(%p)", rs, camcorder->resource_manager.rset);
 		return;
 	}
