@@ -1,5 +1,3 @@
-%bcond_with wayland
-
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
 Version:    0.10.61
@@ -20,10 +18,8 @@ BuildRequires:  pkgconfig(mmutil-jpeg)
 BuildRequires:  pkgconfig(gstreamer-base-1.0)
 BuildRequires:  pkgconfig(gstreamer-video-1.0)
 BuildRequires:  pkgconfig(gstreamer-app-1.0)
-%if %{with wayland}
 BuildRequires:  pkgconfig(gstreamer-wayland-1.0)
 BuildRequires:  pkgconfig(wayland-client)
-%endif
 BuildRequires:  pkgconfig(vconf)
 BuildRequires:  pkgconfig(libtbm)
 BuildRequires:  pkgconfig(storage)
@@ -57,15 +53,9 @@ Camera and recorder function supported library for development.
 
 
 %build
-%if %{with wayland}
-export CFLAGS+=" -DHAVE_WAYLAND -DGST_USE_UNSTABLE_API"
-%endif
-export CFLAGS+=" -D_LARGEFILE64_SOURCE -DSYSCONFDIR=\\\"%{_sysconfdir}\\\" -DTZ_SYS_ETC=\\\"%{TZ_SYS_ETC}\\\""
+export CFLAGS+=" -D_LARGEFILE64_SOURCE -DGST_USE_UNSTABLE_API -DSYSCONFDIR=\\\"%{_sysconfdir}\\\" -DTZ_SYS_ETC=\\\"%{TZ_SYS_ETC}\\\""
 ./autogen.sh
 %configure \
-%if %{with wayland}
-	--enable-wayland \
-%endif
 %if "%{TIZEN_PRODUCT_TV}" != "1"
 	--enable-murphy \
 %else
