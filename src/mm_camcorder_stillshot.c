@@ -211,6 +211,11 @@ void _mmcamcorder_destroy_video_capture_pipeline(MMHandleType handle)
 {
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 	_MMCamcorderSubContext *sc = NULL;
+	int display_reuse_hint = FALSE;
+	GstElement *sink_element = NULL;
+	mmf_attrs_t *attrs = NULL;
+	int attr_index = 0;
+	mmf_attribute_t *attr_item = NULL;
 
 	mmf_return_if_fail(hcamcorder);
 
@@ -223,6 +228,50 @@ void _mmcamcorder_destroy_video_capture_pipeline(MMHandleType handle)
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", TRUE);
 		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", TRUE);
 
+		/* check reuse flag for display element */
+		mm_camcorder_get_attributes(handle, NULL,
+			MMCAM_DISPLAY_REUSE_HINT, &display_reuse_hint,
+			NULL);
+
+		_mmcam_dbg_log("display reuse hint %d", display_reuse_hint);
+
+		if (!display_reuse_hint)
+			goto _REUSE_CHECK_DONE;
+
+		sink_element = sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst;
+		if (!sink_element) {
+			_mmcam_dbg_warn("sink element is NULL");
+			goto _REUSE_CHECK_DONE;
+		}
+
+		attrs = (mmf_attrs_t *)MMF_CAMCORDER_ATTRS(handle);
+		if (!attrs) {
+			_mmcam_dbg_warn("attribute is NULL");
+			goto _REUSE_CHECK_DONE;
+		}
+
+		_mmcam_dbg_log("REF sink element %p and set it to attribute", sink_element);
+
+		/* ref element before remove it from pipeline */
+		gst_object_ref(sink_element);
+
+		if (!gst_bin_remove(GST_BIN(sc->element[_MMCAMCORDER_MAIN_PIPE].gst), sink_element)) {
+			_mmcam_dbg_warn("failed to remove sink element from pipeline");
+		}
+
+		/* set sink element pointer to attribute */
+		mm_attrs_get_index((MMHandleType)attrs, MMCAM_DISPLAY_REUSE_ELEMENT, &attr_index);
+		attr_item = &attrs->items[attr_index];
+		mmf_attribute_set_data(attr_item, (void *)sink_element, sizeof(sink_element));
+		mmf_attribute_commit(attr_item);
+
+		/* remove notify callback */
+		g_object_weak_unref(G_OBJECT(sink_element), (GWeakNotify)_mmcamcorder_element_release_noti, sc);
+
+		sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst = NULL;
+		sc->element[_MMCAMCORDER_VIDEOSINK_SINK].id = _MMCAMCORDER_NONE;
+
+_REUSE_CHECK_DONE:
 		traceBegin(TTRACE_TAG_CAMERA, "MMCAMCORDER:UNREALIZE:SET_NULL_TO_PIPELINE");
 
 		_mmcamcorder_gst_set_state(handle, sc->element[_MMCAMCORDER_MAIN_PIPE].gst, GST_STATE_NULL);
@@ -796,6 +845,7 @@ int _mmcamcorder_image_cmd_preview_stop(MMHandleType handle)
 	int ret = MM_ERROR_NONE;
 	int strobe_mode = MM_CAMCORDER_STROBE_MODE_OFF;
 	int set_strobe = 0;
+	int display_reuse_hint = FALSE;
 	GstCameraControl *control = NULL;
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
@@ -840,8 +890,13 @@ int _mmcamcorder_image_cmd_preview_stop(MMHandleType handle)
 		_mmcamcorder_remove_recorder_pipeline(handle);
 	}
 
-	/* Disable skip flush buffer  */
-	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "enable-flush-buffer", FALSE);
+	mm_camcorder_get_attributes(handle, NULL,
+		MMCAM_DISPLAY_REUSE_HINT, &display_reuse_hint,
+		NULL);
+
+	_mmcam_dbg_log("display reuse hint %d", display_reuse_hint);
+
+	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "keep-camera-preview", display_reuse_hint);
 
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", TRUE);
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", TRUE);
@@ -855,8 +910,8 @@ int _mmcamcorder_image_cmd_preview_stop(MMHandleType handle)
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_QUE].gst, "empty-buffers", FALSE);
 	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSRC_QUE].gst, "empty-buffers", FALSE);
 
-	/* Enable skip flush buffer  */
-	MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "enable-flush-buffer", TRUE);
+	if (display_reuse_hint)
+		MMCAMCORDER_G_OBJECT_SET(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "keep-camera-preview", FALSE);
 
 	/* deregister sound status callback */
 	if (sc->info_image->sound_status != _SOUND_STATUS_INIT) {
@@ -1247,7 +1302,7 @@ static void __mmcamcorder_image_capture_cb(GstElement *element, GstSample *sampl
 	}
 
 	/* Screennail image buffer */
-	attrs = (mmf_attrs_t*)MMF_CAMCORDER_ATTRS(hcamcorder);
+	attrs = (mmf_attrs_t *)MMF_CAMCORDER_ATTRS(hcamcorder);
 	mm_attrs_get_index((MMHandleType)attrs, MMCAM_CAPTURED_SCREENNAIL, &attr_index);
 	item_screennail = &attrs->items[attr_index];
 
