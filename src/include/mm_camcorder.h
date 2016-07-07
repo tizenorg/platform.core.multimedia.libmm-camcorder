@@ -1276,11 +1276,18 @@ extern "C" {
  * The type of PTZ(Pan Tilt Zoom). Mechanical or Electonic PTZ.
  */
 #define MMCAM_CAMERA_PTZ_TYPE                   "camera-ptz-type"
+
 /**
  * Stream type and index for sound route
  */
 #define MMCAM_SOUND_STREAM_TYPE                 "sound-stream-type"
 #define MMCAM_SOUND_STREAM_INDEX                "sound-stream-index"
+
+/**
+ * The display reuse flag and sink element pointer
+ */
+#define MMCAM_DISPLAY_REUSE_HINT                "display-reuse-hint"
+#define MMCAM_DISPLAY_REUSE_ELEMENT             "display-reuse-element"
 
 /*=======================================================================================
 | ENUM DEFINITIONS									|
@@ -1822,7 +1829,6 @@ typedef struct _MMCamFaceDetectInfo {
 	MMCamFaceInfo *face_info;               /**< face information, this should be freed after use it. */
 } MMCamFaceDetectInfo;
 
-#ifdef HAVE_WAYLAND
 /**
  * Wayland information
  */
@@ -1834,7 +1840,7 @@ typedef struct _MMCamWaylandInfo {
 	int window_height;
 	void *evas_obj;
 } MMCamWaylandInfo;
-#endif /* HAVE_WAYLAND */
+
 
 /*=======================================================================================
 | TYPE DEFINITIONS									|

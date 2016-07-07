@@ -38,6 +38,7 @@ libmmfcamcorder_la_CFLAGS = -I$(srcdir)/include \
 			     $(GST_PLUGIN_BASE_CFLAGS) \
 			     $(GST_VIDEO_CFLAGS) \
 			     $(GST_APP_CFLAGS) \
+			     $(GST_WAYLAND_CFLAGS) \
 			     $(EXIF_CFLAGS) \
 			     $(MM_COMMON_CFLAGS) \
 			     $(MMSOUND_CFLAGS) \
@@ -57,6 +58,7 @@ libmmfcamcorder_la_LIBADD = \
 			    $(GST_PLUGIN_BASE_LIBS) \
 			    $(GST_VIDEO_LIBS) \
 			    $(GST_APP_LIBS) \
+			    $(GST_WAYLAND_LIBS) \
 			    $(MM_COMMON_LIBS) \
 			    $(EXIF_LIBS) \
 			    $(MMSOUND_LIBS) \
@@ -72,11 +74,6 @@ libmmfcamcorder_la_CFLAGS += -DMMF_LOG_OWNER=0x010 -D_FILE_OFFSET_BITS=64
 libmmfcamcorder_la_CFLAGS += -fdata-sections -ffunction-sections -Wl,--gc-sections
 libmmfcamcorder_la_LDFLAGS = -Wl,--gc-sections
 libmmfcamcorder_la_LIBADD += $(SYSTEMINFO_LIBS)
-
-if WAYLAND_SUPPORT
-libmmfcamcorder_la_CFLAGS += $(GST_WAYLAND_CFLAGS)
-libmmfcamcorder_la_LIBADD += $(GST_WAYLAND_LIBS)
-endif
 
 if MURPHY_SUPPORT
 libmmfcamcorder_la_SOURCES += mm_camcorder_resource.c

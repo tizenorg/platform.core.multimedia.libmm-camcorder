@@ -189,6 +189,24 @@ extern "C" {
 		elist = g_list_append(elist, &(element[eid])); \
 	}
 
+#define _MMCAMCORDER_ELEMENT_ADD(sub_context, element, eid, gst_element, elist, err) \
+	if (element[eid].gst != NULL) { \
+		_mmcam_dbg_err("The element is existed. element_id=[%d]", eid); \
+		gst_object_unref(element[eid].gst); \
+	} \
+	element[eid].gst = gst_element; \
+	if (element[eid].gst == NULL) { \
+		_mmcam_dbg_err("Element is NULL. element_id=[%d]", eid); \
+		err = MM_ERROR_CAMCORDER_RESOURCE_CREATION; \
+		goto pipeline_creation_error; \
+	} else { \
+		_mmcam_dbg_log("Adding Element is done. element_id=[%d] %p", eid, gst_element); \
+		element[eid].id = eid; \
+		g_object_weak_ref(G_OBJECT(element[eid].gst), (GWeakNotify)_mmcamcorder_element_release_noti, sub_context); \
+		err = MM_ERROR_NONE; \
+	} \
+	elist = g_list_append(elist, &(element[eid]));
+
 #define _MMCAMCORDER_ENCODEBIN_ELMGET(sub_context, eid, name /*char* */, err) \
 	if (sub_context->encode_element[eid].gst != NULL) { \
 		_mmcam_dbg_err("The element is existed. element_id=[%d], name=[%s]", eid, name); \
@@ -567,7 +585,7 @@ typedef enum {
  */
 typedef enum {
 	_MMCAMCORDER_STATE_CHANGE_NORMAL = 0,
-	_MMCAMCORDER_STATE_CHANGE_BY_ASM,
+	_MMCAMCORDER_STATE_CHANGE_BY_FOCUS,
 	_MMCAMCORDER_STATE_CHANGE_BY_RM,
 	_MMCAMCORDER_STATE_CHANGE_BY_DPM
 } _MMCamcorderStateChange;

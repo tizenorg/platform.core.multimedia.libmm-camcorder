@@ -638,6 +638,8 @@ int _mmcamcorder_destroy(MMHandleType handle)
 #ifdef _MMCAMCORDER_RM_SUPPORT
 	int iret = RM_OK;
 #endif /* _MMCAMCORDER_RM_SUPPORT */
+	GstElement *sink_element = NULL;
+	int sink_element_size = 0;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(handle);
 
@@ -668,6 +670,19 @@ int _mmcamcorder_destroy(MMHandleType handle)
 	hcamcorder->task_thread_state = _MMCAMCORDER_TASK_THREAD_STATE_EXIT;
 	g_cond_signal(&hcamcorder->task_thread_cond);
 	g_mutex_unlock(&hcamcorder->task_thread_lock);
+
+	/* remove keepped, but not used sink element in attribute */
+	mm_camcorder_get_attributes(handle, NULL,
+		MMCAM_DISPLAY_REUSE_ELEMENT, &sink_element, &sink_element_size,
+		NULL);
+	if (sink_element) {
+		GstStateChangeReturn result = gst_element_set_state(sink_element, GST_STATE_NULL);
+
+		_mmcam_dbg_warn("remove sink element %p, set state NULL result %d", sink_element, result);
+
+		gst_object_unref(sink_element);
+		sink_element = NULL;
+	}
 
 	/* wait for completion of sound play */
 	_mmcamcorder_sound_solo_play_wait(handle);
@@ -1373,7 +1388,7 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 		               hcamcorder->state_change_by_system, hcamcorder->session_flags, hcamcorder->acquired_focus,
 		               hcamcorder->sound_focus_id, hcamcorder->sound_focus_watch_id);
 
-		if (hcamcorder->state_change_by_system != _MMCAMCORDER_STATE_CHANGE_BY_ASM &&
+		if (hcamcorder->state_change_by_system != _MMCAMCORDER_STATE_CHANGE_BY_FOCUS &&
 		    hcamcorder->sound_focus_watch_id > 0) {
 			ret_sound = mm_sound_unset_focus_watch_callback(hcamcorder->sound_focus_watch_id);
 			if (ret_sound != MM_ERROR_NONE) {
@@ -2549,7 +2564,7 @@ void _mmcamcorder_set_state(MMHandleType handle, int state)
 
 		/* To discern who changes the state */
 		switch (hcamcorder->state_change_by_system) {
-		case _MMCAMCORDER_STATE_CHANGE_BY_ASM:
+		case _MMCAMCORDER_STATE_CHANGE_BY_FOCUS:
 			msg.id = MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_ASM;
 			msg.param.state.code = hcamcorder->interrupt_code;
 			break;
@@ -3294,7 +3309,7 @@ void _mmcamcorder_sound_focus_cb(int id, mm_sound_focus_type_e focus_type,
 	_MMCAMCORDER_LOCK_ASM(hcamcorder);
 
 	/* set value to inform a status is changed by asm */
-	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_ASM;
+	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_FOCUS;
 
 	/* check the reason */
 	if (!strncmp(reason_for_change, "ringtone-voip", __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN) ||
@@ -3368,7 +3383,7 @@ void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_soun
 	_MMCAMCORDER_LOCK_ASM(hcamcorder);
 
 	/* set value to inform a status is changed by asm */
-	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_ASM;
+	hcamcorder->state_change_by_system = _MMCAMCORDER_STATE_CHANGE_BY_FOCUS;
 
 	/* check the reason */
 	if (!strncmp(reason_for_change, "ringtone-voip", __MMCAMCORDER_FOCUS_CHANGE_REASON_LEN) ||

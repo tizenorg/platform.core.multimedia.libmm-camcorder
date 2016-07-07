@@ -29,9 +29,7 @@
 #include <gst/video/colorbalance.h>
 #include <gst/video/cameracontrol.h>
 #include <gst/video/videooverlay.h>
-#ifdef HAVE_WAYLAND
 #include <gst/wayland/wayland.h>
-#endif
 
 /*-----------------------------------------------------------------------
 |    MACRO DEFINITIONS:							|
@@ -1556,6 +1554,28 @@ _mmcamcorder_alloc_attribute( MMHandleType handle, MMCamPreset *info )
 			{.int_min = -1},
 			{.int_max = _MMCAMCORDER_MAX_INT},
 			_mmcamcorder_commit_sound_stream_info,
+		},
+		{
+			MM_CAM_DISPLAY_REUSE_HINT,
+			"display-reuse-hint",
+			MMF_VALUE_TYPE_INT,
+			MM_ATTRS_FLAG_RW,
+			{(void*)FALSE},
+			MM_ATTRS_VALID_TYPE_INT_RANGE,
+			{.int_min = FALSE},
+			{.int_max = TRUE},
+			NULL,
+		},
+		{
+			MM_CAM_DISPLAY_REUSE_ELEMENT,
+			"display-reuse-element",
+			MMF_VALUE_TYPE_DATA,
+			MM_ATTRS_FLAG_RW,
+			{(void*)NULL},
+			MM_ATTRS_VALID_TYPE_NONE,
+			{0},
+			{0},
+			NULL,
 		}
 	};
 
@@ -3542,7 +3562,6 @@ bool _mmcamcorder_commit_display_handle(MMHandleType handle, int attr_idx, const
 			   !strcmp(videosink_name, "evaspixmapsink")) {
 			_mmcam_dbg_log("Commit : Set evas object [%p]", p_handle);
 			MMCAMCORDER_G_OBJECT_SET_POINTER(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, "evas-object", p_handle);
-#ifdef HAVE_WAYLAND
 		} else if (!strcmp(videosink_name, "waylandsink")) {
 			MMCamWaylandInfo *wl_info = (MMCamWaylandInfo *)p_handle;
 
@@ -3551,7 +3570,6 @@ bool _mmcamcorder_commit_display_handle(MMHandleType handle, int attr_idx, const
 			gst_video_overlay_set_wl_window_wl_surface_id(GST_VIDEO_OVERLAY(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst), (guintptr)wl_info->global_surface_id);
 			gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst),
 				wl_info->window_x, wl_info->window_y, wl_info->window_width, wl_info->window_height);
-#endif /* HAVE_WAYLAND */
 		} else {
 			_mmcam_dbg_warn("Commit : Nothing to commit with this element[%s]", videosink_name);
 			return FALSE;

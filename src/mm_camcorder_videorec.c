@@ -1135,7 +1135,7 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
 
 	_mmcam_dbg_err("");
 
-	if (hcamcorder->state_change_by_system != _MMCAMCORDER_STATE_CHANGE_BY_ASM) {
+	if (hcamcorder->state_change_by_system != _MMCAMCORDER_STATE_CHANGE_BY_FOCUS) {
 		/* Play record stop sound */
 		_mmcamcorder_sound_solo_play(handle, _MMCAMCORDER_SAMPLE_SOUND_NAME_REC_STOP, FALSE);
 	} else {
@@ -1269,7 +1269,7 @@ int _mmcamcorder_video_handle_eos(MMHandleType handle)
 	info->filesize = 0;
 	info->b_commiting = FALSE;
 
-	if (hcamcorder->state_change_by_system != _MMCAMCORDER_STATE_CHANGE_BY_ASM) {
+	if (hcamcorder->state_change_by_system != _MMCAMCORDER_STATE_CHANGE_BY_FOCUS) {
 		/* check recording stop sound */
 		_mmcamcorder_sound_solo_play_wait(handle);
 	}
