@@ -25,9 +25,7 @@
 #include <gst/audio/audio-format.h>
 #include <gst/video/videooverlay.h>
 #include <gst/video/cameracontrol.h>
-#ifdef HAVE_WAYLAND
 #include <gst/wayland/wayland.h>
-#endif
 
 #include <sys/time.h>
 #include <unistd.h>
@@ -187,6 +185,8 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 	int decoder_index = 0;
 	char decoder_name[20] = {'\0',};
 #endif /* _MMCAMCORDER_RM_SUPPORT */
+	GstElement *sink_element = NULL;
+	int sink_element_size = 0;
 
 	GList *element_list = NULL;
 
@@ -372,7 +372,6 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 
 		g_object_set(G_OBJECT(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst), "socket-path", socket_path, NULL);
 	} else {
-
 		if (hcamcorder->use_videoconvert && !strcmp(videosink_name, "waylandsink")) {
 			/* get video convert name */
 			_mmcamcorder_conf_get_value_element_name(sc->VideoconvertElement, &videoconvert_name);
@@ -384,9 +383,36 @@ int _mmcamcorder_create_preview_elements(MMHandleType handle)
 				_mmcam_dbg_err("failed to get videoconvert element name");
 		}
 
-		_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_SINK, videosink_name, "videosink_sink", element_list, err);
+		/* check sink element in attribute */
+		mm_camcorder_get_attributes(handle, NULL,
+			MMCAM_DISPLAY_REUSE_ELEMENT, &sink_element, &sink_element_size,
+			NULL);
 
-		_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, sc->VideosinkElement);
+		if (sink_element) {
+			int attr_index = 0;
+			mmf_attrs_t *attrs = MMF_CAMCORDER_ATTRS(handle);
+			mmf_attribute_t *attr_item = NULL;
+
+			_mmcam_dbg_log("reuse sink element %p in attribute", sink_element);
+
+			_MMCAMCORDER_ELEMENT_ADD(sc, sc->element, _MMCAMCORDER_VIDEOSINK_SINK, sink_element, element_list, err);
+
+			/* reset attribute */
+			if (attrs) {
+				mm_attrs_get_index((MMHandleType)attrs, MMCAM_DISPLAY_REUSE_ELEMENT, &attr_index);
+				attr_item = &attrs->items[attr_index];
+				mmf_attribute_set_data(attr_item, NULL, 0);
+				mmf_attribute_commit(attr_item);
+			} else {
+				_mmcam_dbg_warn("attribute is NULL");
+				err = MM_ERROR_CAMCORDER_NOT_INITIALIZED;
+				goto pipeline_creation_error;
+			}
+		} else {
+			_MMCAMCORDER_ELEMENT_MAKE(sc, sc->element, _MMCAMCORDER_VIDEOSINK_SINK, videosink_name, "videosink_sink", element_list, err);
+
+			_mmcamcorder_conf_set_value_element_property(sc->element[_MMCAMCORDER_VIDEOSINK_SINK].gst, sc->VideosinkElement);
+		}
 
 		if (_mmcamcorder_videosink_window_set(handle, sc->VideosinkElement) != MM_ERROR_NONE) {
 			_mmcam_dbg_err("_mmcamcorder_videosink_window_set error");
@@ -1332,7 +1358,6 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 			_mmcam_dbg_err("display handle(eavs object) is NULL");
 			return MM_ERROR_CAMCORDER_INVALID_ARGUMENT;
 		}
-#ifdef HAVE_WAYLAND
 	} else if (!strcmp(videosink_name, "waylandsink")) {
 		MMCamWaylandInfo *wl_info = (MMCamWaylandInfo *)overlay;
 		if (wl_info) {
@@ -1341,15 +1366,14 @@ int _mmcamcorder_videosink_window_set(MMHandleType handle, type_element* Videosi
 			gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(vsink),
 				wl_info->window_x, wl_info->window_y, wl_info->window_width, wl_info->window_height);
 #ifdef _MMCAMCORDER_RM_SUPPORT
-		if (hcamcorder->request_resources.category_id[0] == RM_CATEGORY_VIDEO_DECODER_SUB)
-			display_scaler = 1;
+			if (hcamcorder->request_resources.category_id[0] == RM_CATEGORY_VIDEO_DECODER_SUB)
+				display_scaler = 1;
 
-		MMCAMCORDER_G_OBJECT_SET(vsink, "device-scaler", display_scaler);
+			MMCAMCORDER_G_OBJECT_SET(vsink, "device-scaler", display_scaler);
 #endif /* _MMCAMCORDER_RM_SUPPORT */
 		} else {
 			_mmcam_dbg_warn("Handle is NULL. skip setting.");
 		}
-#endif /* HAVE_WAYLAND */
 	} else {
 		_mmcam_dbg_warn("Who are you?? (Videosink: %s)", videosink_name);
 	}

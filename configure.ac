@@ -39,20 +39,9 @@ PKG_CHECK_MODULES(GST_APP, gstreamer-app-1.0 >= 1.2.0)
 AC_SUBST(GST_APP_CFLAGS)
 AC_SUBST(GST_APP_LIBS)
 
-AC_ARG_ENABLE(wayland, AC_HELP_STRING([--enable-wayland], [enable wayland]),
-[
-  case "${enableval}" in
-    yes) WAYLAND_SUPPORT=yes ;;
-    no)  WAYLAND_SUPPORT=no ;;
-    *) AC_MSG_ERROR(bad value ${enableval} for --enable-wayland) ;;
-  esac
-],[WAYLAND_SUPPORT=no])
-if test "x$WAYLAND_SUPPORT" = "xyes"; then
 PKG_CHECK_MODULES(GST_WAYLAND, gstreamer-wayland-1.0 >= 1.2.0)
 AC_SUBST(GST_WAYLAND_CFLAGS)
 AC_SUBST(GST_WAYLAND_LIBS)
-fi
-AM_CONDITIONAL([WAYLAND_SUPPORT], [test "x$WAYLAND_SUPPORT" = "xyes"])
 
 PKG_CHECK_MODULES(MM_COMMON, mm-common)
 AC_SUBST(MM_COMMON_CFLAGS)
