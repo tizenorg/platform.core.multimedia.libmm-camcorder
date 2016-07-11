@@ -136,8 +136,11 @@ static void __mmcamcorder_resource_set_state_callback(mrp_res_context_t *cx, con
 
 	mmf_return_if_fail((MMHandleType)camcorder);
 
+	_MMCAMCORDER_LOCK_RESOURCE(camcorder);
+
 	if (!mrp_res_equal_resource_set(rs, camcorder->resource_manager.rset)) {
 		_mmcam_dbg_warn("- resource set(%p) is not same as this camcorder handle's(%p)", rs, camcorder->resource_manager.rset);
+		_MMCAMCORDER_UNLOCK_RESOURCE(camcorder);
 		return;
 	}
 
@@ -153,8 +156,6 @@ static void __mmcamcorder_resource_set_state_callback(mrp_res_context_t *cx, con
 				res->name, __mmcamcorder_resource_state_to_str(res->state));
 
 			if (res->state == MRP_RES_RESOURCE_ACQUIRED) {
-				_MMCAMCORDER_LOCK_RESOURCE(camcorder);
-
 				camcorder->resource_manager.acquire_count--;
 
 				if (camcorder->resource_manager.acquire_count <= 0) {
@@ -164,14 +165,14 @@ static void __mmcamcorder_resource_set_state_callback(mrp_res_context_t *cx, con
 					_mmcam_dbg_warn("remained acquire count %d",
 						camcorder->resource_manager.acquire_count);
 				}
-
-				_MMCAMCORDER_UNLOCK_RESOURCE(camcorder);
 			}
 		}
 	}
 
 	mrp_res_delete_resource_set(camcorder->resource_manager.rset);
 	camcorder->resource_manager.rset = mrp_res_copy_resource_set(rs);
+
+	_MMCAMCORDER_UNLOCK_RESOURCE(camcorder);
 
 	return;
 }

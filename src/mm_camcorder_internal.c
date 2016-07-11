@@ -1153,6 +1153,7 @@ int _mmcamcorder_realize(MMHandleType handle)
 			_mmcam_dbg_err("could not acquire resources");
 
 			_mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
+
 			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 		}
 
@@ -1336,7 +1337,9 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 			ret = MM_ERROR_CAMCORDER_INTERNAL;
 			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 		}
+		_MMCAMCORDER_LOCK_RESOURCE(hcamcorder);
 		ret = _mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
+		_MMCAMCORDER_UNLOCK_RESOURCE(hcamcorder);
 		if (ret != MM_ERROR_NONE) {
 			_mmcam_dbg_err("failed to unprepare resource manager, ret(0x%x)", ret);
 		}
