@@ -49,22 +49,20 @@
 #define TIME_STRING_MAX_LEN                     64
 #define __MMCAMCORDER_CAPTURE_WAIT_TIMEOUT      5
 
-#define FPUTC_CHECK(x_char, x_file)\
-{\
-	if (fputc(x_char, x_file) == EOF) \
-	{\
-		_mmcam_dbg_err("[Critical] fputc() returns fail.\n");	\
-		return FALSE;\
-	}\
+#define FPUTC_CHECK(x_char, x_file) \
+{ \
+	if (fputc(x_char, x_file) == EOF) { \
+		_mmcam_dbg_err("[Critical] fputc() returns fail.\n"); \
+		return FALSE; \
+	} \
 }
-#define FPUTS_CHECK(x_str, x_file)\
-{\
-	if (fputs(x_str, x_file) == EOF) \
-	{\
-		_mmcam_dbg_err("[Critical] fputs() returns fail.\n");\
-		SAFE_G_FREE(str);	\
-		return FALSE;\
-	}\
+#define FPUTS_CHECK(x_str, x_file) \
+{ \
+	if (fputs(x_str, x_file) == EOF) { \
+		_mmcam_dbg_err("[Critical] fputs() returns fail.\n"); \
+		SAFE_G_FREE(str); \
+		return FALSE; \
+	} \
 }
 
 /*---------------------------------------------------------------------------
@@ -72,7 +70,7 @@
 ---------------------------------------------------------------------------*/
 /* STATIC INTERNAL FUNCTION */
 
-//static gint 		skip_mdat(FILE *f);
+//static gint            skip_mdat(FILE *f);
 static guint16           get_language_code(const char *str);
 static gchar*            str_to_utf8(const gchar *str);
 static inline gboolean   write_tag(FILE *f, const gchar *tag);
@@ -90,7 +88,7 @@ static gboolean _mmcamcorder_convert_NV12_to_I420(unsigned char *src, guint widt
 /*===========================================================================================
 |																							|
 |  FUNCTION DEFINITIONS																		|
-|  																							|
+|																							|
 ========================================================================================== */
 /*---------------------------------------------------------------------------
 |    GLOBAL FUNCTION DEFINITIONS:											|
@@ -218,7 +216,7 @@ static int __gdbus_wait_for_cb_return(_MMCamcorderGDbusCbInfo *gdbus_info, int t
 		return MM_ERROR_NONE;
 	}
 
-	end_time = g_get_monotonic_time()+ (time_out * G_TIME_SPAN_MILLISECOND);
+	end_time = g_get_monotonic_time() + (time_out * G_TIME_SPAN_MILLISECOND);
 
 	if (g_cond_wait_until(&gdbus_info->sync_cond, &gdbus_info->sync_mutex, end_time)) {
 		_mmcam_dbg_log("wait signal received");
@@ -244,9 +242,8 @@ gint _mmcamcorder_find_tag(FILE *f, guint32 tag_fourcc, gboolean do_rewind)
 	size_t read_item = 0;
 	guchar buf[8];
 
-	if (do_rewind) {
+	if (do_rewind)
 		rewind(f);
-	}
 
 	while ((read_item = fread(&buf, sizeof(guchar), 8, f)) > 0) {
 		uint64_t buf_size = 0;
@@ -268,7 +265,7 @@ gint _mmcamcorder_find_tag(FILE *f, guint32 tag_fourcc, gboolean do_rewind)
 			buf_size = _mmcamcorder_get_container_size(buf);
 
 			/* if size of mdat is 1, it means largesize is used.(bigger than 4GB) */
-			if (buf_fourcc == MMCAM_FOURCC('m','d','a','t') &&
+			if (buf_fourcc == MMCAM_FOURCC('m', 'd', 'a', 't') &&
 			    buf_size == 1) {
 				read_item = fread(&buf, sizeof(guchar), 8, f);
 				if (read_item < 8) {
@@ -300,9 +297,8 @@ gboolean _mmcamcorder_find_fourcc(FILE *f, guint32 tag_fourcc, gboolean do_rewin
 	size_t read_item = 0;
 	guchar buf[8];
 
-	if (do_rewind) {
+	if (do_rewind)
 		rewind(f);
-	}
 
 	while ((read_item = fread(&buf, sizeof(guchar), 8, f))  > 0) {
 		uint64_t buf_size = 0;
@@ -318,20 +314,19 @@ gboolean _mmcamcorder_find_fourcc(FILE *f, guint32 tag_fourcc, gboolean do_rewin
 		if (tag_fourcc == buf_fourcc) {
 			_mmcam_dbg_log("find tag : %c%c%c%c", MMCAM_FOURCC_ARGS(tag_fourcc));
 			return TRUE;
-		} else if (buf_fourcc == MMCAM_FOURCC('m','o','o','v') &&
-		           tag_fourcc != buf_fourcc) {
-			if (_mmcamcorder_find_fourcc(f, tag_fourcc, FALSE)) {
+		} else if (buf_fourcc == MMCAM_FOURCC('m', 'o', 'o', 'v') &&
+				   tag_fourcc != buf_fourcc) {
+			if (_mmcamcorder_find_fourcc(f, tag_fourcc, FALSE))
 				return TRUE;
-			} else {
+			else
 				continue;
-			}
 		} else {
 			_mmcam_dbg_log("skip [%c%c%c%c] tag", MMCAM_FOURCC_ARGS(buf_fourcc));
 
 			buf_size = _mmcamcorder_get_container_size(buf);
 
 			/* if size of mdat is 1, it means largesize is used.(bigger than 4GB) */
-			if (buf_fourcc == MMCAM_FOURCC('m','d','a','t') &&
+			if (buf_fourcc == MMCAM_FOURCC('m', 'd', 'a', 't') &&
 			    buf_size == 1) {
 				read_item = fread(&buf, sizeof(guchar), 8, f);
 				if (read_item < 8) {
@@ -361,8 +356,7 @@ gboolean _mmcamcorder_find_fourcc(FILE *f, guint32 tag_fourcc, gboolean do_rewin
 gboolean _mmcamcorder_update_size(FILE *f, gint64 prev_pos, gint64 curr_pos)
 {
 	_mmcam_dbg_log("size : %"G_GINT64_FORMAT"", curr_pos-prev_pos);
-	if(fseeko(f, prev_pos, SEEK_SET) != 0)
-	{
+	if (fseeko(f, prev_pos, SEEK_SET) != 0) {
 		_mmcam_dbg_err("fseeko() fail");
 		return FALSE;
 	}
@@ -370,8 +364,7 @@ gboolean _mmcamcorder_update_size(FILE *f, gint64 prev_pos, gint64 curr_pos)
 	if (!write_to_32(f, curr_pos -prev_pos))
 		return FALSE;
 
-	if(fseeko(f, curr_pos, SEEK_SET) != 0)
-	{
+	if (fseeko(f, curr_pos, SEEK_SET) != 0) {
 		_mmcam_dbg_err("fseeko() fail");
 		return FALSE;
 	}
@@ -386,24 +379,23 @@ gboolean _mmcamcorder_write_loci(FILE *f, _MMCamcorderLocationInfo info)
 
 	_mmcam_dbg_log("");
 
-	if((pos = ftello(f))<0)
-	{
+	if ((pos = ftello(f)) < 0) {
 		_mmcam_dbg_err("ftello() returns negative value");
 		return FALSE;
 	}
 
-	if(!write_to_32(f, 0)) //size
+	if (!write_to_32(f, 0)) //size
 		return FALSE;
 
-	if(!write_tag(f, "loci")) 	// type
+	if (!write_tag(f, "loci")) // type
 		return FALSE;
 
 	FPUTC_CHECK(0, f);		// version
 
-	if(!write_to_24(f, 0))	// flags
+	if (!write_to_24(f, 0))	// flags
 		return FALSE;
 
-	if(!write_to_16(f, get_language_code("eng"))) // language
+	if (!write_to_16(f, get_language_code("eng"))) // language
 		return FALSE;
 
 	str = str_to_utf8("location_name");
@@ -414,13 +406,13 @@ gboolean _mmcamcorder_write_loci(FILE *f, _MMCamcorderLocationInfo info)
 	FPUTC_CHECK('\0', f);
 	FPUTC_CHECK(0, f);		//role
 
-	if(!write_to_32(f, info.longitude))	// Longitude
+	if (!write_to_32(f, info.longitude))	// Longitude
 		return FALSE;
 
-	if(!write_to_32(f, info.latitude)) // Latitude
+	if (!write_to_32(f, info.latitude)) // Latitude
 		return FALSE;
 
-	if(! write_to_32(f, info.altitude))	// Altitude
+	if (!write_to_32(f, info.altitude))	// Altitude
 		return FALSE;
 
 	str = str_to_utf8("Astronomical_body");
@@ -435,63 +427,62 @@ gboolean _mmcamcorder_write_loci(FILE *f, _MMCamcorderLocationInfo info)
 
 	FPUTC_CHECK('\0', f);
 
-	if((current_pos = ftello(f))<0)
-	{
+	if ((current_pos = ftello(f)) < 0) {
 		_mmcam_dbg_err("ftello() returns negative value");
 		return FALSE;
 	}
 
-	if(! _mmcamcorder_update_size(f, pos, current_pos))
+	if (!_mmcamcorder_update_size(f, pos, current_pos))
 		return FALSE;
 
 	return TRUE;
 }
 
-void _mmcamcorder_write_Latitude(FILE *f,int value) {
+void _mmcamcorder_write_Latitude(FILE *f, int value)
+{
 	char s_latitude[9];
 	int l_decimal = 0;
 	int l_below_decimal = 0;
 
 	l_decimal = value / 10000;
 	if (value < 0) {
-		if( l_decimal == 0) {
+		if (l_decimal == 0)
 			snprintf(s_latitude, 5, "-%.2d.", l_decimal);
-		} else {
+		else
 			snprintf(s_latitude, 5, "%.2d.", l_decimal);
-		}
 	} else {
 		snprintf(s_latitude, 5, "+%.2d.", l_decimal);
 	}
 
 	l_below_decimal = value - (l_decimal * 10000);
-	if (l_below_decimal < 0) {
+	if (l_below_decimal < 0)
 		l_below_decimal = -l_below_decimal;
-	}
+
 	snprintf(&s_latitude[4], 5, "%.4d", l_below_decimal);
 
 	write_tag(f, s_latitude);
 }
 
-void _mmcamcorder_write_Longitude(FILE *f,int value) {
+void _mmcamcorder_write_Longitude(FILE *f, int value)
+{
 	char s_longitude[10];
 	int l_decimal = 0;
 	int l_below_decimal = 0;
 
 	l_decimal = value / 10000;
 	if (value < 0) {
-		if( l_decimal == 0) {
+		if (l_decimal == 0)
 			snprintf(s_longitude, 6, "-%.3d.", l_decimal);
-		} else {
+		else
 			snprintf(s_longitude, 6, "%.3d.", l_decimal);
-		}
 	} else {
 		snprintf(s_longitude, 6, "+%.3d.", l_decimal);
 	}
 
 	l_below_decimal = value - (l_decimal * 10000);
-	if (l_below_decimal < 0) {
+	if (l_below_decimal < 0)
 		l_below_decimal = -l_below_decimal;
-	}
+
 	snprintf(&s_longitude[5], 5, "%.4d", l_below_decimal);
 
 	write_tag(f, s_longitude);
@@ -502,39 +493,37 @@ void _mmcamcorder_write_Longitude(FILE *f,int value) {
 // 0x15c7 -> encode in english
 #define D_INFO_GEOGRAPH 0x001215c7
 
-gboolean _mmcamcorder_write_geodata(FILE *f,_MMCamcorderLocationInfo info) {
-
+gboolean _mmcamcorder_write_geodata(FILE *f, _MMCamcorderLocationInfo info)
+{
 	gint64 current_pos, pos;
 
 	_mmcam_dbg_log("");
 
-	if((pos = ftello(f))<0)
-	{
+	if ((pos = ftello(f)) < 0) {
 		_mmcam_dbg_err("ftello() returns negative value");
 		return FALSE;
 	}
 
-	if(!write_to_32(f, 0)) 	//size
+	if (!write_to_32(f, 0))			//size
 		return FALSE;
 	// tag -> .xyz
-	if(!write_tag(f, D_GEOGRAPH)) 	// type
+	if (!write_tag(f, D_GEOGRAPH))	// type
 		return FALSE;
 
-	if(!write_to_32(f, D_INFO_GEOGRAPH))
+	if (!write_to_32(f, D_INFO_GEOGRAPH))
 		return FALSE;
 
-	_mmcamcorder_write_Latitude(f,info.latitude);
-	_mmcamcorder_write_Longitude(f,info.longitude);
+	_mmcamcorder_write_Latitude(f, info.latitude);
+	_mmcamcorder_write_Longitude(f, info.longitude);
 
 	FPUTC_CHECK(0x2F, f);
 
-	if((current_pos = ftello(f))<0)
-	{
+	if ((current_pos = ftello(f)) < 0) {
 		_mmcam_dbg_err("ftello() returns negative value");
 		return FALSE;
 	}
 
-	if(! _mmcamcorder_update_size(f, pos, current_pos))
+	if (!_mmcamcorder_update_size(f, pos, current_pos))
 		return FALSE;
 
 	return TRUE;
@@ -551,7 +540,7 @@ gboolean _mmcamcorder_write_udta(FILE *f, int gps_enable, _MMCamcorderLocationIn
 		return TRUE;
 	}
 
-	if ((pos = ftello(f))<0) {
+	if ((pos = ftello(f)) < 0) {
 		_mmcam_dbg_err("ftello() returns negative value");
 		return FALSE;
 	}
@@ -574,13 +563,13 @@ gboolean _mmcamcorder_write_udta(FILE *f, int gps_enable, _MMCamcorderLocationIn
 			return FALSE;
 		}
 
-		if (!_mmcamcorder_write_geodata(f,geotag)) {
+		if (!_mmcamcorder_write_geodata(f, geotag)) {
 			_mmcam_dbg_err("failed to write geodata");
 			return FALSE;
 		}
 	}
 
-	if ((current_pos = ftello(f))<0) {
+	if ((current_pos = ftello(f)) < 0) {
 		_mmcam_dbg_err("ftello() returns negative value");
 		return FALSE;
 	}
@@ -683,7 +672,7 @@ gboolean _mmcamcorder_update_composition_matrix(FILE *f, int orientation)
 	write_to_32(f, 0x40000000);
 
 	_mmcam_dbg_log("orientation : %d, write data 0x%x 0x%x 0x%x 0x%x",
-	               orientation, a, b, c, d);
+				   orientation, a, b, c, d);
 
 	return TRUE;
 }
@@ -716,18 +705,16 @@ int _mmcamcorder_get_freespace(const gchar *path, const gchar *root_directory, g
 			return -1;
 		}
 
-		if (stat_path.st_dev != stat_root.st_dev) {
+		if (stat_path.st_dev != stat_root.st_dev)
 			is_internal = FALSE;
-		}
 	} else {
 		_mmcam_dbg_warn("root_directory is NULL, assume that it's internal storage.");
 	}
 
-	if (is_internal) {
+	if (is_internal)
 		ret = storage_get_internal_memory_size(&vfs);
-	} else {
+	else
 		ret = storage_get_external_memory_size(&vfs);
-	}
 
 	if (ret < 0) {
 		*free_space = 0;
@@ -848,9 +835,8 @@ int _mmcamcorder_send_sound_play_message(GDBusConnection *conn, _MMCamcorderGDbu
 
 	g_mutex_unlock(&gdbus_info->sync_mutex);
 
-	if (sync_play && ret == MM_ERROR_NONE) {
+	if (sync_play && ret == MM_ERROR_NONE)
 		ret = __gdbus_wait_for_cb_return(gdbus_info, G_DBUS_CB_TIMEOUT_MSEC);
-	}
 
 	return ret;
 }
@@ -894,7 +880,7 @@ void _mmcamcorder_remove_buffer_probe(MMHandleType handle, _MMCamcorderHandlerCa
 		if (item->category & category) {
 			if (item->object && GST_IS_PAD(item->object)) {
 				_mmcam_dbg_log("Remove buffer probe on [%s:%s] - [ID : %lu], [Category : %x]",
-				               GST_DEBUG_PAD_NAME(item->object), item->handler_id,  item->category);
+							   GST_DEBUG_PAD_NAME(item->object), item->handler_id,  item->category);
 				gst_pad_remove_probe(GST_PAD(item->object), item->handler_id);
 			} else {
 				_mmcam_dbg_warn("Remove buffer probe faild, the pad is null or not pad, just remove item from list and free it");
@@ -947,7 +933,7 @@ void _mmcamcorder_remove_one_buffer_probe(MMHandleType handle, void *object)
 		if (item->object && item->object == object) {
 			if (GST_IS_PAD(item->object)) {
 				_mmcam_dbg_log("Remove buffer probe on [%s:%s] - [ID : %lu], [Category : %x]",
-				               GST_DEBUG_PAD_NAME(item->object), item->handler_id,  item->category);
+							   GST_DEBUG_PAD_NAME(item->object), item->handler_id,  item->category);
 				gst_pad_remove_probe(GST_PAD(item->object), item->handler_id);
 			} else {
 				_mmcam_dbg_warn("Remove buffer probe faild, the pad is null or not pad, just remove item from list and free it");
@@ -997,7 +983,7 @@ void _mmcamcorder_remove_event_probe(MMHandleType handle, _MMCamcorderHandlerCat
 		if (item->category & category) {
 			if (item->object && GST_IS_PAD(item->object)) {
 				_mmcam_dbg_log("Remove event probe on [%s:%s] - [ID : %lu], [Category : %x]",
-				               GST_DEBUG_PAD_NAME(item->object), item->handler_id,  item->category);
+							   GST_DEBUG_PAD_NAME(item->object), item->handler_id,  item->category);
 				gst_pad_remove_probe(GST_PAD(item->object), item->handler_id);
 			} else {
 				_mmcam_dbg_warn("Remove event probe faild, the pad is null or not pad, just remove item from list and free it");
@@ -1051,11 +1037,11 @@ void _mmcamcorder_disconnect_signal(MMHandleType handle, _MMCamcorderHandlerCate
 			if (item->object && GST_IS_ELEMENT(item->object)) {
 				if (g_signal_handler_is_connected(item->object, item->handler_id)) {
 					_mmcam_dbg_log("Disconnect signal from [%s] : [ID : %lu], [Category : %x]",
-					               GST_OBJECT_NAME(item->object), item->handler_id,  item->category);
+								   GST_OBJECT_NAME(item->object), item->handler_id, item->category);
 					g_signal_handler_disconnect(item->object, item->handler_id);
 				} else {
 					_mmcam_dbg_warn("Signal was not connected, cannot disconnect it :  [%s]  [ID : %lu], [Category : %x]",
-					                GST_OBJECT_NAME(item->object), item->handler_id,  item->category);
+									GST_OBJECT_NAME(item->object), item->handler_id, item->category);
 				}
 			} else {
 				_mmcam_dbg_err("Fail to Disconnecting signal, the element is null or not element, just remove item from list and free it");
@@ -1087,11 +1073,11 @@ void _mmcamcorder_remove_all_handlers(MMHandleType handle,  _MMCamcorderHandlerC
 
 	_mmcam_dbg_log("ENTER");
 
-	if(hcamcorder->signals)
+	if (hcamcorder->signals)
 		_mmcamcorder_disconnect_signal((MMHandleType)hcamcorder, category);
-	if(hcamcorder->event_probes)
+	if (hcamcorder->event_probes)
 		_mmcamcorder_remove_event_probe((MMHandleType)hcamcorder, category);
-	if(hcamcorder->buffer_probes)
+	if (hcamcorder->buffer_probes)
 		_mmcamcorder_remove_buffer_probe((MMHandleType)hcamcorder, category);
 
 	_mmcam_dbg_log("LEAVE");
@@ -1100,7 +1086,7 @@ void _mmcamcorder_remove_all_handlers(MMHandleType handle,  _MMCamcorderHandlerC
 
 void _mmcamcorder_element_release_noti(gpointer data, GObject *where_the_object_was)
 {
-	int i=0;
+	int i = 0;
 	_MMCamcorderSubContext *sc = (_MMCamcorderSubContext *)data;
 
 	mmf_return_if_fail(sc);
@@ -1109,7 +1095,7 @@ void _mmcamcorder_element_release_noti(gpointer data, GObject *where_the_object_
 	for (i = 0 ; i < _MMCAMCORDER_PIPELINE_ELEMENT_NUM ; i++) {
 		if (sc->element[i].gst && (G_OBJECT(sc->element[i].gst) == where_the_object_was)) {
 			_mmcam_dbg_warn("The element[%d][%p] is finalized",
-			                sc->element[i].id, sc->element[i].gst);
+							sc->element[i].id, sc->element[i].gst);
 			sc->element[i].gst = NULL;
 			sc->element[i].id = _MMCAMCORDER_NONE;
 			return;
@@ -1121,7 +1107,7 @@ void _mmcamcorder_element_release_noti(gpointer data, GObject *where_the_object_
 	for (i = 0 ; i < _MMCAMCORDER_ENCODE_PIPELINE_ELEMENT_NUM ; i++) {
 		if (sc->encode_element[i].gst && (G_OBJECT(sc->encode_element[i].gst) == where_the_object_was)) {
 			_mmcam_dbg_warn("The encode element[%d][%p] is finalized",
-			                sc->encode_element[i].id, sc->encode_element[i].gst);
+							sc->encode_element[i].id, sc->encode_element[i].gst);
 			sc->encode_element[i].gst = NULL;
 			sc->encode_element[i].id = _MMCAMCORDER_ENCODE_NONE;
 			return;
@@ -1154,19 +1140,17 @@ gboolean _mmcamcorder_msg_callback(void *data)
 	_MMCAMCORDER_LOCK((MMHandleType)hcamcorder);
 
 	/* remove item from msg data */
-	if (hcamcorder->msg_data) {
+	if (hcamcorder->msg_data)
 		hcamcorder->msg_data = g_list_remove(hcamcorder->msg_data, item);
-	} else {
+	else
 		_mmcam_dbg_warn("msg_data is NULL but item[%p] will be removed", item);
-	}
 
 	_MMCAMCORDER_UNLOCK((MMHandleType)hcamcorder);
 
 	_MMCAMCORDER_LOCK_MESSAGE_CALLBACK(hcamcorder);
 
-	if ((hcamcorder) && (hcamcorder->msg_cb)) {
+	if ((hcamcorder) && (hcamcorder->msg_cb))
 		hcamcorder->msg_cb(item->id, (MMMessageParamType*)(&(item->param)), hcamcorder->msg_cb_param);
-	}
 
 	_MMCAMCORDER_UNLOCK_MESSAGE_CALLBACK(hcamcorder);
 
@@ -1184,12 +1168,12 @@ MSG_CALLBACK_DONE:
 			item->param.size = 0;
 		}
 	} else if (item->id == MM_MESSAGE_CAMCORDER_VIDEO_CAPTURED ||
-	           item->id == MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED) {
+			   item->id == MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED) {
 		MMCamRecordingReport *report = (MMCamRecordingReport *)item->param.data;
 		if (report) {
-			if (report->recording_filename) {
+			if (report->recording_filename)
 				SAFE_G_FREE(report->recording_filename);
-			}
+
 			SAFE_G_FREE(report);
 			item->param.data = NULL;
 		}
@@ -1216,34 +1200,33 @@ gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 	mmf_return_val_if_fail(hcamcorder, FALSE);
 	mmf_return_val_if_fail(data, FALSE);
 
-	switch (data->id)
-	{
-		case MM_MESSAGE_CAMCORDER_STATE_CHANGED:
-		case MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_ASM:
-		case MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_RM:
-			data->param.union_type = MM_MSG_UNION_STATE;
-			break;
-		case MM_MESSAGE_CAMCORDER_RECORDING_STATUS:
-			data->param.union_type = MM_MSG_UNION_RECORDING_STATUS;
-			break;
-		case MM_MESSAGE_CAMCORDER_FIRMWARE_UPDATE:
-			data->param.union_type = MM_MSG_UNION_FIRMWARE;
-			break;
-		case MM_MESSAGE_CAMCORDER_CURRENT_VOLUME:
-			data->param.union_type = MM_MSG_UNION_REC_VOLUME_DB;
-			break;
-		case MM_MESSAGE_CAMCORDER_TIME_LIMIT:
-		case MM_MESSAGE_CAMCORDER_MAX_SIZE:
-		case MM_MESSAGE_CAMCORDER_NO_FREE_SPACE:
-		case MM_MESSAGE_CAMCORDER_ERROR:
-		case MM_MESSAGE_CAMCORDER_FOCUS_CHANGED:
-		case MM_MESSAGE_CAMCORDER_CAPTURED:
-		case MM_MESSAGE_CAMCORDER_VIDEO_CAPTURED:
-		case MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED:
-		case MM_MESSAGE_READY_TO_RESUME:
-		default:
-			data->param.union_type = MM_MSG_UNION_CODE;
-			break;
+	switch (data->id) {
+	case MM_MESSAGE_CAMCORDER_STATE_CHANGED:
+	case MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_ASM:
+	case MM_MESSAGE_CAMCORDER_STATE_CHANGED_BY_RM:
+		data->param.union_type = MM_MSG_UNION_STATE;
+		break;
+	case MM_MESSAGE_CAMCORDER_RECORDING_STATUS:
+		data->param.union_type = MM_MSG_UNION_RECORDING_STATUS;
+		break;
+	case MM_MESSAGE_CAMCORDER_FIRMWARE_UPDATE:
+		data->param.union_type = MM_MSG_UNION_FIRMWARE;
+		break;
+	case MM_MESSAGE_CAMCORDER_CURRENT_VOLUME:
+		data->param.union_type = MM_MSG_UNION_REC_VOLUME_DB;
+		break;
+	case MM_MESSAGE_CAMCORDER_TIME_LIMIT:
+	case MM_MESSAGE_CAMCORDER_MAX_SIZE:
+	case MM_MESSAGE_CAMCORDER_NO_FREE_SPACE:
+	case MM_MESSAGE_CAMCORDER_ERROR:
+	case MM_MESSAGE_CAMCORDER_FOCUS_CHANGED:
+	case MM_MESSAGE_CAMCORDER_CAPTURED:
+	case MM_MESSAGE_CAMCORDER_VIDEO_CAPTURED:
+	case MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED:
+	case MM_MESSAGE_READY_TO_RESUME:
+	default:
+		data->param.union_type = MM_MSG_UNION_CODE;
+		break;
 	}
 
 #ifdef _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK
@@ -1267,11 +1250,10 @@ gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 #else /* _MMCAMCORDER_ENABLE_IDLE_MESSAGE_CALLBACK */
 	_MMCAMCORDER_LOCK_MESSAGE_CALLBACK(hcamcorder);
 
-	if (hcamcorder->msg_cb) {
+	if (hcamcorder->msg_cb)
 		hcamcorder->msg_cb(data->id, (MMMessageParamType*)(&(data->param)), hcamcorder->msg_cb_param);
-	} else {
+	else
 		_mmcam_dbg_log("message callback is NULL. message id %d", data->id);
-	}
 
 	_MMCAMCORDER_UNLOCK_MESSAGE_CALLBACK(hcamcorder);
 
@@ -1284,7 +1266,7 @@ gboolean _mmcamcorder_send_message(MMHandleType handle, _MMCamcorderMsgItem *dat
 			data->param.size = 0;
 		}
 	} else if (data->id == MM_MESSAGE_CAMCORDER_VIDEO_CAPTURED ||
-	           data->id == MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED) {
+			   data->id == MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED) {
 		MMCamRecordingReport *report = (MMCamRecordingReport *)data->param.data;
 		if (report) {
 			SAFE_G_FREE(report->recording_filename);
@@ -1344,11 +1326,11 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 						}
 						SAFE_G_FREE(cam_fd_info);
 					} else if (item->id == MM_MESSAGE_CAMCORDER_VIDEO_CAPTURED ||
-					           item->id == MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED) {
+							   item->id == MM_MESSAGE_CAMCORDER_AUDIO_CAPTURED) {
 						MMCamRecordingReport *report = (MMCamRecordingReport *)item->param.data;
-						if (report) {
+						if (report)
 							SAFE_G_FREE(report->recording_filename);
-						}
+
 						SAFE_G_FREE(report);
 					}
 
@@ -1368,11 +1350,10 @@ void _mmcamcorder_remove_message_all(MMHandleType handle)
 
 					end_time = g_get_monotonic_time() + (100 * G_TIME_SPAN_MILLISECOND);
 
-					if (_MMCAMCORDER_WAIT_UNTIL(handle, end_time)) {
+					if (_MMCAMCORDER_WAIT_UNTIL(handle, end_time))
 						_mmcam_dbg_warn("signal received");
-					} else {
+					else
 						_mmcam_dbg_warn("timeout");
-					}
 				}
 			}
 		}
@@ -1402,36 +1383,36 @@ int _mmcamcorder_get_pixel_format(GstCaps *caps)
 	MMPixelFormatType type = 0;
 	unsigned int fourcc = 0;
 
-	mmf_return_val_if_fail( caps != NULL, MM_PIXEL_FORMAT_INVALID );
+	mmf_return_val_if_fail(caps != NULL, MM_PIXEL_FORMAT_INVALID);
 
-	structure = gst_caps_get_structure (caps, 0);
-	media_type = gst_structure_get_name (structure);
+	structure = gst_caps_get_structure(caps, 0);
+	media_type = gst_structure_get_name(structure);
 	if (media_type == NULL) {
 		_mmcam_dbg_err("failed to get media_type");
 		return MM_PIXEL_FORMAT_INVALID;
 	}
 
-	gst_video_info_init (&media_info);
+	gst_video_info_init(&media_info);
 
-	if (!strcmp (media_type, "image/jpeg") ) {
+	if (!strcmp(media_type, "image/jpeg")) {
 		_mmcam_dbg_log("It is jpeg.");
 		type = MM_PIXEL_FORMAT_ENCODED;
-	} else if (!strcmp (media_type, "video/x-raw") &&
+	} else if (!strcmp(media_type, "video/x-raw") &&
 		   gst_video_info_from_caps(&media_info, caps) &&
 		   GST_VIDEO_INFO_IS_YUV(&media_info)) {
 		_mmcam_dbg_log("It is yuv.");
 		fourcc = gst_video_format_to_fourcc(GST_VIDEO_INFO_FORMAT(&media_info));
 		type = _mmcamcorder_get_pixtype(fourcc);
-	} else if (!strcmp (media_type, "video/x-raw") &&
+	} else if (!strcmp(media_type, "video/x-raw") &&
 		   gst_video_info_from_caps(&media_info, caps) &&
 		   GST_VIDEO_INFO_IS_RGB(&media_info)) {
 		_mmcam_dbg_log("It is rgb.");
 		type = MM_PIXEL_FORMAT_RGB888;
-	} else if (!strcmp (media_type, "video/x-h264")) {
+	} else if (!strcmp(media_type, "video/x-h264")) {
 		_mmcam_dbg_log("It is H264");
 		type = MM_PIXEL_FORMAT_ENCODED_H264;
 	} else {
-		_mmcam_dbg_err("Not supported format [%s]",media_type);
+		_mmcam_dbg_err("Not supported format [%s]", media_type);
 		type = MM_PIXEL_FORMAT_INVALID;
 	}
 
@@ -1448,79 +1429,79 @@ unsigned int _mmcamcorder_get_fourcc(int pixtype, int codectype, int use_zero_co
 
 	switch (pixtype) {
 	case MM_PIXEL_FORMAT_NV12:
-		if (use_zero_copy_format) {
-			fourcc = GST_MAKE_FOURCC ('S', 'N', '1', '2');
-		} else {
-			fourcc = GST_MAKE_FOURCC ('N', 'V', '1', '2');
-		}
+		if (use_zero_copy_format)
+			fourcc = GST_MAKE_FOURCC('S', 'N', '1', '2');
+		else
+			fourcc = GST_MAKE_FOURCC('N', 'V', '1', '2');
+
 		break;
 	case MM_PIXEL_FORMAT_NV21:
-		if (use_zero_copy_format) {
-			fourcc = GST_MAKE_FOURCC ('S', 'N', '2', '1');
-		} else {
-			fourcc = GST_MAKE_FOURCC ('N', 'V', '2', '1');
-		}
+		if (use_zero_copy_format)
+			fourcc = GST_MAKE_FOURCC('S', 'N', '2', '1');
+		else
+			fourcc = GST_MAKE_FOURCC('N', 'V', '2', '1');
+
 		break;
 	case MM_PIXEL_FORMAT_YUYV:
-		if (use_zero_copy_format) {
-			fourcc = GST_MAKE_FOURCC ('S', 'U', 'Y', 'V');
-		} else {
-			fourcc = GST_MAKE_FOURCC ('Y', 'U', 'Y', '2');
-		}
+		if (use_zero_copy_format)
+			fourcc = GST_MAKE_FOURCC('S', 'U', 'Y', 'V');
+		else
+			fourcc = GST_MAKE_FOURCC('Y', 'U', 'Y', '2');
+
 		break;
 	case MM_PIXEL_FORMAT_UYVY:
-		if (use_zero_copy_format) {
-			fourcc = GST_MAKE_FOURCC ('S', 'Y', 'V', 'Y');
-		} else {
-			fourcc = GST_MAKE_FOURCC ('U', 'Y', 'V', 'Y');
-		}
+		if (use_zero_copy_format)
+			fourcc = GST_MAKE_FOURCC('S', 'Y', 'V', 'Y');
+		else
+			fourcc = GST_MAKE_FOURCC('U', 'Y', 'V', 'Y');
+
 		break;
 	case MM_PIXEL_FORMAT_I420:
-		if (use_zero_copy_format) {
-			fourcc = GST_MAKE_FOURCC ('S', '4', '2', '0');
-		} else {
-			fourcc = GST_MAKE_FOURCC ('I', '4', '2', '0');
-		}
+		if (use_zero_copy_format)
+			fourcc = GST_MAKE_FOURCC('S', '4', '2', '0');
+		else
+			fourcc = GST_MAKE_FOURCC('I', '4', '2', '0');
+
 		break;
 	case MM_PIXEL_FORMAT_YV12:
-		fourcc = GST_MAKE_FOURCC ('Y', 'V', '1', '2');
+		fourcc = GST_MAKE_FOURCC('Y', 'V', '1', '2');
 		break;
 	case MM_PIXEL_FORMAT_422P:
-		fourcc = GST_MAKE_FOURCC ('4', '2', '2', 'P');
+		fourcc = GST_MAKE_FOURCC('4', '2', '2', 'P');
 		break;
 	case MM_PIXEL_FORMAT_RGB565:
-		fourcc = GST_MAKE_FOURCC ('R', 'G', 'B', 'P');
+		fourcc = GST_MAKE_FOURCC('R', 'G', 'B', 'P');
 		break;
 	case MM_PIXEL_FORMAT_RGB888:
-		fourcc = GST_MAKE_FOURCC ('R', 'G', 'B', ' ');
+		fourcc = GST_MAKE_FOURCC('R', 'G', 'B', ' ');
 		break;
 	case MM_PIXEL_FORMAT_ENCODED:
 		if (codectype == MM_IMAGE_CODEC_JPEG) {
-			fourcc = GST_MAKE_FOURCC ('J', 'P', 'E', 'G');
+			fourcc = GST_MAKE_FOURCC('J', 'P', 'E', 'G');
 		} else if (codectype == MM_IMAGE_CODEC_JPEG_SRW) {
-			fourcc = GST_MAKE_FOURCC ('J', 'P', 'E', 'G'); /*TODO: JPEG+SamsungRAW format */
+			fourcc = GST_MAKE_FOURCC('J', 'P', 'E', 'G'); /*TODO: JPEG+SamsungRAW format */
 		} else if (codectype == MM_IMAGE_CODEC_SRW) {
-			fourcc = GST_MAKE_FOURCC ('J', 'P', 'E', 'G'); /*TODO: SamsungRAW format */
+			fourcc = GST_MAKE_FOURCC('J', 'P', 'E', 'G'); /*TODO: SamsungRAW format */
 		} else if (codectype == MM_IMAGE_CODEC_PNG) {
-			fourcc = GST_MAKE_FOURCC ('P', 'N', 'G', ' ');
+			fourcc = GST_MAKE_FOURCC('P', 'N', 'G', ' ');
 		} else {
 			/* Please let us know what other fourcces are. ex) BMP, GIF?*/
-			fourcc = GST_MAKE_FOURCC ('J', 'P', 'E', 'G');
+			fourcc = GST_MAKE_FOURCC('J', 'P', 'E', 'G');
 		}
 		break;
 	case MM_PIXEL_FORMAT_ITLV_JPEG_UYVY:
-		fourcc = GST_MAKE_FOURCC('I','T','L','V');
+		fourcc = GST_MAKE_FOURCC('I', 'T', 'L', 'V');
 		break;
 	case MM_PIXEL_FORMAT_ENCODED_H264:
-		fourcc = GST_MAKE_FOURCC('H','2','6','4');
+		fourcc = GST_MAKE_FOURCC('H', '2', '6', '4');
 		break;
 	default:
 		_mmcam_dbg_log("Not proper pixel type[%d]. Set default - I420", pixtype);
-		if (use_zero_copy_format) {
-			fourcc = GST_MAKE_FOURCC ('S', '4', '2', '0');
-		} else {
-			fourcc = GST_MAKE_FOURCC ('I', '4', '2', '0');
-		}
+		if (use_zero_copy_format)
+			fourcc = GST_MAKE_FOURCC('S', '4', '2', '0');
+		else
+			fourcc = GST_MAKE_FOURCC('I', '4', '2', '0');
+
 		break;
 	}
 
@@ -1535,66 +1516,66 @@ int _mmcamcorder_get_pixtype(unsigned int fourcc)
 	char *pfourcc = (char*)&fourcc;
 
 	_mmcam_dbg_log("fourcc(%c%c%c%c)",
-	                 pfourcc[0], pfourcc[1], pfourcc[2], pfourcc[3]);
+				   pfourcc[0], pfourcc[1], pfourcc[2], pfourcc[3]);
 	*/
 
 	switch (fourcc) {
-	case GST_MAKE_FOURCC ('S', 'N', '1', '2'):
-	case GST_MAKE_FOURCC ('N', 'V', '1', '2'):
+	case GST_MAKE_FOURCC('S', 'N', '1', '2'):
+	case GST_MAKE_FOURCC('N', 'V', '1', '2'):
 		pixtype = MM_PIXEL_FORMAT_NV12;
 		break;
-	case GST_MAKE_FOURCC ('S', 'N', '2', '1'):
-	case GST_MAKE_FOURCC ('N', 'V', '2', '1'):
+	case GST_MAKE_FOURCC('S', 'N', '2', '1'):
+	case GST_MAKE_FOURCC('N', 'V', '2', '1'):
 		pixtype = MM_PIXEL_FORMAT_NV21;
 		break;
-	case GST_MAKE_FOURCC ('S', 'U', 'Y', 'V'):
-	case GST_MAKE_FOURCC ('Y', 'U', 'Y', 'V'):
-	case GST_MAKE_FOURCC ('Y', 'U', 'Y', '2'):
+	case GST_MAKE_FOURCC('S', 'U', 'Y', 'V'):
+	case GST_MAKE_FOURCC('Y', 'U', 'Y', 'V'):
+	case GST_MAKE_FOURCC('Y', 'U', 'Y', '2'):
 		pixtype = MM_PIXEL_FORMAT_YUYV;
 		break;
-	case GST_MAKE_FOURCC ('S', 'Y', 'V', 'Y'):
-	case GST_MAKE_FOURCC ('U', 'Y', 'V', 'Y'):
+	case GST_MAKE_FOURCC('S', 'Y', 'V', 'Y'):
+	case GST_MAKE_FOURCC('U', 'Y', 'V', 'Y'):
 		pixtype = MM_PIXEL_FORMAT_UYVY;
 		break;
-	case GST_MAKE_FOURCC ('S', '4', '2', '0'):
-	case GST_MAKE_FOURCC ('I', '4', '2', '0'):
+	case GST_MAKE_FOURCC('S', '4', '2', '0'):
+	case GST_MAKE_FOURCC('I', '4', '2', '0'):
 		pixtype = MM_PIXEL_FORMAT_I420;
 		break;
-	case GST_MAKE_FOURCC ('Y', 'V', '1', '2'):
+	case GST_MAKE_FOURCC('Y', 'V', '1', '2'):
 		pixtype = MM_PIXEL_FORMAT_YV12;
 		break;
-	case GST_MAKE_FOURCC ('4', '2', '2', 'P'):
+	case GST_MAKE_FOURCC('4', '2', '2', 'P'):
 		pixtype = MM_PIXEL_FORMAT_422P;
 		break;
-	case GST_MAKE_FOURCC ('R', 'G', 'B', 'P'):
+	case GST_MAKE_FOURCC('R', 'G', 'B', 'P'):
 		pixtype = MM_PIXEL_FORMAT_RGB565;
 		break;
-	case GST_MAKE_FOURCC ('R', 'G', 'B', '3'):
+	case GST_MAKE_FOURCC('R', 'G', 'B', '3'):
 		pixtype = MM_PIXEL_FORMAT_RGB888;
 		break;
-	case GST_MAKE_FOURCC ('A', 'R', 'G', 'B'):
-	case GST_MAKE_FOURCC ('x', 'R', 'G', 'B'):
+	case GST_MAKE_FOURCC('A', 'R', 'G', 'B'):
+	case GST_MAKE_FOURCC('x', 'R', 'G', 'B'):
 		pixtype = MM_PIXEL_FORMAT_ARGB;
 		break;
-	case GST_MAKE_FOURCC ('B', 'G', 'R', 'A'):
-	case GST_MAKE_FOURCC ('B', 'G', 'R', 'x'):
-	case GST_MAKE_FOURCC ('S', 'R', '3', '2'):
+	case GST_MAKE_FOURCC('B', 'G', 'R', 'A'):
+	case GST_MAKE_FOURCC('B', 'G', 'R', 'x'):
+	case GST_MAKE_FOURCC('S', 'R', '3', '2'):
 		pixtype = MM_PIXEL_FORMAT_RGBA;
 		break;
-	case GST_MAKE_FOURCC ('J', 'P', 'E', 'G'):
-	case GST_MAKE_FOURCC ('P', 'N', 'G', ' '):
+	case GST_MAKE_FOURCC('J', 'P', 'E', 'G'):
+	case GST_MAKE_FOURCC('P', 'N', 'G', ' '):
 		pixtype = MM_PIXEL_FORMAT_ENCODED;
 		break;
 	/*FIXME*/
-	case GST_MAKE_FOURCC ('I', 'T', 'L', 'V'):
+	case GST_MAKE_FOURCC('I', 'T', 'L', 'V'):
 		pixtype = MM_PIXEL_FORMAT_ITLV_JPEG_UYVY;
 		break;
-	case GST_MAKE_FOURCC ('H', '2', '6', '4'):
+	case GST_MAKE_FOURCC('H', '2', '6', '4'):
 		pixtype = MM_PIXEL_FORMAT_ENCODED_H264;
 		break;
 	default:
 		_mmcam_dbg_log("Not supported fourcc type(%c%c%c%c)",
-		               fourcc, fourcc>>8, fourcc>>16, fourcc>>24);
+					   fourcc, fourcc>>8, fourcc>>16, fourcc>>24);
 		pixtype = MM_PIXEL_FORMAT_INVALID;
 		break;
 	}
@@ -1614,14 +1595,14 @@ gboolean _mmcamcorder_add_elements_to_bin(GstBin *bin, GList *element_list)
 		element = (_MMCamcorderGstElement*)local_list->data;
 		if (element && element->gst) {
 			if (!gst_bin_add(bin, GST_ELEMENT(element->gst))) {
-				_mmcam_dbg_err( "Add element [%s] to bin [%s] FAILED",
-				                GST_ELEMENT_NAME(GST_ELEMENT(element->gst)),
-				                GST_ELEMENT_NAME(GST_ELEMENT(bin)) );
+				_mmcam_dbg_err("Add element [%s] to bin [%s] FAILED",
+							   GST_ELEMENT_NAME(GST_ELEMENT(element->gst)),
+							   GST_ELEMENT_NAME(GST_ELEMENT(bin)));
 				return FALSE;
 			} else {
 				_mmcam_dbg_log("Add element [%s] to bin [%s] OK",
-				               GST_ELEMENT_NAME(GST_ELEMENT(element->gst)),
-				               GST_ELEMENT_NAME(GST_ELEMENT(bin)));
+							   GST_ELEMENT_NAME(GST_ELEMENT(element->gst)),
+							   GST_ELEMENT_NAME(GST_ELEMENT(bin)));
 			}
 		}
 		local_list = local_list->next;
@@ -1646,12 +1627,12 @@ gboolean _mmcamcorder_link_elements(GList *element_list)
 		if (pre_element && pre_element->gst && element && element->gst) {
 			if (_MM_GST_ELEMENT_LINK(GST_ELEMENT(pre_element->gst), GST_ELEMENT(element->gst))) {
 				_mmcam_dbg_log("Link [%s] to [%s] OK",
-				               GST_ELEMENT_NAME(GST_ELEMENT(pre_element->gst)),
-				               GST_ELEMENT_NAME(GST_ELEMENT(element->gst)));
+							   GST_ELEMENT_NAME(GST_ELEMENT(pre_element->gst)),
+							   GST_ELEMENT_NAME(GST_ELEMENT(element->gst)));
 			} else {
 				_mmcam_dbg_err("Link [%s] to [%s] FAILED",
-				               GST_ELEMENT_NAME(GST_ELEMENT(pre_element->gst)),
-				               GST_ELEMENT_NAME(GST_ELEMENT(element->gst)));
+							   GST_ELEMENT_NAME(GST_ELEMENT(pre_element->gst)),
+							   GST_ELEMENT_NAME(GST_ELEMENT(element->gst)));
 				return FALSE;
 			}
 		}
@@ -1673,7 +1654,7 @@ gboolean _mmcamcorder_resize_frame(unsigned char *src_data, unsigned int src_wid
 
 	if (!src_data || !dst_data || !dst_width || !dst_height || !dst_length) {
 		_mmcam_dbg_err("something is NULL %p,%p,%p,%p,%p",
-		               src_data, dst_data, dst_width, dst_height, dst_length);
+					   src_data, dst_data, dst_width, dst_height, dst_length);
 		return FALSE;
 	}
 
@@ -1703,7 +1684,7 @@ gboolean _mmcamcorder_resize_frame(unsigned char *src_data, unsigned int src_wid
 	}
 
 	_mmcam_dbg_log("src size %dx%d -> dst size %dx%d",
-	                src_width, src_height, *dst_width, *dst_height);
+				   src_width, src_height, *dst_width, *dst_height);
 
 	/* get length of resized image */
 	mm_ret = mm_util_get_image_size(input_format, *dst_width, *dst_height, dst_length);
@@ -1721,7 +1702,8 @@ gboolean _mmcamcorder_resize_frame(unsigned char *src_data, unsigned int src_wid
 	}
 
 	mm_ret = mm_util_resize_image(src_data, src_width, src_height, input_format,
-	                              dst_tmp_data, dst_width, dst_height);
+								  dst_tmp_data, dst_width, dst_height);
+
 	if (mm_ret != MM_ERROR_NONE) {
 		GST_ERROR("mm_util_resize_image failed 0x%x", ret);
 		free(dst_tmp_data);
@@ -1751,7 +1733,7 @@ gboolean _mmcamcorder_encode_jpeg(void *src_data, unsigned int src_width, unsign
 	switch (src_format) {
 	case MM_PIXEL_FORMAT_NV12:
 		//jpeg_format = MM_UTIL_JPEG_FMT_NV12;
-		ret_conv = _mmcamcorder_convert_NV12_to_I420(src_data,src_width,src_height,&converted_src,&converted_src_size);
+		ret_conv = _mmcamcorder_convert_NV12_to_I420(src_data, src_width, src_height, &converted_src, &converted_src_size);
 		jpeg_format = MM_UTIL_JPEG_FMT_YUV420;
 		break;
 	case MM_PIXEL_FORMAT_NV16:
@@ -1764,12 +1746,12 @@ gboolean _mmcamcorder_encode_jpeg(void *src_data, unsigned int src_width, unsign
 		break;
 	case MM_PIXEL_FORMAT_YUYV:
 		//jpeg_format = MM_UTIL_JPEG_FMT_YUYV;
-		ret_conv = _mmcamcorder_convert_YUYV_to_I420(src_data,src_width,src_height,&converted_src,&converted_src_size);
+		ret_conv = _mmcamcorder_convert_YUYV_to_I420(src_data, src_width, src_height, &converted_src, &converted_src_size);
 		jpeg_format = MM_UTIL_JPEG_FMT_YUV420;
 		break;
 	case MM_PIXEL_FORMAT_UYVY:
 		//jpeg_format = MM_UTIL_JPEG_FMT_UYVY;
-		ret_conv = _mmcamcorder_convert_UYVY_to_I420(src_data,src_width,src_height,&converted_src,&converted_src_size);
+		ret_conv = _mmcamcorder_convert_UYVY_to_I420(src_data, src_width, src_height, &converted_src, &converted_src_size);
 		jpeg_format = MM_UTIL_JPEG_FMT_YUV420;
 		break;
 	case MM_PIXEL_FORMAT_I420:
@@ -1811,8 +1793,8 @@ gboolean _mmcamcorder_encode_jpeg(void *src_data, unsigned int src_width, unsign
 	}
 
 	ret = mm_util_jpeg_encode_to_memory(result_data, (int *)result_length,
-	                                    converted_src, src_width, src_height,
-	                                    jpeg_format, jpeg_quality);
+										converted_src, src_width, src_height,
+										jpeg_format, jpeg_quality);
 
 	if (converted_src && (converted_src != src_data)) {
 		free(converted_src);
@@ -1860,8 +1842,8 @@ gboolean _mmcamcorder_downscale_UYVYorYUYV(unsigned char *src, unsigned int src_
 	jump_width = ratio_width << 1;
 
 	_mmcam_dbg_warn("[src %dx%d] [dst %dx%d] [line width %d] [ratio width %d, height %d]",
-	                src_width, src_height, dst_width, dst_height,
-	                line_width, ratio_width, ratio_height);
+					src_width, src_height, dst_width, dst_height,
+					line_width, ratio_width, ratio_height);
 
 	for (i = 0 ; i < src_height ; i += ratio_height) {
 		line_base = i * line_width;
@@ -1872,11 +1854,11 @@ gboolean _mmcamcorder_downscale_UYVYorYUYV(unsigned char *src, unsigned int src_
 
 			j += jump_width;
 			src_index = line_base + j;
-			if (src_index % 4 == 0) {
+			if (src_index % 4 == 0)
 				result[k++] = src[src_index+2];
-			} else {
+			else
 				result[k++] = src[src_index];
-			}
+
 			result[k++] = src[src_index+1];
 		}
 	}
@@ -1891,17 +1873,17 @@ gboolean _mmcamcorder_downscale_UYVYorYUYV(unsigned char *src, unsigned int src_
 
 static guint16 get_language_code(const char *str)
 {
-    return (guint16) (((str[0]-0x60) & 0x1F) << 10) + (((str[1]-0x60) & 0x1F) << 5) + ((str[2]-0x60) & 0x1F);
+	return (guint16)(((str[0]-0x60) & 0x1F) << 10) + (((str[1]-0x60) & 0x1F) << 5) + ((str[2]-0x60) & 0x1F);
 }
 
 static gchar * str_to_utf8(const gchar *str)
 {
-	return g_convert (str, -1, "UTF-8", "ASCII", NULL, NULL, NULL);
+	return g_convert(str, -1, "UTF-8", "ASCII", NULL, NULL, NULL);
 }
 
 static inline gboolean write_tag(FILE *f, const gchar *tag)
 {
-	while(*tag)
+	while (*tag)
 		FPUTC_CHECK(*tag++, f);
 
 	return TRUE;
@@ -2019,23 +2001,16 @@ _mmcamcorder_convert_YUV_to_RGB888(unsigned char *src, int src_fmt, guint width,
 	int dst_cs = MM_UTIL_IMG_FMT_RGB888;
 	unsigned int dst_size = 0;
 
-	if (src_fmt == COLOR_FORMAT_YUYV)
-	{
+	if (src_fmt == COLOR_FORMAT_YUYV) {
 		_mmcam_dbg_log("Convert YUYV to RGB888\n");
 		src_cs = MM_UTIL_IMG_FMT_YUYV;
-	}
-	else if (src_fmt == COLOR_FORMAT_UYVY)
-	{
+	} else if (src_fmt == COLOR_FORMAT_UYVY) {
 		_mmcam_dbg_log("Convert UYVY to RGB888\n");
 		src_cs = MM_UTIL_IMG_FMT_UYVY;
-	}
-	else if (src_fmt == COLOR_FORMAT_NV12)
-	{
+	} else if (src_fmt == COLOR_FORMAT_NV12) {
 		_mmcam_dbg_log("Convert NV12 to RGB888\n");
 		src_cs = MM_UTIL_IMG_FMT_NV12;
-	}
-	else
-	{
+	} else {
 		_mmcam_dbg_err("NOT supported format [%d]\n", src_fmt);
 		return FALSE;
 	}
@@ -2047,21 +2022,17 @@ _mmcamcorder_convert_YUV_to_RGB888(unsigned char *src, int src_fmt, guint width,
 	}
 
 	*dst = malloc(dst_size);
-	if (*dst == NULL)
-	{
+	if (*dst == NULL) {
 		_mmcam_dbg_err("malloc failed\n");
 		return FALSE;
 	}
 
 	*dst_len = dst_size;
 	ret = mm_util_convert_colorspace(src, width, height, src_cs, *dst, dst_cs);
-	if(ret == 0)
-	{
+	if (ret == 0) {
 		_mmcam_dbg_log("Convert [dst_size:%d] OK.\n", dst_size);
 		return TRUE;
-	}
-	else
-	{
+	} else {
 		free(*dst);
 		*dst = NULL;
 
@@ -2110,11 +2081,10 @@ static gboolean _mmcamcorder_convert_YUYV_to_I420(unsigned char *src, guint widt
 			dst_data[dst_y_offset++] = src[src_offset++]; /*Y*/
 
 			if (i % 2 == 0) {
-				if (j % 4 == 0) {
+				if (j % 4 == 0)
 					dst_data[dst_u_offset++] = src[src_offset++]; /*U*/
-				} else {
+				else
 					dst_data[dst_v_offset++] = src[src_offset++]; /*V*/
-				}
 			} else {
 				src_offset++;
 			}
@@ -2125,7 +2095,7 @@ static gboolean _mmcamcorder_convert_YUYV_to_I420(unsigned char *src, guint widt
 	*dst_len = dst_size;
 
 	_mmcam_dbg_log("DONE: YUVY -> I420 : %dx%d, dst data %p, size %d",
-	                        width, height, *dst, dst_size);
+				   width, height, *dst, dst_size);
 
 	return TRUE;
 }
@@ -2167,11 +2137,10 @@ static gboolean _mmcamcorder_convert_UYVY_to_I420(unsigned char *src, guint widt
 	for (i = 0 ; i < height ; i++) {
 		for (j = 0 ; j < loop_length ; j += 2) {
 			if (i % 2 == 0) {
-				if (j % 4 == 0) {
+				if (j % 4 == 0)
 					dst_data[dst_u_offset++] = src[src_offset++]; /*U*/
-				} else {
+				else
 					dst_data[dst_v_offset++] = src[src_offset++]; /*V*/
-				}
 			} else {
 				src_offset++;
 			}
@@ -2184,7 +2153,7 @@ static gboolean _mmcamcorder_convert_UYVY_to_I420(unsigned char *src, guint widt
 	*dst_len = dst_size;
 
 	_mmcam_dbg_log("DONE: UYVY -> I420 : %dx%d, dst data %p, size %d",
-	                        width, height, *dst, dst_size);
+				   width, height, *dst, dst_size);
 
 	return TRUE;
 }
@@ -2230,18 +2199,17 @@ static gboolean _mmcamcorder_convert_NV12_to_I420(unsigned char *src, guint widt
 
 	/* set U and V */
 	for (i = 0 ; i < loop_length ; i++) {
-		if (i % 2 == 0) {
+		if (i % 2 == 0)
 			dst_data[dst_u_offset++] = src[src_offset++];
-		} else {
+		else
 			dst_data[dst_v_offset++] = src[src_offset++];
-		}
 	}
 
 	*dst = dst_data;
 	*dst_len = dst_size;
 
 	_mmcam_dbg_log("DONE: NV12 -> I420 : %dx%d, dst data %p, size %d",
-	                        width, height, *dst, dst_size);
+				   width, height, *dst, dst_size);
 
 	return TRUE;
 }

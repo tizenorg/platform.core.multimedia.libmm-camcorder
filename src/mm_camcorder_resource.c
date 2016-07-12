@@ -26,8 +26,8 @@
 #define MRP_RESOURCE_TYPE_EXCLUSIVE FALSE
 
 const char* mm_camcorder_resource_str[MM_CAMCORDER_RESOURCE_MAX] = {
-    "camera",
-    "video_overlay"
+	"camera",
+	"video_overlay"
 };
 
 #define MMCAMCORDER_CHECK_RESOURCE_MANAGER_INSTANCE(x_camcorder_resource_manager) \
@@ -36,7 +36,7 @@ do { \
 		_mmcam_dbg_err("no resource manager instance"); \
 		return MM_ERROR_INVALID_ARGUMENT; \
 	} \
-} while(0);
+} while (0);
 
 #define MMCAMCORDER_CHECK_CONNECTION_RESOURCE_MANAGER(x_camcorder_resource_manager) \
 do { \
@@ -49,7 +49,7 @@ do { \
 			return MM_ERROR_RESOURCE_NOT_INITIALIZED; \
 		} \
 	} \
-} while(0);
+} while (0);
 
 static char *__mmcamcorder_resource_state_to_str(mrp_res_resource_state_t st)
 {
@@ -107,9 +107,8 @@ static void __mmcamcorder_resource_state_callback(mrp_res_context_t *context, mr
 			}
 			for (i = 0; i < resource_names->num_strings; i++) {
 				resource = mrp_res_get_resource_by_name(rset, resource_names->strings[i]);
-				if (resource) {
+				if (resource)
 					_mmcam_dbg_log(" - available resource: %s", resource->name);
-				}
 			}
 			mrp_res_free_string_array(resource_names);
 		}
@@ -254,9 +253,8 @@ static int __mmcamcorder_resource_create_resource_set(MMCamcorderResourceManager
 		return MM_ERROR_RESOURCE_INTERNAL;
 	}
 
-	if (!mrp_res_set_autorelease(TRUE, resource_manager->rset)) {
+	if (!mrp_res_set_autorelease(TRUE, resource_manager->rset))
 		_mmcam_dbg_warn(" - could not set autorelease flag!");
-	}
 
 	return MM_ERROR_NONE;
 }
@@ -328,14 +326,13 @@ int _mmcamcorder_resource_manager_prepare(MMCamcorderResourceManager *resource_m
 	MMCAMCORDER_CHECK_RESOURCE_MANAGER_INSTANCE(resource_manager);
 	MMCAMCORDER_CHECK_CONNECTION_RESOURCE_MANAGER(resource_manager);
 
-	if (!resource_manager->rset) {
+	if (!resource_manager->rset)
 		ret = __mmcamcorder_resource_create_resource_set(resource_manager);
-	}
-	if (ret == MM_ERROR_NONE) {
+
+	if (ret == MM_ERROR_NONE)
 		ret = __mmcamcorder_resource_include_resource(resource_manager, mm_camcorder_resource_str[resource_type]);
-	} else {
+	else
 		_mmcam_dbg_err("failed to create resource set 0x%x", ret);
-	}
 
 	return ret;
 }

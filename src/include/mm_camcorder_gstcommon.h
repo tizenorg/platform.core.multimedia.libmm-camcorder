@@ -62,10 +62,10 @@ typedef enum _MMCamcorderAMRBitRate {
 * Encodebin profile
 */
 typedef enum _MMCamcorderEncodebinProfile {
-        MM_CAMCORDER_ENCBIN_PROFILE_VIDEO = 0,  /**< Video recording profile */
-        MM_CAMCORDER_ENCBIN_PROFILE_AUDIO,      /**< Audio recording profile */
-        MM_CAMCORDER_ENCBIN_PROFILE_IMAGE,      /**< Image capture profile */
-        MM_CAMCORDER_ENCBIN_PROFILE_NUM
+	MM_CAMCORDER_ENCBIN_PROFILE_VIDEO = 0,  /**< Video recording profile */
+	MM_CAMCORDER_ENCBIN_PROFILE_AUDIO,      /**< Audio recording profile */
+	MM_CAMCORDER_ENCBIN_PROFILE_IMAGE,      /**< Image capture profile */
+	MM_CAMCORDER_ENCBIN_PROFILE_NUM
 } MMCamcorderEncodebinProfile;
 
 /*=======================================================================================

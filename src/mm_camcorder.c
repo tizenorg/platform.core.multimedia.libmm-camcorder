@@ -321,7 +321,7 @@ int mm_camcorder_set_audio_stream_callback(MMHandleType camcorder, mm_camcorder_
 
 int mm_camcorder_set_video_capture_callback(MMHandleType camcorder, mm_camcorder_video_capture_callback callback, void* user_data)
 {
-	mmf_return_val_if_fail((void *)camcorder, MM_ERROR_CAMCORDER_INVALID_ARGUMENT );
+	mmf_return_val_if_fail((void *)camcorder, MM_ERROR_CAMCORDER_INVALID_ARGUMENT);
 
 	return _mmcamcorder_set_video_capture_callback(camcorder, callback, user_data);
 }
@@ -352,7 +352,7 @@ int mm_camcorder_get_attributes(MMHandleType camcorder, char **err_attr_name, co
 
 	va_start(var_args, attribute_name);
 	ret = _mmcamcorder_get_attributes(camcorder, err_attr_name, attribute_name, var_args);
-	va_end (var_args);
+	va_end(var_args);
 
 	return ret;
 }
@@ -365,9 +365,9 @@ int mm_camcorder_set_attributes(MMHandleType camcorder,  char **err_attr_name, c
 
 	return_val_if_fail(attribute_name, MM_ERROR_COMMON_INVALID_ARGUMENT);
 
-	va_start (var_args, attribute_name);
+	va_start(var_args, attribute_name);
 	ret = _mmcamcorder_set_attributes(camcorder, err_attr_name, attribute_name, var_args);
-	va_end (var_args);
+	va_end(var_args);
 
 	return ret;
 }
@@ -396,7 +396,7 @@ int mm_camcorder_init_focusing(MMHandleType camcorder)
 }
 
 
-int mm_camcorder_start_focusing( MMHandleType camcorder )
+int mm_camcorder_start_focusing(MMHandleType camcorder)
 {
 	int error = MM_ERROR_NONE;
 
