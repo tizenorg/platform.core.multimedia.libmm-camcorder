@@ -90,6 +90,10 @@ static void __mmcamcorder_resource_state_callback(mrp_res_context_t *context, mr
 
 	mmf_return_if_fail((MMHandleType)camcorder);
 
+	_mmcam_dbg_log("enter");
+
+	_MMCAMCORDER_LOCK_RESOURCE(camcorder);
+
 	switch (context->state) {
 	case MRP_RES_CONNECTED:
 		_mmcam_dbg_log(" - connected to Murphy");
@@ -98,6 +102,7 @@ static void __mmcamcorder_resource_state_callback(mrp_res_context_t *context, mr
 			resource_names = mrp_res_list_resource_names(rset);
 			if (!resource_names) {
 				_mmcam_dbg_err(" - no resources available");
+				_MMCAMCORDER_UNLOCK_RESOURCE(camcorder);
 				return;
 			}
 			for (i = 0; i < resource_names->num_strings; i++) {
@@ -109,6 +114,7 @@ static void __mmcamcorder_resource_state_callback(mrp_res_context_t *context, mr
 			mrp_res_free_string_array(resource_names);
 		}
 		camcorder->resource_manager.is_connected = TRUE;
+		_MMCAMCORDER_RESOURCE_SIGNAL(camcorder);
 		break;
 	case MRP_RES_DISCONNECTED:
 		_mmcam_dbg_log(" - disconnected from Murphy");
@@ -123,6 +129,10 @@ static void __mmcamcorder_resource_state_callback(mrp_res_context_t *context, mr
 		}
 		break;
 	}
+
+	_MMCAMCORDER_UNLOCK_RESOURCE(camcorder);
+
+	_mmcam_dbg_log("leave");
 
 	return;
 }

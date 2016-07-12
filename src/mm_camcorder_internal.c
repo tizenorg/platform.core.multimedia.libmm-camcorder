@@ -114,6 +114,9 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	const char *ConfCtrlFile = NULL;
 	mmf_camcorder_t *hcamcorder = NULL;
 	type_element *EvasSurfaceElement = NULL;
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
+	gint64 end_time = 0;
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	_mmcam_dbg_log("Entered");
 
@@ -514,6 +517,28 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	} else {
 		_mmcam_dbg_warn("failed get software version, sys_info_ret 0x%x", sys_info_ret);
 	}
+
+#ifdef _MMCAMCORDER_MURPHY_SUPPORT
+	_MMCAMCORDER_LOCK_RESOURCE(hcamcorder);
+
+	if (hcamcorder->resource_manager.is_connected == FALSE) {
+		/* wait for resource manager connected */
+		_mmcam_dbg_log("resource manager is not connected. wait for signal...");
+
+		end_time = g_get_monotonic_time() + (__MMCAMCORDER_RESOURCE_WAIT_TIME * G_TIME_SPAN_SECOND);
+
+		if (_MMCAMCORDER_RESOURCE_WAIT_UNTIL(hcamcorder, end_time)) {
+			_mmcam_dbg_warn("signal received");
+		} else {
+			_MMCAMCORDER_UNLOCK_RESOURCE(hcamcorder);
+			_mmcam_dbg_err("timeout");
+			ret = MM_ERROR_RESOURCE_INTERNAL;
+			goto _ERR_DEFAULT_VALUE_INIT;
+		}
+	}
+
+	_MMCAMCORDER_UNLOCK_RESOURCE(hcamcorder);
+#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	/* Set initial state */
 	_mmcamcorder_set_state((MMHandleType)hcamcorder, MM_CAMCORDER_STATE_NULL);
