@@ -49,14 +49,14 @@ typedef struct {
 | GLOBAL FUNCTION PROTOTYPES								|
 ========================================================================================*/
 /**
- * Create exif info 
+ * Create exif info
  *  @param[in] info exif info.
  * @return return int.
  */
 int mm_exif_create_exif_info(mm_exif_info_t **info);
 
 /**
- * Destroy exif info 
+ * Destroy exif info
  *  @param[in] info exif info.
  *  @return void
  */

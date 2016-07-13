@@ -37,7 +37,7 @@ extern "C" {
 /*=======================================================================================
 | GLOBAL DEFINITIONS AND DECLARATIONS FOR CAMCORDER					|
 ========================================================================================*/
-#define 	MM_CAMCORDER_ATTR_NONE	-1
+#define MM_CAMCORDER_ATTR_NONE -1
 
 
 /*=======================================================================================
@@ -142,7 +142,7 @@ extern "C" {
 /**
  * Default None value for camera sensor enumeration.
  */
-#define _MMCAMCORDER_SENSOR_ENUM_NONE 	-255
+#define _MMCAMCORDER_SENSOR_ENUM_NONE	-255
 
 /* camera information related */
 #define CAMINFO_CONVERT_NUM		45

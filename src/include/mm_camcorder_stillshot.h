@@ -135,7 +135,7 @@ int _mmcamcorder_video_capture_command(MMHandleType handle, int command);
 
 /* Function for capture */
 int __mmcamcorder_set_exif_basic_info(MMHandleType handle, int image_width, int image_height);
-int __mmcamcorder_update_exif_info(MMHandleType handle,void* imagedata, int imgln);
+int __mmcamcorder_update_exif_info(MMHandleType handle, void *imagedata, int imgln);
 void __mmcamcorder_init_stillshot_info(MMHandleType handle);
 void __mmcamcorder_get_capture_data_from_buffer(MMCamcorderCaptureDataType *capture_data, int pixtype, GstSample *sample);
 void __mmcamcorder_release_jpeg_data(MMHandleType handle, MMCamcorderCaptureDataType *dest, int tag_enable, int provide_exif);

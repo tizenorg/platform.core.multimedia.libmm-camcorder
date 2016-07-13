@@ -41,7 +41,7 @@ extern "C" {
 | MACRO DEFINITIONS									|
 ========================================================================================*/
 #ifndef CLEAR
-#define CLEAR(x)            memset (&(x), 0, sizeof (x))
+#define CLEAR(x)            memset(&(x), 0, sizeof(x))
 #endif
 
 #define MMCAMCORDER_ADD_BUFFER_PROBE(x_pad, x_category, x_callback, x_hcamcorder) \
@@ -57,7 +57,8 @@ do { \
 		item->category = x_category; \
 		item->handler_id = gst_pad_add_probe(x_pad, GST_PAD_PROBE_TYPE_BUFFER, x_callback, x_hcamcorder, NULL); \
 		x_hcamcorder->buffer_probes = g_list_append(x_hcamcorder->buffer_probes, item); \
-		_mmcam_dbg_log("Adding buffer probe on [%s:%s] - [ID : %lu], [Category : %x] ", GST_DEBUG_PAD_NAME(item->object), item->handler_id, item->category); \
+		_mmcam_dbg_log("Adding buffer probe on [%s:%s] - [ID : %lu], [Category : %x] ", \
+			GST_DEBUG_PAD_NAME(item->object), item->handler_id, item->category); \
 	} \
 } while (0);
 
@@ -71,50 +72,52 @@ do { \
 	else if (x_category == 0 || !(x_category & _MMCAMCORDER_HANDLER_CATEGORY_ALL)) { \
 		_mmcam_dbg_err("Invalid handler category : %x \n", x_category); \
 	} else { \
-		item->object =G_OBJECT(x_pad); \
+		item->object = G_OBJECT(x_pad); \
 		item->category = x_category; \
 		item->handler_id = gst_pad_add_probe(x_pad, GST_PAD_PROBE_TYPE_EVENT_BOTH, x_callback, x_hcamcorder, NULL); \
 		x_hcamcorder->event_probes = g_list_append(x_hcamcorder->event_probes, item); \
-		_mmcam_dbg_log("Adding event probe on [%s:%s] - [ID : %lu], [Category : %x] ", GST_DEBUG_PAD_NAME(item->object), item->handler_id, item->category); \
+		_mmcam_dbg_log("Adding event probe on [%s:%s] - [ID : %lu], [Category : %x] ", \
+			GST_DEBUG_PAD_NAME(item->object), item->handler_id, item->category); \
 	} \
 } while (0);
 
-#define MMCAMCORDER_SIGNAL_CONNECT( x_object, x_category, x_signal, x_callback, x_hcamcorder) \
+#define MMCAMCORDER_SIGNAL_CONNECT(x_object, x_category, x_signal, x_callback, x_hcamcorder) \
 do { \
 	MMCamcorderHandlerItem* item = NULL; \
 	item = (MMCamcorderHandlerItem *) g_malloc(sizeof(MMCamcorderHandlerItem)); \
 	if (!item) { \
-		_mmcam_dbg_err("Cannot connect signal [%s]\n", x_signal ); \
+		_mmcam_dbg_err("Cannot connect signal [%s]\n", x_signal); \
 	} else if (x_category == 0 || !(x_category & _MMCAMCORDER_HANDLER_CATEGORY_ALL)) { \
 		_mmcam_dbg_err("Invalid handler category : %x \n", x_category); \
 	} else { \
 		item->object = G_OBJECT(x_object); \
 		item->category = x_category; \
-		item->handler_id = g_signal_connect(G_OBJECT(x_object), x_signal,\
-						    G_CALLBACK(x_callback), x_hcamcorder ); \
+		item->handler_id = g_signal_connect(G_OBJECT(x_object), x_signal, \
+			G_CALLBACK(x_callback), x_hcamcorder); \
 		x_hcamcorder->signals = g_list_append(x_hcamcorder->signals, item); \
-		_mmcam_dbg_log("Connecting signal on [%s][%p] - [ID : %lu], [Category : %x] ", GST_OBJECT_NAME(item->object), item->object, item->handler_id, item->category); \
+		_mmcam_dbg_log("Connecting signal on [%s][%p] - [ID : %lu], [Category : %x] ", \
+			GST_OBJECT_NAME(item->object), item->object, item->handler_id, item->category); \
 	} \
 } while (0);
 
 #define MMCAMCORDER_G_OBJECT_GET(obj, name, value) \
 do { \
 	if (obj) { \
-		if(g_object_class_find_property(G_OBJECT_GET_CLASS(G_OBJECT(obj)), name)) { \
+		if (g_object_class_find_property(G_OBJECT_GET_CLASS(G_OBJECT(obj)), name)) { \
 			g_object_get(G_OBJECT(obj), name, value, NULL); \
 		} else { \
-			_mmcam_dbg_warn ("The object doesn't have a property named(%s)", name); \
+			_mmcam_dbg_warn("The object doesn't have a property named(%s)", name); \
 		} \
 	} else { \
 		_mmcam_dbg_err("Null object"); \
 	} \
-} while(0);
+} while (0);
 
 #define MMCAMCORDER_G_OBJECT_SET(obj, name, value) \
 do { \
 	if (obj) { \
 		GParamSpec *spec = g_object_class_find_property(G_OBJECT_GET_CLASS(G_OBJECT(obj)), name);\
-		if(spec) { \
+		if (spec) { \
 			if (spec->value_type == G_TYPE_INT64) {\
 				g_object_set(G_OBJECT(obj), name, (gint64)value, NULL); \
 			} else if (spec->value_type == G_TYPE_UINT64) { \
@@ -127,33 +130,33 @@ do { \
 				g_object_set(G_OBJECT(obj), name, value, NULL); \
 			} \
 		} else { \
-			_mmcam_dbg_warn ("The object doesn't have a property named(%s)", name); \
+			_mmcam_dbg_warn("The object doesn't have a property named(%s)", name); \
 		} \
 	} else { \
 		_mmcam_dbg_err("Null object"); \
 	} \
-} while(0);
+} while (0);
 
 #define MMCAMCORDER_G_OBJECT_SET_POINTER(obj, name, value) \
 do { \
 	if (obj) { \
 		GParamSpec *spec = g_object_class_find_property(G_OBJECT_GET_CLASS(G_OBJECT(obj)), name);\
-		if(spec) { \
+		if (spec) { \
 			g_object_set(G_OBJECT(obj), name, value, NULL); \
 		} else { \
-			_mmcam_dbg_warn ("The object doesn't have a property named(%s)", name); \
+			_mmcam_dbg_warn("The object doesn't have a property named(%s)", name); \
 		} \
 	} else { \
 		_mmcam_dbg_err("Null object"); \
 	} \
-} while(0);
+} while (0);
 
-#define MMCAM_FOURCC(a,b,c,d)  (guint32)((a)|(b)<<8|(c)<<16|(d)<<24)
+#define MMCAM_FOURCC(a, b, c, d)  (guint32)((a)|(b)<<8|(c)<<16|(d)<<24)
 #define MMCAM_FOURCC_ARGS(fourcc) \
-        ((gchar)((fourcc)&0xff)), \
-        ((gchar)(((fourcc)>>8)&0xff)), \
-        ((gchar)(((fourcc)>>16)&0xff)), \
-        ((gchar)(((fourcc)>>24)&0xff))
+		((gchar)((fourcc)&0xff)), \
+		((gchar)(((fourcc)>>8)&0xff)), \
+		((gchar)(((fourcc)>>16)&0xff)), \
+		((gchar)(((fourcc)>>24)&0xff))
 
 #define MMCAM_SEND_MESSAGE(handle, msg_id, msg_code) \
 {\
@@ -276,7 +279,7 @@ gboolean _mmcamcorder_find_fourcc(FILE *f, guint32 tag_fourcc, gboolean do_rewin
 gint32 _mmcamcorder_double_to_fix(gdouble d_number);
 gboolean _mmcamcorder_update_size(FILE *f, gint64 prev_pos, gint64 curr_pos);
 gboolean _mmcamcorder_write_loci(FILE *f, _MMCamcorderLocationInfo info);
-gboolean _mmcamcorder_write_geodata(FILE *f,_MMCamcorderLocationInfo info);
+gboolean _mmcamcorder_write_geodata(FILE *f, _MMCamcorderLocationInfo info);
 gboolean _mmcamcorder_write_udta(FILE *f, int gps_enable, _MMCamcorderLocationInfo info, _MMCamcorderLocationInfo geotag);
 guint64 _mmcamcorder_get_container_size(const guchar *size);
 guint64 _mmcamcorder_get_container_size64(const guchar *size);
