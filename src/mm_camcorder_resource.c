@@ -26,8 +26,8 @@
 #define MRP_RESOURCE_TYPE_EXCLUSIVE FALSE
 
 const char* mm_camcorder_resource_str[MM_CAMCORDER_RESOURCE_MAX] = {
-    "camera",
-    "video_overlay"
+	"camera",
+	"video_overlay"
 };
 
 #define MMCAMCORDER_CHECK_RESOURCE_MANAGER_INSTANCE(x_camcorder_resource_manager) \
@@ -36,7 +36,7 @@ do { \
 		_mmcam_dbg_err("no resource manager instance"); \
 		return MM_ERROR_INVALID_ARGUMENT; \
 	} \
-} while(0);
+} while (0);
 
 #define MMCAMCORDER_CHECK_CONNECTION_RESOURCE_MANAGER(x_camcorder_resource_manager) \
 do { \
@@ -49,7 +49,7 @@ do { \
 			return MM_ERROR_RESOURCE_NOT_INITIALIZED; \
 		} \
 	} \
-} while(0);
+} while (0);
 
 static char *__mmcamcorder_resource_state_to_str(mrp_res_resource_state_t st)
 {
@@ -107,9 +107,8 @@ static void __mmcamcorder_resource_state_callback(mrp_res_context_t *context, mr
 			}
 			for (i = 0; i < resource_names->num_strings; i++) {
 				resource = mrp_res_get_resource_by_name(rset, resource_names->strings[i]);
-				if (resource) {
+				if (resource)
 					_mmcam_dbg_log(" - available resource: %s", resource->name);
-				}
 			}
 			mrp_res_free_string_array(resource_names);
 		}
@@ -223,8 +222,7 @@ static void __mmcamcorder_resource_release_cb(mrp_res_context_t *cx, const mrp_r
 		if (res == NULL) {
 			_mmcam_dbg_warn(" -- %s not present in resource set", mm_camcorder_resource_str[i]);
 		} else {
-			_mmcam_dbg_log(" -- resource name [%s] -> [%s]",
-				res->name, __mmcamcorder_resource_state_to_str(res->state));
+			_mmcam_dbg_log(" -- resource name [%s] -> [%s]", res->name, __mmcamcorder_resource_state_to_str(res->state));
 		}
 	}
 
@@ -254,9 +252,8 @@ static int __mmcamcorder_resource_create_resource_set(MMCamcorderResourceManager
 		return MM_ERROR_RESOURCE_INTERNAL;
 	}
 
-	if (!mrp_res_set_autorelease(TRUE, resource_manager->rset)) {
+	if (!mrp_res_set_autorelease(TRUE, resource_manager->rset))
 		_mmcam_dbg_warn(" - could not set autorelease flag!");
-	}
 
 	return MM_ERROR_NONE;
 }
@@ -265,9 +262,9 @@ static int __mmcamcorder_resource_include_resource(MMCamcorderResourceManager *r
 {
 	mrp_res_resource_t *resource = NULL;
 	resource = mrp_res_create_resource(resource_manager->rset,
-				resource_name,
-				MRP_RESOURCE_TYPE_MANDATORY,
-				MRP_RESOURCE_TYPE_EXCLUSIVE);
+		resource_name,
+		MRP_RESOURCE_TYPE_MANDATORY,
+		MRP_RESOURCE_TYPE_EXCLUSIVE);
 	if (resource == NULL) {
 		_mmcam_dbg_err(" - could not include resource[%s]", resource_name);
 		return MM_ERROR_RESOURCE_INTERNAL;
@@ -328,9 +325,9 @@ int _mmcamcorder_resource_manager_prepare(MMCamcorderResourceManager *resource_m
 	MMCAMCORDER_CHECK_RESOURCE_MANAGER_INSTANCE(resource_manager);
 	MMCAMCORDER_CHECK_CONNECTION_RESOURCE_MANAGER(resource_manager);
 
-	if (!resource_manager->rset) {
+	if (!resource_manager->rset)
 		ret = __mmcamcorder_resource_create_resource_set(resource_manager);
-	}
+
 	if (ret == MM_ERROR_NONE) {
 		ret = __mmcamcorder_resource_include_resource(resource_manager, mm_camcorder_resource_str[resource_type]);
 	} else {

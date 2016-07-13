@@ -54,8 +54,7 @@ extern "C" {
 /**
  * Enumerations for camcorder attribute ID.
  */
-typedef enum
-{
+typedef enum {
 	MM_CAM_MODE,					/* 0 */
 	MM_CAM_AUDIO_DEVICE,
 	MM_CAM_CAMERA_DEVICE_COUNT,
@@ -187,7 +186,7 @@ typedef enum
 	MM_CAM_DISPLAY_REUSE_HINT,
 	MM_CAM_DISPLAY_REUSE_ELEMENT,
 	MM_CAM_ATTRIBUTE_NUM
-}MMCamcorderAttrsID;
+} MMCamcorderAttrsID;
 
 /*=======================================================================================
 | TYPE DEFINITIONS									|
