@@ -72,32 +72,30 @@ extern "C" {
 /*=======================================================================================
 | MACRO DEFINITIONS									|
 ========================================================================================*/
-#define _mmcam_dbg_verb(fmt, args...)  debug_verbose (" "fmt"\n", ##args);
-#define _mmcam_dbg_log(fmt, args...)   debug_log (" "fmt"\n", ##args);
-#define _mmcam_dbg_warn(fmt, args...)  debug_warning (" "fmt"\n", ##args);
-#define _mmcam_dbg_err(fmt, args...)   debug_error (" "fmt"\n", ##args);
-#define _mmcam_dbg_crit(fmt, args...)  debug_critical (" "fmt"\n", ##args);
+#define _mmcam_dbg_verb(fmt, args...)  debug_verbose(" "fmt"\n", ##args);
+#define _mmcam_dbg_log(fmt, args...)   debug_log(" "fmt"\n", ##args);
+#define _mmcam_dbg_warn(fmt, args...)  debug_warning(" "fmt"\n", ##args);
+#define _mmcam_dbg_err(fmt, args...)   debug_error(" "fmt"\n", ##args);
+#define _mmcam_dbg_crit(fmt, args...)  debug_critical(" "fmt"\n", ##args);
 
 /**
  *	Macro for checking validity and debugging
  */
-#define mmf_return_if_fail( expr )	\
-	if( expr ){}					\
-	else						\
-	{							\
-		_mmcam_dbg_err( "failed [%s]", #expr);	\
+#define mmf_return_if_fail(expr)	\
+	if (expr) {}					\
+	else {							\
+		_mmcam_dbg_err("failed [%s]", #expr);	\
 		return;						\
 	};
 
 /**
  *	Macro for checking validity and debugging
  */
-#define mmf_return_val_if_fail( expr, val )	\
-	if( expr ){}					\
-	else						\
-	{							\
+#define mmf_return_val_if_fail(expr, val)	\
+	if (expr) {}					\
+	else {						\
 		_mmcam_dbg_err("failed [%s]", #expr);	\
-		return( val );						\
+		return(val);						\
 	};
 
 #ifndef ARRAY_SIZE
@@ -235,52 +233,52 @@ extern "C" {
 #define _MM_GST_ELEMENT_UNLINK          gst_element_unlink
 #define _MM_GST_PAD_LINK                gst_pad_link
 
-#define _MM_GST_PAD_LINK_UNREF(srcpad, sinkpad, err, if_fail_goto)\
-{\
-	GstPadLinkReturn ret = GST_PAD_LINK_OK;\
-	if (srcpad == NULL || sinkpad == NULL) {\
-		if (srcpad == NULL) {\
-			_mmcam_dbg_err("srcpad is NULL");\
-		} else {\
+#define _MM_GST_PAD_LINK_UNREF(srcpad, sinkpad, err, if_fail_goto) \
+{ \
+	GstPadLinkReturn ret = GST_PAD_LINK_OK; \
+	if (srcpad == NULL || sinkpad == NULL) { \
+		if (srcpad == NULL) { \
+			_mmcam_dbg_err("srcpad is NULL"); \
+		} else { \
 			gst_object_unref(srcpad);\
-			srcpad = NULL;\
-		}\
-		if (sinkpad == NULL) {\
-			_mmcam_dbg_err("sinkpad is NULL");\
-		} else {\
-			gst_object_unref(sinkpad);\
+			srcpad = NULL; \
+		} \
+		if (sinkpad == NULL) { \
+			_mmcam_dbg_err("sinkpad is NULL"); \
+		} else { \
+			gst_object_unref(sinkpad); \
 			sinkpad = NULL;\
-		}\
-		err = MM_ERROR_CAMCORDER_GST_LINK;\
+		} \
+		err = MM_ERROR_CAMCORDER_GST_LINK; \
+		goto if_fail_goto; \
+	} \
+	ret = _MM_GST_PAD_LINK(srcpad, sinkpad); \
+	if (ret != GST_PAD_LINK_OK) { \
+		GstObject *src_parent = gst_pad_get_parent(srcpad); \
+		GstObject *sink_parent = gst_pad_get_parent(sinkpad); \
+		char *src_name = NULL; \
+		char *sink_name = NULL; \
+		g_object_get((GObject *)src_parent, "name", &src_name, NULL); \
+		g_object_get((GObject *)sink_parent, "name", &sink_name, NULL); \
+		_mmcam_dbg_err("src[%s] - sink[%s] link failed", src_name, sink_name); \
+		gst_object_unref(src_parent); src_parent = NULL; \
+		gst_object_unref(sink_parent); sink_parent = NULL; \
+		if (src_name) { \
+			free(src_name); src_name = NULL; \
+		} \
+		if (sink_name) { \
+			free(sink_name); sink_name = NULL; \
+		} \
+		gst_object_unref(srcpad); srcpad = NULL; \
+		gst_object_unref(sinkpad); sinkpad = NULL; \
+		err = MM_ERROR_CAMCORDER_GST_LINK; \
 		goto if_fail_goto;\
-	}\
-	ret = _MM_GST_PAD_LINK(srcpad, sinkpad);\
-	if (ret != GST_PAD_LINK_OK) {\
-		GstObject *src_parent = gst_pad_get_parent(srcpad);\
-		GstObject *sink_parent = gst_pad_get_parent(sinkpad);\
-		char *src_name = NULL;\
-		char *sink_name = NULL;\
-		g_object_get((GObject *)src_parent, "name", &src_name, NULL);\
-		g_object_get((GObject *)sink_parent, "name", &sink_name, NULL);\
-		_mmcam_dbg_err("src[%s] - sink[%s] link failed", src_name, sink_name);\
-		gst_object_unref(src_parent); src_parent = NULL;\
-		gst_object_unref(sink_parent); sink_parent = NULL;\
-		if (src_name) {\
-			free(src_name); src_name = NULL;\
-		}\
-		if (sink_name) {\
-			free(sink_name); sink_name = NULL;\
-		}\
-		gst_object_unref(srcpad); srcpad = NULL;\
-		gst_object_unref(sinkpad); sinkpad = NULL;\
-		err = MM_ERROR_CAMCORDER_GST_LINK;\
-		goto if_fail_goto;\
-	}\
-	gst_object_unref(srcpad); srcpad = NULL;\
-	gst_object_unref(sinkpad); sinkpad = NULL;\
+	} \
+	gst_object_unref(srcpad); srcpad = NULL; \
+	gst_object_unref(sinkpad); sinkpad = NULL; \
 }
 
-#define _MM_GST_PAD_UNLINK_UNREF( srcpad, sinkpad) \
+#define _MM_GST_PAD_UNLINK_UNREF(srcpad, sinkpad) \
 	if (srcpad && sinkpad) { \
 		gst_pad_unlink(srcpad, sinkpad); \
 	} else { \
@@ -688,8 +686,8 @@ typedef struct mmf_camcorder {
 	int device_type;        /**< device type */
 	int state;              /**< state of camcorder */
 	int target_state;       /**< Target state that want to set. This is a flag that
-	                           * stands for async state changing. If this value differ from state,
-	                           * it means state is changing now asychronously. */
+							   * stands for async state changing. If this value differ from state,
+							   * it means state is changing now asychronously. */
 
 	/* handles */
 	MMHandleType attributes;               /**< Attribute handle */
@@ -724,8 +722,8 @@ typedef struct mmf_camcorder {
 
 	/* etc */
 	mm_cam_attr_construct_info *cam_attrs_const_info;       /**< attribute info */
-	conf_info_table* conf_main_info_table[CONFIGURE_CATEGORY_MAIN_NUM]; /** configure info table - MAIN category */
-	conf_info_table* conf_ctrl_info_table[CONFIGURE_CATEGORY_CTRL_NUM]; /** configure info table - CONTROL category */
+	conf_info_table *conf_main_info_table[CONFIGURE_CATEGORY_MAIN_NUM]; /** configure info table - MAIN category */
+	conf_info_table *conf_ctrl_info_table[CONFIGURE_CATEGORY_CTRL_NUM]; /** configure info table - CONTROL category */
 	int conf_main_category_size[CONFIGURE_CATEGORY_MAIN_NUM]; /** configure info table size - MAIN category */
 	int conf_ctrl_category_size[CONFIGURE_CATEGORY_CTRL_NUM]; /** configure info table size - CONTROL category */
 	_MMCamcorderMTSafe mtsafe;                              /**< Thread safe */
@@ -947,7 +945,7 @@ int _mmcamcorder_commit(MMHandleType hcamcorder);
 int _mmcamcorder_cancel(MMHandleType hcamcorder);
 
 /**
- *	This function calls after commiting action finished asynchronously. 
+ *	This function calls after commiting action finished asynchronously.
  *	In this function, remaining process , such as state change, happens.
  *
  *	@param[in]	hcamcorder	Specifies the camcorder  handle
@@ -970,15 +968,15 @@ int _mmcamcorder_commit_async_end(MMHandleType hcamcorder);
  *	@return		This function returns zero on success, or negative value with error code.
  *	@remarks	typedef bool (*mm_message_callback) (int msg, mm_messageType *param, void *user_param);@n
  *		@n
- *		typedef union 				@n
+ *		typedef union				@n
  *		{							@n
  *			int code;				@n
- *			struct 					@n
+ *			struct					@n
  *			{						@n
  *				int total;			@n
  *				int elapsed;		@n
  *			} time;					@n
- *			struct 					@n
+ *			struct					@n
  *			{						@n
  *				int previous;		@n
  *				int current;			@n
@@ -1259,10 +1257,10 @@ int _mmcamcorder_video_average_framerate(MMHandleType handle);
 /* sound focus related function */
 void __mmcamcorder_force_stop(mmf_camcorder_t *hcamcorder);
 void _mmcamcorder_sound_focus_cb(int id, mm_sound_focus_type_e focus_type,
-                                 mm_sound_focus_state_e focus_state, const char *reason_for_change,
-                                 const char *additional_info, void *user_data);
+											  mm_sound_focus_state_e focus_state, const char *reason_for_change,
+											  const char *additional_info, void *user_data);
 void _mmcamcorder_sound_focus_watch_cb(mm_sound_focus_type_e focus_type, mm_sound_focus_state_e focus_state,
-                                       const char *reason_for_change, const char *additional_info, void *user_data);
+													   const char *reason_for_change, const char *additional_info, void *user_data);
 
 /* device policy manager */
 void _mmcamcorder_dpm_camera_policy_changed_cb(const char *name, const char *value, void *user_data);

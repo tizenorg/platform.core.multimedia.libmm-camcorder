@@ -43,7 +43,7 @@
 
 	@par
 	Recording state and paused state exists when the mode of camcorder is
-	video-capture or audio-capture mode. In case of image-capture mode, CAPTURING state will 
+	video-capture or audio-capture mode. In case of image-capture mode, CAPTURING state will
 	exsit.
 
 	@par
@@ -217,7 +217,7 @@
 		<td><center><b>Attribute</b></center></td>
 		<td><center><b>Description</b></center></td>
 	</tr>
-    	<tr>
+	<tr>
 		<td>#MMCAM_MODE</td>
 		<td>Mode of camcorder ( still/video/audio )</td>
 	</tr>
@@ -338,7 +338,7 @@
 		<td><center><b>Attribute</b></center></td>
 		<td><center><b>Description</b></center></td>
 	</tr>
-    	<tr>
+	<tr>
 		<td>#MMCAM_AUDIO_ENCODER_BITRATE</td>
 		<td>Bitrate of Audio Encoder</td>
 	</tr>
@@ -371,7 +371,7 @@
 		<td><center><b>Attribute</b></center></td>
 		<td><center><b>Description</b></center></td>
 	</tr>
-    	<tr>
+	<tr>
 		<td>#MMCAM_IMAGE_ENCODER_QUALITY</td>
 		<td>Encoding quality of Image codec</td>
 	</tr>
@@ -408,7 +408,7 @@
 		<td><center><b>Attribute</b></center></td>
 		<td><center><b>Description</b></center></td>
 	</tr>
-    	<tr>
+	<tr>
 		<td>#MMCAM_AUDIO_VOLUME</td>
 		<td>Input volume of audio source ( double value )</td>
 	</tr>
@@ -621,7 +621,7 @@ extern "C" {
 /**
  * Set fraction value. Definition for fraction setting, such as MMCAM_CAMERA_SHUTTER_SPEED and MMCAM_CAMERA_EXPOSURE_VALUE.
  */
-#define MM_CAMCORDER_SET_FRACTION(numerator,denominator)	((int)((((int)(numerator)) << 16) | (int)(denominator)))
+#define MM_CAMCORDER_SET_FRACTION(numerator, denominator)	((int)((((int)(numerator)) << 16) | (int)(denominator)))
 
 /* Attributes Macros */
 /**
@@ -1326,8 +1326,7 @@ typedef enum {
 /**
  * An enumeration of Audio Format.
  */
-typedef enum
-{
+typedef enum {
 	MM_CAMCORDER_AUDIO_FORMAT_PCM_U8 = 0,		/**< unsigned 8bit audio */
 	MM_CAMCORDER_AUDIO_FORMAT_PCM_S16_LE = 2,	/**< signed 16bit audio. Little endian. */
 } MMCamcorderAudioFormat;
@@ -1543,7 +1542,7 @@ enum MMCamcorderGeometryMethod {
  * An enumeration for orientation values of tag .
  */
 enum MMCamcorderTagOrientation {
-	MM_CAMCORDER_TAG_ORT_NONE =0,		/**< No Orientation.*/
+	MM_CAMCORDER_TAG_ORT_NONE = 0,		/**< No Orientation.*/
 	MM_CAMCORDER_TAG_ORT_0R_VT_0C_VL,	/**< The 0th row is at the visual top of the image, and the 0th column is the visual left-hand side.*/
 	MM_CAMCORDER_TAG_ORT_0R_VT_0C_VR,	/**< The 0th row is at the visual top of the image, and the 0th column is the visual right-hand side.*/
 	MM_CAMCORDER_TAG_ORT_0R_VB_0C_VR,	/**< The 0th row is at the visual bottom of the image, and the 0th column is the visual right-hand side.*/
@@ -1558,7 +1557,7 @@ enum MMCamcorderTagOrientation {
  * An enumeration for captured video orientation values of tag .
  */
 enum MMCamcorderTagVideoOrientation {
-	MM_CAMCORDER_TAG_VIDEO_ORT_NONE =0,	/**< No Orientation.*/
+	MM_CAMCORDER_TAG_VIDEO_ORT_NONE = 0,	/**< No Orientation.*/
 	MM_CAMCORDER_TAG_VIDEO_ORT_90,		/**< 90 degree */
 	MM_CAMCORDER_TAG_VIDEO_ORT_180,	/**< 180 degree */
 	MM_CAMCORDER_TAG_VIDEO_ORT_270,	/**< 270 degree */
@@ -1616,13 +1615,13 @@ enum MMCamcorderPreviewType {
 /**
  * An enumeration for attribute values types.
  */
-typedef enum{
+typedef enum {
 	MM_CAM_ATTRS_TYPE_INVALID = -1,		/**< Type is invalid */
 	MM_CAM_ATTRS_TYPE_INT,			/**< Integer type attribute */
 	MM_CAM_ATTRS_TYPE_DOUBLE,		/**< Double type attribute */
 	MM_CAM_ATTRS_TYPE_STRING,		/**< UTF-8 String type attribute */
 	MM_CAM_ATTRS_TYPE_DATA,			/**< Pointer type attribute */
-}MMCamAttrsType;
+} MMCamAttrsType;
 
 
 /**
@@ -1951,7 +1950,7 @@ int mm_camcorder_create(MMHandleType *camcorder, MMCamPreset *info);
  *  This is the finalizing function of mm_camcorder. If this function is not called or fails to call, the handle isn't released fully.
  *  This function releases attributes, mutexes, sessions, and handle itself. This function also removes all of remaining messages.
  *  So if your application should wait a certain message of mm_camcorder, please wait to call this function till getting the message.
- *	
+ *
  *
  *	@param[in]	camcorder	A handle of camcorder.
  *	@return		This function returns zero(MM_ERROR_NONE) on success, or negative value with error code.\n
@@ -2500,7 +2499,7 @@ int mm_camcorder_stop(MMHandleType camcorder);
  *	@pre		Previous state of mm-camcorder should be MM_CAMCORDER_STATE_PREPARE
  *	@post		Next state of mm-camcorder will be MM_CAMCORDER_STATE_CAPTURING
  *	@remarks	To call this function, preview should be started successfully.\n
- *			This function is a pair of mm_camcorder_capture_stop(). 
+ *			This function is a pair of mm_camcorder_capture_stop().
  *			So user should call mm_camcorder_capture_stop() after getting captured image.
  *	@par example
  *	@code
@@ -2512,7 +2511,7 @@ gboolean capturing_picture()
 	int err;
 
 	err =  mm_camcorder_capture_start(hcam);
-	if (err < 0) 
+	if (err < 0)
 	{
 		printf("Fail to call mm_camcorder_capture_start  = %x\n", err);
 		return FALSE;
@@ -2900,7 +2899,7 @@ gboolean setting_audio_stream_callback()
 
 	return TRUE;
 }
- * 	@endcode
+ *  @endcode
  */
 int mm_camcorder_set_audio_stream_callback(MMHandleType camcorder, mm_camcorder_audio_stream_callback callback, void *user_data);
 
