@@ -165,14 +165,31 @@ static void __mmcamcorder_resource_set_state_callback(mrp_res_context_t *cx, con
 				res->name, __mmcamcorder_resource_state_to_str(res->state));
 
 			if (res->state == MRP_RES_RESOURCE_ACQUIRED) {
-				camcorder->resource_manager.acquire_count--;
+				camcorder->resource_manager.acquire_remain--;
 
-				if (camcorder->resource_manager.acquire_count <= 0) {
+				if (camcorder->resource_manager.acquire_remain <= 0) {
 					_mmcam_dbg_log("send signal - resource acquire done");
 					_MMCAMCORDER_RESOURCE_SIGNAL(camcorder);
 				} else {
 					_mmcam_dbg_warn("remained acquire count %d",
-						camcorder->resource_manager.acquire_count);
+						camcorder->resource_manager.acquire_remain);
+				}
+			} else if (res->state == MRP_RES_RESOURCE_LOST) {
+				camcorder->resource_manager.acquire_remain++;
+
+				if (camcorder->resource_manager.acquire_remain >= camcorder->resource_manager.acquire_count) {
+					_mmcam_dbg_log("resource release done");
+
+					if (camcorder->state > MM_CAMCORDER_STATE_NULL) {
+						_mmcam_dbg_log("send resource signal");
+						_MMCAMCORDER_RESOURCE_SIGNAL(camcorder);
+					} else {
+						_mmcam_dbg_log("skip resource signal - state %d", camcorder->state);
+					}
+				} else {
+					_mmcam_dbg_warn("acquired %d, lost %d",
+						camcorder->resource_manager.acquire_count,
+						camcorder->resource_manager.acquire_remain);
 				}
 			}
 		}
@@ -237,7 +254,7 @@ static void __mmcamcorder_resource_release_cb(mrp_res_context_t *cx, const mrp_r
 	return;
 }
 
-static int __mmcamcorder_resource_create_resource_set(MMCamcorderResourceManager *resource_manager)
+int _mmcamcorder_resource_create_resource_set(MMCamcorderResourceManager *resource_manager)
 {
 	if (resource_manager->rset) {
 		_mmcam_dbg_err(" - resource set was already created");
@@ -255,6 +272,8 @@ static int __mmcamcorder_resource_create_resource_set(MMCamcorderResourceManager
 	if (!mrp_res_set_autorelease(TRUE, resource_manager->rset))
 		_mmcam_dbg_warn(" - could not set autorelease flag!");
 
+	_mmcam_dbg_log("done");
+
 	return MM_ERROR_NONE;
 }
 
@@ -271,6 +290,7 @@ static int __mmcamcorder_resource_include_resource(MMCamcorderResourceManager *r
 	}
 
 	resource_manager->acquire_count++;
+	resource_manager->acquire_remain = resource_manager->acquire_count;
 
 	_mmcam_dbg_log(" - count[%d] include resource[%s]",
 		resource_manager->acquire_count, resource_name);
@@ -302,39 +322,32 @@ int _mmcamcorder_resource_manager_init(MMCamcorderResourceManager *resource_mana
 	MMCAMCORDER_CHECK_RESOURCE_MANAGER_INSTANCE(resource_manager);
 
 	resource_manager->mloop = mrp_mainloop_glib_get(g_main_loop_new(NULL, TRUE));
-	if (resource_manager->mloop) {
-		resource_manager->context = mrp_res_create(resource_manager->mloop, __mmcamcorder_resource_state_callback, user_data);
-		if (resource_manager->context == NULL) {
-			_mmcam_dbg_err(" - could not get context for resource manager");
-			mrp_mainloop_destroy(resource_manager->mloop);
-			resource_manager->mloop = NULL;
-			return MM_ERROR_RESOURCE_INTERNAL;
-		}
-		resource_manager->user_data = user_data;
-	} else {
-		_mmcam_dbg_err("- could not get mainloop for resource manager");
+	if (!resource_manager->mloop) {
+		_mmcam_dbg_err("failed to get mainloop for mrp");
 		return MM_ERROR_RESOURCE_INTERNAL;
 	}
+
+	resource_manager->context = mrp_res_create(resource_manager->mloop, __mmcamcorder_resource_state_callback, user_data);
+	if (!resource_manager->context) {
+		_mmcam_dbg_err("could not get context for mrp");
+		mrp_mainloop_destroy(resource_manager->mloop);
+		resource_manager->mloop = NULL;
+		return MM_ERROR_RESOURCE_INTERNAL;
+	}
+
+	resource_manager->user_data = user_data;
+
+	_mmcam_dbg_log("done");
 
 	return MM_ERROR_NONE;
 }
 
 int _mmcamcorder_resource_manager_prepare(MMCamcorderResourceManager *resource_manager, MMCamcorderResourceType resource_type)
 {
-	int ret = MM_ERROR_NONE;
 	MMCAMCORDER_CHECK_RESOURCE_MANAGER_INSTANCE(resource_manager);
 	MMCAMCORDER_CHECK_CONNECTION_RESOURCE_MANAGER(resource_manager);
 
-	if (!resource_manager->rset)
-		ret = __mmcamcorder_resource_create_resource_set(resource_manager);
-
-	if (ret == MM_ERROR_NONE) {
-		ret = __mmcamcorder_resource_include_resource(resource_manager, mm_camcorder_resource_str[resource_type]);
-	} else {
-		_mmcam_dbg_err("failed to create resource set 0x%x", ret);
-	}
-
-	return ret;
+	return __mmcamcorder_resource_include_resource(resource_manager, mm_camcorder_resource_str[resource_type]);
 }
 
 int _mmcamcorder_resource_manager_acquire(MMCamcorderResourceManager *resource_manager)
@@ -391,28 +404,10 @@ int _mmcamcorder_resource_manager_release(MMCamcorderResourceManager *resource_m
 	return ret;
 }
 
-int _mmcamcorder_resource_manager_unprepare(MMCamcorderResourceManager *resource_manager)
-{
-	int ret = MM_ERROR_NONE;
-	MMCAMCORDER_CHECK_RESOURCE_MANAGER_INSTANCE(resource_manager);
-	MMCAMCORDER_CHECK_CONNECTION_RESOURCE_MANAGER(resource_manager);
-
-	if (resource_manager->rset == NULL) {
-		_mmcam_dbg_err("- could not unprepare for resource_manager, _mmcamcorder_resource_manager_prepare() first");
-		ret = MM_ERROR_RESOURCE_INVALID_STATE;
-	} else {
-		mrp_res_delete_resource_set(resource_manager->rset);
-		resource_manager->rset = NULL;
-		_mmcam_dbg_log("delete resource set done");
-	}
-
-	return ret;
-}
 
 int _mmcamcorder_resource_manager_deinit(MMCamcorderResourceManager *resource_manager)
 {
 	MMCAMCORDER_CHECK_RESOURCE_MANAGER_INSTANCE(resource_manager);
-	MMCAMCORDER_CHECK_CONNECTION_RESOURCE_MANAGER(resource_manager);
 
 	if (resource_manager->rset) {
 		if (resource_manager->rset->state == MRP_RES_RESOURCE_ACQUIRED) {

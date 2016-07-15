@@ -114,9 +114,6 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	const char *ConfCtrlFile = NULL;
 	mmf_camcorder_t *hcamcorder = NULL;
 	type_element *EvasSurfaceElement = NULL;
-#ifdef _MMCAMCORDER_MURPHY_SUPPORT
-	gint64 end_time = 0;
-#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	_mmcam_dbg_log("Entered");
 
@@ -521,6 +518,8 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 	_MMCAMCORDER_LOCK_RESOURCE(hcamcorder);
 
 	if (hcamcorder->resource_manager.is_connected == FALSE) {
+		gint64 end_time = 0;
+
 		/* wait for resource manager connected */
 		_mmcam_dbg_log("resource manager is not connected. wait for signal...");
 
@@ -534,6 +533,11 @@ int _mmcamcorder_create(MMHandleType *handle, MMCamPreset *info)
 			ret = MM_ERROR_RESOURCE_INTERNAL;
 			goto _ERR_DEFAULT_VALUE_INIT;
 		}
+	}
+
+	ret = _mmcamcorder_resource_create_resource_set(&hcamcorder->resource_manager);
+	if (ret != MM_ERROR_NONE) {
+		goto _ERR_DEFAULT_VALUE_INIT;
 	}
 
 	_MMCAMCORDER_UNLOCK_RESOURCE(hcamcorder);
@@ -720,9 +724,13 @@ int _mmcamcorder_destroy(MMHandleType handle)
 
 #ifdef _MMCAMCORDER_MURPHY_SUPPORT
 	/* de-initialize resource manager */
+	_MMCAMCORDER_LOCK_RESOURCE(hcamcorder);
+
 	ret = _mmcamcorder_resource_manager_deinit(&hcamcorder->resource_manager);
 	if (ret != MM_ERROR_NONE)
 		_mmcam_dbg_err("failed to de-initialize resource manager 0x%x", ret);
+
+	_MMCAMCORDER_UNLOCK_RESOURCE(hcamcorder);
 #endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 	/* Remove idle function which is not called yet */
@@ -1130,9 +1138,6 @@ int _mmcamcorder_realize(MMHandleType handle)
 
 	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
 		int dpm_camera_state = DPM_ALLOWED;
-#ifdef _MMCAMCORDER_MURPHY_SUPPORT
-		gint64 end_time = 0;
-#endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
 		/* check camera policy from DPM */
 		if (hcamcorder->dpm_policy) {
@@ -1182,12 +1187,12 @@ int _mmcamcorder_realize(MMHandleType handle)
 
 			_mmcam_dbg_err("could not acquire resources");
 
-			_mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
-
 			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 		}
 
-		if (hcamcorder->resource_manager.acquire_count > 0) {
+		if (hcamcorder->resource_manager.acquire_remain > 0) {
+			gint64 end_time = 0;
+
 			_mmcam_dbg_warn("wait for resource state change");
 
 			/* wait for resource state change */
@@ -1254,10 +1259,6 @@ _ERR_CAMCORDER_CMD:
 		} else if (ret_resource != MM_ERROR_NONE) {
 			_mmcam_dbg_err("failed to release resource, ret_resource(0x%x)", ret_resource);
 		}
-
-		ret_resource = _mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
-		if (ret_resource != MM_ERROR_NONE)
-			_mmcam_dbg_err("failed to unprepare resource manager, ret_resource(0x%x)", ret_resource);
 	}
 #endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 
@@ -1350,7 +1351,13 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 	}
 
 #ifdef _MMCAMCORDER_MURPHY_SUPPORT
-	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE) {
+	if (hcamcorder->type == MM_CAMCORDER_MODE_VIDEO_CAPTURE &&
+		hcamcorder->state_change_by_system != _MMCAMCORDER_STATE_CHANGE_BY_RM) {
+		gint64 end_time = 0;
+
+		_mmcam_dbg_log("lock resource");
+		_MMCAMCORDER_LOCK_RESOURCE(hcamcorder);
+
 		/* release resource */
 		ret = _mmcamcorder_resource_manager_release(&hcamcorder->resource_manager);
 		if (ret == MM_ERROR_RESOURCE_INVALID_STATE) {
@@ -1359,14 +1366,24 @@ int _mmcamcorder_unrealize(MMHandleType handle)
 		} else if (ret != MM_ERROR_NONE) {
 			_mmcam_dbg_err("failed to release resource, ret(0x%x)", ret);
 			ret = MM_ERROR_CAMCORDER_INTERNAL;
+
+			_MMCAMCORDER_UNLOCK_RESOURCE(hcamcorder);
+			_mmcam_dbg_log("unlock resource");
+
 			goto _ERR_CAMCORDER_CMD_PRECON_AFTER_LOCK;
 		}
-		_MMCAMCORDER_LOCK_RESOURCE(hcamcorder);
-		ret = _mmcamcorder_resource_manager_unprepare(&hcamcorder->resource_manager);
+
+		if (hcamcorder->resource_manager.acquire_remain < hcamcorder->resource_manager.acquire_count) {
+			/* wait for resource release */
+			_mmcam_dbg_log("resource is not released all. wait for signal...");
+
+			end_time = g_get_monotonic_time() + (__MMCAMCORDER_RESOURCE_WAIT_TIME * G_TIME_SPAN_SECOND);
+
+			_MMCAMCORDER_RESOURCE_WAIT_UNTIL(hcamcorder, end_time);
+		}
 
 		_MMCAMCORDER_UNLOCK_RESOURCE(hcamcorder);
-		if (ret != MM_ERROR_NONE)
-			_mmcam_dbg_err("failed to unprepare resource manager, ret(0x%x)", ret);
+		_mmcam_dbg_log("unlock resource");
 	}
 #endif /* _MMCAMCORDER_MURPHY_SUPPORT */
 

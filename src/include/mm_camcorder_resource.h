@@ -41,13 +41,14 @@ typedef struct {
 	bool is_connected;
 	void *user_data;
 	int acquire_count;
+	int acquire_remain;
 } MMCamcorderResourceManager;
 
 int _mmcamcorder_resource_manager_init(MMCamcorderResourceManager *resource_manager, void *user_data);
+int _mmcamcorder_resource_create_resource_set(MMCamcorderResourceManager *resource_manager);
 int _mmcamcorder_resource_manager_prepare(MMCamcorderResourceManager *resource_manager, MMCamcorderResourceType resource_type);
 int _mmcamcorder_resource_manager_acquire(MMCamcorderResourceManager *resource_manager);
 int _mmcamcorder_resource_manager_release(MMCamcorderResourceManager *resource_manager);
-int _mmcamcorder_resource_manager_unprepare(MMCamcorderResourceManager *resource_manager);
 int _mmcamcorder_resource_manager_deinit(MMCamcorderResourceManager *resource_manager);
 
 #ifdef __cplusplus
