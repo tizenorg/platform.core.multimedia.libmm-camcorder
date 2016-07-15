@@ -257,6 +257,9 @@ void _mmcamcorder_destroy_video_capture_pipeline(MMHandleType handle)
 		if (!gst_bin_remove(GST_BIN(sc->element[_MMCAMCORDER_MAIN_PIPE].gst), sink_element))
 			_mmcam_dbg_warn("failed to remove sink element from pipeline");
 
+		/* reset floating reference flag to avoid leak after next use */
+		g_object_force_floating((GObject *)sink_element);
+
 		/* set sink element pointer to attribute */
 		mm_attrs_get_index((MMHandleType)attrs, MMCAM_DISPLAY_REUSE_ELEMENT, &attr_index);
 		attr_item = &attrs->items[attr_index];
