@@ -1,6 +1,6 @@
 Name:       libmm-camcorder
 Summary:    Camera and recorder library
-Version:    0.10.67
+Version:    0.10.68
 Release:    0
 Group:      Multimedia/Libraries
 License:    Apache-2.0
@@ -79,7 +79,6 @@ cp LICENSE.APLv2 %{buildroot}%{_datadir}/license/%{name}
 %files
 %manifest libmm-camcorder.manifest
 %defattr(-,root,root,-)
-%{_bindir}/*
 %{_libdir}/*.so.*
 %{_datadir}/sounds/mm-camcorder/*
 %{_datadir}/license/%{name}

@@ -166,7 +166,6 @@ AC_CHECK_FUNCS([memset select])
 AC_CONFIG_FILES([
 Makefile
 src/Makefile
-test/Makefile
 mm-camcorder.pc
 ])
 AC_OUTPUT
