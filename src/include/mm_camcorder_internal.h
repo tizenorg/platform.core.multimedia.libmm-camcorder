@@ -778,6 +778,9 @@ typedef struct mmf_camcorder {
 	dpm_restriction_policy_h dpm_policy;                    /**< DPM restriction policy handle */
 	int dpm_camera_cb_id;                                   /**< DPM camera policy changed callback id */
 
+	/* Storage */
+	_MMCamcorderStorageInfo storage_info;                   /**< Storage information */
+
 #ifdef _MMCAMCORDER_RM_SUPPORT
 	rm_category_request_s request_resources;
 	rm_device_return_s returned_devices;

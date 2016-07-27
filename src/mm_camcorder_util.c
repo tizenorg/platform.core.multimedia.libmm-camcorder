@@ -37,8 +37,6 @@
 #include <mm_util_imgp.h>
 #include <mm_util_jpeg.h>
 
-#include <storage.h>
-
 /*-----------------------------------------------------------------------
 |    GLOBAL VARIABLE DEFINITIONS for internal				|
 -----------------------------------------------------------------------*/
@@ -678,56 +676,90 @@ gboolean _mmcamcorder_update_composition_matrix(FILE *f, int orientation)
 }
 
 
-int _mmcamcorder_get_freespace(const gchar *path, const gchar *root_directory, guint64 *free_space)
+static int __mmcamcorder_storage_supported_cb(int storage_id, storage_type_e type,
+	storage_state_e state, const char *path, void *user_data)
+{
+	_MMCamcorderStorageInfo *info = (_MMCamcorderStorageInfo *)user_data;
+
+	if (!info) {
+		_mmcam_dbg_err("NULL info");
+		return FALSE;
+	}
+
+	if (type == info->type) {
+		info->id = storage_id;
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+
+int _mmcamcorder_get_storage_info(const gchar *path, const gchar *root_directory, _MMCamcorderStorageInfo *info)
 {
 	int ret = 0;
-	struct statvfs vfs;
-
-	int is_internal = TRUE;
 	struct stat stat_path;
 	struct stat stat_root;
 
-	if (path == NULL || free_space == NULL) {
-		_mmcam_dbg_err("invalid parameter %p, %p", path, free_space);
+	if (!path || !root_directory || !info) {
+		_mmcam_dbg_err("invalid parameter %p %p %p", path, root_directory, info);
 		return -1;
 	}
 
-	if (root_directory && strlen(root_directory) > 0) {
+	if (strlen(root_directory) > 0) {
 		if (stat(path, &stat_path) != 0) {
-			*free_space = 0;
 			_mmcam_dbg_err("failed to stat for [%s][errno %d]", path, errno);
 			return -1;
 		}
 
 		if (stat(root_directory, &stat_root) != 0) {
-			*free_space = 0;
 			_mmcam_dbg_err("failed to stat for [%s][errno %d]", root_directory, errno);
 			return -1;
 		}
 
-		if (stat_path.st_dev != stat_root.st_dev)
-			is_internal = FALSE;
+		if (stat_path.st_dev == stat_root.st_dev)
+			info->type = STORAGE_TYPE_INTERNAL;
+		else
+			info->type = STORAGE_TYPE_EXTERNAL;
 	} else {
-		_mmcam_dbg_warn("root_directory is NULL, assume that it's internal storage.");
+		info->type = STORAGE_TYPE_INTERNAL;
+		_mmcam_dbg_warn("invalid length of root directory, assume that it's internal storage.");
 	}
 
-	if (is_internal)
+	ret = storage_foreach_device_supported((storage_device_supported_cb)__mmcamcorder_storage_supported_cb, info);
+	if (ret != STORAGE_ERROR_NONE) {
+		_mmcam_dbg_err("storage_foreach_device_supported failed 0x%x", ret);
+		return -1;
+	}
+
+	_mmcam_dbg_log("storage info - type %d, id %d", info->type, info->id);
+
+	return 0;
+}
+
+
+int _mmcamcorder_get_freespace(storage_type_e type, guint64 *free_space)
+{
+	int ret = 0;
+	struct statvfs vfs;
+
+	if (type == STORAGE_TYPE_INTERNAL)
 		ret = storage_get_internal_memory_size(&vfs);
 	else
 		ret = storage_get_external_memory_size(&vfs);
 
-	if (ret < 0) {
+	if (ret != STORAGE_ERROR_NONE) {
 		*free_space = 0;
-		_mmcam_dbg_err("failed to get memory size [%s]", path);
+		_mmcam_dbg_err("get memory size failed [type %d] 0x%x", type, ret);
 		return -1;
-	} else {
-		*free_space = vfs.f_bsize * vfs.f_bavail;
-		/*
-		_mmcam_dbg_log("vfs.f_bsize [%lu], vfs.f_bavail [%lu]", vfs.f_bsize, vfs.f_bavail);
-		_mmcam_dbg_log("memory size %llu [%s]", *free_space, path);
-		*/
-		return 1;
 	}
+
+	*free_space = vfs.f_bsize * vfs.f_bavail;
+	/*
+	_mmcam_dbg_log("vfs.f_bsize [%lu], vfs.f_bavail [%lu]", vfs.f_bsize, vfs.f_bavail);
+	_mmcam_dbg_log("memory size %llu [%s]", *free_space, path);
+	*/
+	return 0;
 }
 
 
@@ -1135,7 +1167,7 @@ gboolean _mmcamcorder_msg_callback(void *data)
 
 	/*_mmcam_dbg_log("msg id:%x, msg_cb:%p, msg_data:%p, item:%p", item->id, hcamcorder->msg_cb, hcamcorder->msg_data, item);*/
 
-	_MMCAMCORDER_LOCK((MMHandleType)hcamcorder);
+	_MMCAMCORDER_LOCK(hcamcorder);
 
 	/* remove item from msg data */
 	if (hcamcorder->msg_data) {
@@ -1144,7 +1176,7 @@ gboolean _mmcamcorder_msg_callback(void *data)
 		_mmcam_dbg_warn("msg_data is NULL but item[%p] will be removed", item);
 	}
 
-	_MMCAMCORDER_UNLOCK((MMHandleType)hcamcorder);
+	_MMCAMCORDER_UNLOCK(hcamcorder);
 
 	_MMCAMCORDER_LOCK_MESSAGE_CALLBACK(hcamcorder);
 
