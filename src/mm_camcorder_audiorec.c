@@ -439,7 +439,13 @@ _mmcamcorder_audio_command(MMHandleType handle, int command)
 			/* TODO : check free space before recording start */
 			dir_name = g_path_get_dirname(info->filename);
 			if (dir_name) {
-				err = _mmcamcorder_get_freespace(dir_name, hcamcorder->root_directory, &free_space);
+				err = _mmcamcorder_get_storage_info(dir_name, hcamcorder->root_directory, &hcamcorder->storage_info);
+				if (err != 0) {
+					_mmcam_dbg_err("get storage info failed");
+					return MM_ERROR_OUT_OF_STORAGE;
+				}
+
+				err = _mmcamcorder_get_freespace(hcamcorder->storage_info.type, &free_space);
 
 				_mmcam_dbg_warn("current space - %s [%" G_GUINT64_FORMAT "]", dir_name, free_space);
 
@@ -827,7 +833,6 @@ static GstPadProbeReturn __mmcamcorder_audio_dataprobe_record(GstPad *pad, GstPa
 	guint64 free_space = 0;
 	guint64 buffer_size = 0;
 	guint64 trailer_size = 0;
-	char *filename = NULL;
 	unsigned long long remained_time = 0;
 	int get_trailer_size = 0;
 
@@ -879,36 +884,48 @@ static GstPadProbeReturn __mmcamcorder_audio_dataprobe_record(GstPad *pad, GstPa
 		trailer_size = 0; /* no trailer */
 	}
 
-	filename = audioinfo->filename;
-
 	/* to minimizing free space check overhead */
 	count = count % _MMCAMCORDER_FREE_SPACE_CHECK_INTERVAL;
 	if (count++ == 0) {
-		char *dir_name = g_path_get_dirname(filename);
 		gint free_space_ret = 0;
+		storage_state_e storage_state = STORAGE_STATE_UNMOUNTABLE;
 
-		if (dir_name) {
-			free_space_ret = _mmcamcorder_get_freespace(dir_name, hcamcorder->root_directory, &free_space);
-			g_free(dir_name);
-			dir_name = NULL;
-		} else {
-			_mmcam_dbg_err("failed to get dir name from [%s]", filename);
-			free_space_ret = -1;
+		/* check storage state */
+		storage_get_state(hcamcorder->storage_info.id, &storage_state);
+		if (storage_state == STORAGE_STATE_REMOVED ||
+			storage_state == STORAGE_STATE_UNMOUNTABLE) {
+			_mmcam_dbg_err("storage was removed! [storage state %d]", storage_state);
+
+			_MMCAMCORDER_LOCK(hcamcorder);
+
+			if (sc->ferror_send == FALSE) {
+				_mmcam_dbg_err("OUT_OF_STORAGE error");
+
+				sc->ferror_send = TRUE;
+
+				_MMCAMCORDER_UNLOCK(hcamcorder);
+
+				msg.id = MM_MESSAGE_CAMCORDER_ERROR;
+				msg.param.code = MM_ERROR_OUT_OF_STORAGE;
+
+				_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
+			} else {
+				_MMCAMCORDER_UNLOCK(hcamcorder);
+				_mmcam_dbg_warn("error was already sent");
+			}
+
+			return GST_PAD_PROBE_DROP;
 		}
 
-		/*_mmcam_dbg_log("check free space for recording");*/
-
-		switch (free_space_ret) {
-		case -2: /* file not exist */
-		case -1: /* failed to get free space */
+		/* check free space */
+		free_space_ret = _mmcamcorder_get_freespace(hcamcorder->storage_info.type, &free_space);
+		if (free_space_ret != 0) {
 			_mmcam_dbg_err("Error occured. [%d]", free_space_ret);
 			if (sc->ferror_count == 2 && sc->ferror_send == FALSE) {
 				sc->ferror_send = TRUE;
+
 				msg.id = MM_MESSAGE_CAMCORDER_ERROR;
-				if (free_space_ret == -2)
-					msg.param.code = MM_ERROR_FILE_NOT_FOUND;
-				else
-					msg.param.code = MM_ERROR_FILE_READ;
+				msg.param.code = MM_ERROR_FILE_READ;
 
 				_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
 			} else {
@@ -916,27 +933,24 @@ static GstPadProbeReturn __mmcamcorder_audio_dataprobe_record(GstPad *pad, GstPa
 			}
 
 			return GST_PAD_PROBE_DROP; /* skip this buffer */
+		}
 
-		default: /* succeeded to get free space */
-			/* check free space for recording */
-			if (free_space < (guint64)(_MMCAMCORDER_AUDIO_MINIMUM_SPACE + buffer_size + trailer_size)) {
-				_mmcam_dbg_warn("No more space for recording!!!");
-				_mmcam_dbg_warn("Free Space : [%" G_GUINT64_FORMAT "], file size : [%" G_GUINT64_FORMAT "]",
-					free_space, audioinfo->filesize);
+		if (free_space < (guint64)(_MMCAMCORDER_AUDIO_MINIMUM_SPACE + buffer_size + trailer_size)) {
+			_mmcam_dbg_warn("No more space for recording!!!");
+			_mmcam_dbg_warn("Free Space : [%" G_GUINT64_FORMAT "], file size : [%" G_GUINT64_FORMAT "]",
+				free_space, audioinfo->filesize);
 
-				if (audioinfo->bMuxing) {
-					MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "block", TRUE);
-				} else {
-					MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_AQUE].gst, "empty-buffers", TRUE);
-				}
-
-				sc->isMaxsizePausing = TRUE;
-				msg.id = MM_MESSAGE_CAMCORDER_NO_FREE_SPACE;
-				_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
-
-				return GST_PAD_PROBE_DROP; /* skip this buffer */
+			if (audioinfo->bMuxing) {
+				MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "block", TRUE);
+			} else {
+				MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_AQUE].gst, "empty-buffers", TRUE);
 			}
-			break;
+
+			sc->isMaxsizePausing = TRUE;
+			msg.id = MM_MESSAGE_CAMCORDER_NO_FREE_SPACE;
+			_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
+
+			return GST_PAD_PROBE_DROP; /* skip this buffer */
 		}
 	}
 

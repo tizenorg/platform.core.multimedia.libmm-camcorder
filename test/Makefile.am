@@ -6,6 +6,7 @@ mm_camcorder_testsuite_CFLAGS = -I$(srcdir)/../src/include \
 			     $(GLIB_CFLAGS)\
 			     $(GST_CFLAGS)\
 			     $(DPM_CFLAGS)\
+			     $(STORAGE_CFLAGS)\
 			     $(MM_COMMON_CFLAGS)\
 			     $(MM_SOUND_CFLAGS)
 
@@ -30,3 +31,4 @@ endif
 if PRODUCT_TV
 mm_camcorder_testsuite_CFLAGS += -D_MMCAMCORDER_PRODUCT_TV
 endif
+

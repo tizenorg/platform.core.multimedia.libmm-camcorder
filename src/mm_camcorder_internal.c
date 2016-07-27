@@ -3204,6 +3204,7 @@ GstBusSyncReply _mmcamcorder_encode_pipeline_bus_sync_callback(GstBus *bus, GstM
 			}
 		} else {
 			gboolean b_commiting = FALSE;
+			storage_state_e storage_state = STORAGE_STATE_UNMOUNTABLE;
 
 			if (hcamcorder->type != MM_CAMCORDER_MODE_AUDIO) {
 				mmf_return_val_if_fail(sc->info_video, GST_BUS_PASS);
@@ -3217,8 +3218,23 @@ GstBusSyncReply _mmcamcorder_encode_pipeline_bus_sync_callback(GstBus *bus, GstM
 
 			switch (err->code) {
 			case GST_RESOURCE_ERROR_WRITE:
-				_mmcam_dbg_err("File write error");
-				hcamcorder->error_code = MM_ERROR_FILE_WRITE;
+				storage_get_state(hcamcorder->storage_info.id, &storage_state);
+				if (storage_state == STORAGE_STATE_REMOVED ||
+					storage_state == STORAGE_STATE_UNMOUNTABLE) {
+					_mmcam_dbg_err("storage was removed! [storage state %d]", storage_state);
+					hcamcorder->error_code = MM_ERROR_OUT_OF_STORAGE;
+				} else {
+					_mmcam_dbg_err("File write error, storage state %d", storage_state);
+					hcamcorder->error_code = MM_ERROR_FILE_WRITE;
+				}
+
+				if (sc->ferror_send == FALSE) {
+					sc->ferror_send = TRUE;
+				} else {
+					_mmcam_dbg_err("error was already sent");
+					_MMCAMCORDER_UNLOCK(hcamcorder);
+					goto DROP_MESSAGE;
+				}
 				break;
 			case GST_RESOURCE_ERROR_NO_SPACE_LEFT:
 				_mmcam_dbg_err("No left space");

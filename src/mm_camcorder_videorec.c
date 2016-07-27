@@ -554,7 +554,13 @@ int _mmcamcorder_video_command(MMHandleType handle, int command)
 
 			dir_name = g_path_get_dirname(temp_filename);
 			if (dir_name) {
-				ret_free_space = _mmcamcorder_get_freespace(dir_name, hcamcorder->root_directory, &free_space);
+				ret = _mmcamcorder_get_storage_info(dir_name, hcamcorder->root_directory, &hcamcorder->storage_info);
+				if (ret != 0) {
+					_mmcam_dbg_err("get storage info failed");
+					return MM_ERROR_OUT_OF_STORAGE;
+				}
+
+				ret_free_space = _mmcamcorder_get_freespace(hcamcorder->storage_info.type, &free_space);
 
 				_mmcam_dbg_warn("current space - %s [%" G_GUINT64_FORMAT "]", dir_name, free_space);
 
@@ -1405,9 +1411,9 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPa
 	guint64 trailer_size = 0;
 	guint64 queued_buffer = 0;
 	guint64 max_size = 0;
-	char *dir_name = NULL;
 	GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER(info);
 	GstMapInfo mapinfo;
+	storage_state_e storage_state = STORAGE_STATE_UNMOUNTABLE;
 
 	mmf_camcorder_t *hcamcorder = MMF_CAMCORDER(u_data);
 	_MMCamcorderMsgItem msg;
@@ -1448,29 +1454,42 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPa
 		trailer_size = 0;
 	}
 
-	dir_name = g_path_get_dirname(videoinfo->filename);
-	if (dir_name) {
-		ret = _mmcamcorder_get_freespace(dir_name, hcamcorder->root_directory, &free_space);
-		g_free(dir_name);
-		dir_name = NULL;
-	} else {
-		_mmcam_dbg_err("failed to get dir name from [%s]", videoinfo->filename);
-		ret = -1;
+	/* check storage state */
+	storage_get_state(hcamcorder->storage_info.id, &storage_state);
+	if (storage_state == STORAGE_STATE_REMOVED ||
+		storage_state == STORAGE_STATE_UNMOUNTABLE) {
+		_mmcam_dbg_err("storage was removed! [storage state %d]", storage_state);
+
+		_MMCAMCORDER_LOCK(hcamcorder);
+
+		if (sc->ferror_send == FALSE) {
+			_mmcam_dbg_err("OUT_OF_STORAGE error");
+
+			sc->ferror_send = TRUE;
+
+			_MMCAMCORDER_UNLOCK(hcamcorder);
+
+			msg.id = MM_MESSAGE_CAMCORDER_ERROR;
+			msg.param.code = MM_ERROR_OUT_OF_STORAGE;
+
+			_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
+		} else {
+			_MMCAMCORDER_UNLOCK(hcamcorder);
+			_mmcam_dbg_warn("error was already sent");
+		}
+
+		return GST_PAD_PROBE_DROP;
 	}
 
-	/*_mmcam_dbg_log("check free space for recording");*/
-
-	switch (ret) {
-	case -2: /* file not exist */
-	case -1: /* failed to get free space */
+	/* check free space */
+	ret = _mmcamcorder_get_freespace(hcamcorder->storage_info.type, &free_space);
+	if (ret != 0) {
 		_mmcam_dbg_err("Error occured. [%d]", ret);
 		if (sc->ferror_count == 2 && sc->ferror_send == FALSE) {
 			sc->ferror_send = TRUE;
+
 			msg.id = MM_MESSAGE_CAMCORDER_ERROR;
-			if (ret == -2)
-				msg.param.code = MM_ERROR_FILE_NOT_FOUND;
-			else
-				msg.param.code = MM_ERROR_FILE_READ;
+			msg.param.code = MM_ERROR_FILE_READ;
 
 			_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
 		} else {
@@ -1478,38 +1497,34 @@ static GstPadProbeReturn __mmcamcorder_video_dataprobe_record(GstPad *pad, GstPa
 		}
 
 		return GST_PAD_PROBE_DROP; /* skip this buffer */
-		break;
-	default: /* succeeded to get free space */
-		/* check free space for recording */
-		/* get queued buffer size */
-		if (sc->encode_element[_MMCAMCORDER_ENCSINK_AENC_QUE].gst) {
-			MMCAMCORDER_G_OBJECT_GET(sc->encode_element[_MMCAMCORDER_ENCSINK_AENC_QUE].gst, "current-level-bytes", &aq_size);
+	}
+
+	/* get queued buffer size */
+	if (sc->encode_element[_MMCAMCORDER_ENCSINK_AENC_QUE].gst) {
+		MMCAMCORDER_G_OBJECT_GET(sc->encode_element[_MMCAMCORDER_ENCSINK_AENC_QUE].gst, "current-level-bytes", &aq_size);
+	}
+
+	if (sc->encode_element[_MMCAMCORDER_ENCSINK_VENC_QUE].gst) {
+		MMCAMCORDER_G_OBJECT_GET(sc->encode_element[_MMCAMCORDER_ENCSINK_VENC_QUE].gst, "current-level-bytes", &vq_size);
+	}
+
+	queued_buffer = aq_size + vq_size;
+
+	if (free_space < (_MMCAMCORDER_MINIMUM_SPACE + buffer_size + trailer_size + queued_buffer)) {
+		_mmcam_dbg_warn("No more space for recording!!! Recording is paused.");
+		_mmcam_dbg_warn("Free Space : [%" G_GUINT64_FORMAT "], trailer size : [%" G_GUINT64_FORMAT "]," \
+			" buffer size : [%" G_GUINT64_FORMAT "], queued buffer size : [%" G_GUINT64_FORMAT "]", \
+			free_space, trailer_size, buffer_size, queued_buffer);
+
+		if (!sc->isMaxsizePausing) {
+			MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "block", TRUE);
+			sc->isMaxsizePausing = TRUE;
+
+			msg.id = MM_MESSAGE_CAMCORDER_NO_FREE_SPACE;
+			_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
 		}
 
-		if (sc->encode_element[_MMCAMCORDER_ENCSINK_VENC_QUE].gst) {
-			MMCAMCORDER_G_OBJECT_GET(sc->encode_element[_MMCAMCORDER_ENCSINK_VENC_QUE].gst, "current-level-bytes", &vq_size);
-		}
-
-		queued_buffer = aq_size + vq_size;
-
-		/* check free space */
-		if (free_space < (_MMCAMCORDER_MINIMUM_SPACE + buffer_size + trailer_size + queued_buffer)) {
-			_mmcam_dbg_warn("No more space for recording!!! Recording is paused.");
-			_mmcam_dbg_warn("Free Space : [%" G_GUINT64_FORMAT "], trailer size : [%" G_GUINT64_FORMAT "]," \
-				" buffer size : [%" G_GUINT64_FORMAT "], queued buffer size : [%" G_GUINT64_FORMAT "]", \
-				free_space, trailer_size, buffer_size, queued_buffer);
-
-			if (!sc->isMaxsizePausing) {
-				MMCAMCORDER_G_OBJECT_SET(sc->encode_element[_MMCAMCORDER_ENCSINK_ENCBIN].gst, "block", TRUE);
-				sc->isMaxsizePausing = TRUE;
-
-				msg.id = MM_MESSAGE_CAMCORDER_NO_FREE_SPACE;
-				_mmcamcorder_send_message((MMHandleType)hcamcorder, &msg);
-			}
-
-			return GST_PAD_PROBE_DROP;
-		}
-		break;
+		return GST_PAD_PROBE_DROP;
 	}
 
 	g_mutex_lock(&videoinfo->size_check_lock);

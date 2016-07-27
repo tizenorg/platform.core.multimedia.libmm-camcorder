@@ -27,6 +27,7 @@
 ========================================================================================*/
 #include <gio/gio.h>
 #include <linux/magic.h>
+#include <storage.h>
 
 
 #ifdef __cplusplus
@@ -224,6 +225,14 @@ typedef struct {
 	GMutex lock;                /**< mutex for item */
 } _MMCamcorderMsgItem;
 
+/**
+ * Structure of storage information
+ */
+typedef struct {
+	storage_type_e type;
+	int id;
+} _MMCamcorderStorageInfo;
+
 
 /*=======================================================================================
 | CONSTANT DEFINITIONS									|
@@ -286,7 +295,8 @@ guint64 _mmcamcorder_get_container_size64(const guchar *size);
 gboolean _mmcamcorder_update_composition_matrix(FILE *f, int orientation);
 
 /* File system */
-int _mmcamcorder_get_freespace(const gchar *path, const gchar *root_directory, guint64 *free_space);
+int _mmcamcorder_get_storage_info(const gchar *path, const gchar *root_directory, _MMCamcorderStorageInfo *storage_info);
+int _mmcamcorder_get_freespace(storage_type_e type, guint64 *free_space);
 int _mmcamcorder_get_file_size(const char *filename, guint64 *size);
 int _mmcamcorder_get_file_system_type(const gchar *path, int *file_system_type);
 
